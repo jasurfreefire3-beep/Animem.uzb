@@ -1,0 +1,6 @@
+{
+  "name": "ANIMEUZ",
+  "description": "Eng so'nggi va eng sara o'zbek tilidagi animelar katalogi, jadvali va tomosha qilish platformasi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
