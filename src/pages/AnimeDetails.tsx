@@ -10,6 +10,7 @@ export default function AnimeDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, token } = useAuth();
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
   const [anime, setAnime] = useState<Anime | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [episodesList, setEpisodesList] = useState<any[]>([]);
@@ -21,7 +22,7 @@ export default function AnimeDetails() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/animes/${id}`)
+    fetch(`${API_BASE}/api/animes/${id}`)
       .then((res) => res.json())
       .then(data => {
         setAnime(data);
@@ -41,7 +42,7 @@ export default function AnimeDetails() {
         }
       });
 
-    fetch(`/api/animes/${id}/episodes`)
+    fetch(`${API_BASE}/api/animes/${id}/episodes`)
       .then((res) => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -59,12 +60,6 @@ export default function AnimeDetails() {
         console.error("Failed to fetch episodes:", err);
         setEpisodesList([]);
       });
-
-    fetchComments = () => {
-      fetch(`/api/animes/${id}/comments`)
-        .then((res) => res.json())
-        .then(setComments);
-    };
 
     fetchComments();
     window.scrollTo(0, 0);
@@ -141,7 +136,7 @@ export default function AnimeDetails() {
     e.preventDefault();
     if (!newComment.trim() || !user) return;
 
-    await fetch(`/api/animes/${id}/comments`, {
+    await fetch(`${API_BASE}/api/animes/${id}/comments`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -158,7 +153,7 @@ export default function AnimeDetails() {
     if (!token || !commentId) return;
     if (window.confirm("Ushbu izohni o'chirmoqchimisiz?")) {
       try {
-        const res = await fetch(`/api/comments/${commentId}`, {
+        const res = await fetch(`${API_BASE}/api/comments/${commentId}`, {
           method: 'DELETE',
           headers: {
             Authorization: `Bearer ${token}`

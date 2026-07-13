@@ -14,7 +14,8 @@ export default function Animelar() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
-    fetch('/api/animes')
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+    fetch(`${API_BASE}/api/animes`)
       .then((res) => res.json())
       .then((data) => {
         setAnimes(data);

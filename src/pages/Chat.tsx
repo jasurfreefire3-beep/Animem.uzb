@@ -67,7 +67,8 @@ export default function Chat() {
     if (!token) return;
     if (window.confirm("Haqiqatan ham barcha xabarlarni o'chirmoqchimisiz? (Bu chatni butunlay tozalaydi)")) {
       try {
-        const res = await fetch('/api/chat/clear', {
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const res = await fetch(`${API_BASE}/api/chat/clear`, {
           method: 'DELETE',
           headers: {
             Authorization: `Bearer ${token}`
@@ -86,7 +87,8 @@ export default function Chat() {
     if (!token || !msgId) return;
     if (window.confirm("Ushbu xabarni o'chirmoqchimisiz?")) {
       try {
-        const res = await fetch(`/api/chat/messages/${msgId}`, {
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const res = await fetch(`${API_BASE}/api/chat/messages/${msgId}`, {
           method: 'DELETE',
           headers: {
             Authorization: `Bearer ${token}`
