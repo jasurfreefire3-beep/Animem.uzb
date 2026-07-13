@@ -11,14 +11,15 @@ export default function Home() {
   const [loadingComments, setLoadingComments] = useState(true);
 
   useEffect(() => {
-    fetch('/api/animes')
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+    fetch(`${API_BASE}/api/animes`)
       .then((res) => res.json())
       .then((data) => {
         setAnimes(data);
         setLoading(false);
       });
 
-    fetch('/api/comments/recent')
+    fetch(`${API_BASE}/api/comments/recent`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
