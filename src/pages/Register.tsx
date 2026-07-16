@@ -13,7 +13,8 @@ export default function Register() {
   const navigate = useNavigate();
 
   const syncFirebaseUser = async (firebaseToken: string) => {
-    const res = await fetch('/api/auth/firebase', {
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+    const res = await fetch(`${API_BASE}/api/auth/firebase`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: firebaseToken })

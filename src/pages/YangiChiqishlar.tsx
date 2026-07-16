@@ -9,12 +9,21 @@ export default function YangiChiqishlar() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/animes')
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+    fetch(`${API_BASE}/api/animes`)
       .then((res) => res.json())
       .then((data) => {
-        // Sort by ID/created_at descending to simulate newly added releases
-        const sorted = [...data].sort((a, b) => b.id - a.id);
-        setAnimes(sorted);
+        if (Array.isArray(data)) {
+          // Sort by ID/created_at descending to simulate newly added releases
+          const sorted = [...data].sort((a, b) => b.id - a.id);
+          setAnimes(sorted);
+        } else {
+          console.error("Invalid data format for animes:", data);
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching animes:", err);
         setLoading(false);
       });
   }, []);

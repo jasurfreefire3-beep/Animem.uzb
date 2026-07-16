@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import http from "http";
 import { Server } from "socket.io";
@@ -31,7 +32,7 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-const PORT = 3000;
+const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "anime_super_secret_key";
 
 const pool = mysql.createPool({
@@ -68,6 +69,16 @@ async function initDb() {
         rating FLOAT DEFAULT 0,
         rating_count INT DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS episodes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        anime_id INT NOT NULL,
+        episode_number INT NOT NULL,
+        video_url VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (anime_id) REFERENCES animes(id) ON DELETE CASCADE
       )
     `);
     await connection.query(`
@@ -622,14 +633,16 @@ io.on("connection", async (socket) => {
 
 // --- Vite Middleware ---
 async function start() {
-  if (process.env.NODE_ENV !== "production") {
+  const distPath = path.join(process.cwd(), "dist");
+  const isProduction = process.env.NODE_ENV === "production" || fs.existsSync(distPath);
+
+  if (!isProduction) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));

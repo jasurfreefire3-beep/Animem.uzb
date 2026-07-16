@@ -21,10 +21,19 @@ export default function Jadval() {
   ];
 
   useEffect(() => {
-    fetch('/api/animes')
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+    fetch(`${API_BASE}/api/animes`)
       .then((res) => res.json())
       .then((data) => {
-        setAnimes(data);
+        if (Array.isArray(data)) {
+          setAnimes(data);
+        } else {
+          console.error("Invalid data format for animes:", data);
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching animes:", err);
         setLoading(false);
       });
 
