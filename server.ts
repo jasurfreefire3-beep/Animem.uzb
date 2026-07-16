@@ -85,8 +85,10 @@ io.on("connection", async (socket) => {
 
   // Handle new message
   socket.on("sendMessage", async (data) => {
+    console.log("SEND MESSAGE RECEIVED", data);
     try {
       const { user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content } = data;
+
       
       const [result]: any = await pool.query(
         "INSERT INTO messages (user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content) VALUES (?, ?, ?, ?, ?, ?)",
@@ -204,6 +206,54 @@ app.post("/api/auth/login", async (req, res) => {
     });
   } catch (error: any) {
     console.error("Login error:", error);
+    res.status(500).json({ error: "Serverda xatolik yuz berdi" });
+  }
+});
+
+app.post("/api/auth/google", async (req, res) => {
+  try {
+    const { email, name } = req.body;
+    if (!email || !name) {
+      return res.status(400).json({ error: "Kerakli ma'lumotlar yo'q" });
+    }
+
+    let [users]: any = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
+    let user = users[0];
+
+    if (!user) {
+      const role = email === "mosinjonovjasurbek28@gmail.com" ? "admin" : "user";
+      // Auto generate random password for google users (they won't use it anyway)
+      const randomPass = Math.random().toString(36).slice(-8);
+      const hashedPassword = await bcrypt.hash(randomPass, 10);
+      
+      const [result]: any = await pool.query(
+        "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
+        [name, email, hashedPassword, role]
+      );
+      
+      user = {
+        id: result.insertId,
+        name,
+        email,
+        role,
+      };
+    }
+
+    const userPayload = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+
+    const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: "30d" });
+
+    res.json({
+      token,
+      user: userPayload,
+    });
+  } catch (error: any) {
+    console.error("Google Login error:", error);
     res.status(500).json({ error: "Serverda xatolik yuz berdi" });
   }
 });
@@ -361,12 +411,13 @@ app.post("/api/animes", authenticateToken, async (req: any, res) => {
       janrlar,
       video_url,
       tavsiya,
+      is_banner,
     } = req.body;
 
     const [result]: any = await pool.query(
       `INSERT INTO animes 
-      (title, description, image_url, banner_url, rating, rating_count, holati, yil, studiyasi, qismlar_soni, korishlar, janrlar, video_url, tavsiya) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (title, description, image_url, banner_url, rating, rating_count, holati, yil, studiyasi, qismlar_soni, korishlar, janrlar, video_url, tavsiya, is_banner) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         title || "",
         description || "",
@@ -382,6 +433,7 @@ app.post("/api/animes", authenticateToken, async (req: any, res) => {
         janrlar || "",
         video_url || "",
         tavsiya ? 1 : 0,
+        is_banner ? 1 : 0,
       ]
     );
 
@@ -413,12 +465,13 @@ app.put("/api/animes/:id", authenticateToken, async (req: any, res) => {
       janrlar,
       video_url,
       tavsiya,
+      is_banner,
     } = req.body;
 
     await pool.query(
       `UPDATE animes SET 
       title = ?, description = ?, image_url = ?, banner_url = ?, rating = ?, rating_count = ?, 
-      holati = ?, yil = ?, studiyasi = ?, qismlar_soni = ?, korishlar = ?, janrlar = ?, video_url = ?, tavsiya = ? 
+      holati = ?, yil = ?, studiyasi = ?, qismlar_soni = ?, korishlar = ?, janrlar = ?, video_url = ?, tavsiya = ?, is_banner = ? 
       WHERE id = ?`,
       [
         title || "",
@@ -435,6 +488,7 @@ app.put("/api/animes/:id", authenticateToken, async (req: any, res) => {
         janrlar || "",
         video_url || "",
         tavsiya ? 1 : 0,
+        is_banner ? 1 : 0,
         id,
       ]
     );
@@ -461,11 +515,12 @@ app.delete("/api/animes/:id", authenticateToken, async (req: any, res) => {
 });
 
 // Admin Route: Save Episode (Upsert)
-app.post("/api/episodes", authenticateToken, async (req: any, res) => {
+app.post("/api/animes/:animeId/episodes", authenticateToken, async (req: any, res) => {
   try {
     if (req.user.role !== "admin") return res.sendStatus(403);
 
-    const { anime_id, episode_number, video_url } = req.body;
+    const anime_id = req.params.animeId;
+    const { episode_number, video_url } = req.body;
 
     // Check if episode already exists
     const [existing]: any = await pool.query(
@@ -493,7 +548,7 @@ app.post("/api/episodes", authenticateToken, async (req: any, res) => {
 });
 
 // Admin Route: Delete Episode
-app.delete("/api/episodes/:animeId/:episodeNumber", authenticateToken, async (req: any, res) => {
+app.delete("/api/animes/:animeId/episodes/:episodeNumber", authenticateToken, async (req: any, res) => {
   try {
     if (req.user.role !== "admin") return res.sendStatus(403);
     const { animeId, episodeNumber } = req.params;
@@ -510,6 +565,45 @@ app.delete("/api/episodes/:animeId/:episodeNumber", authenticateToken, async (re
 });
 
 // Chat Administration Routes (Authorized)
+// Add new message via REST API
+app.post("/api/chat/messages", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content } = req.body;
+    
+    // Ensure the sender is the authenticated user
+    if (req.user.id != user_id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: "Ruxsat etilmagan" });
+    }
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: "Xabar bo'sh bo'lishi mumkin emas" });
+    }
+    
+    const [result]: any = await pool.query(
+      "INSERT INTO messages (user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content) VALUES (?, ?, ?, ?, ?, ?)",
+      [
+        user_id || req.user.id,
+        user_name || req.user.name,
+        content.trim(),
+        reply_to_id || null,
+        reply_to_name || null,
+        reply_to_content || null,
+      ]
+    );
+
+    const [rows]: any = await pool.query("SELECT * FROM messages WHERE id = ?", [result.insertId]);
+    const insertedMessage = rows[0];
+
+    // Broadcast new message to everyone
+    io.emit("newMessage", insertedMessage);
+
+    res.json(insertedMessage);
+  } catch (err) {
+    console.error("Error saving new chat message via API:", err);
+    res.status(500).json({ error: "Xabarni saqlashda xatolik" });
+  }
+});
+
 app.delete("/api/chat/messages/:id", authenticateToken, async (req: any, res) => {
   try {
     const id = req.params.id;
@@ -520,7 +614,7 @@ app.delete("/api/chat/messages/:id", authenticateToken, async (req: any, res) =>
       return res.status(404).json({ error: "Xabar topilmadi" });
     }
 
-    if (req.user.role !== "admin" && msgRows[0].user_id !== req.user.id) {
+    if (req.user.role !== "admin" && msgRows[0].user_id != req.user.id) {
       return res.status(403).json({ error: "Ruxsat etilmadi" });
     }
 

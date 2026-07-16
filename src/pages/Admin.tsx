@@ -25,6 +25,7 @@ export default function Admin() {
   const [qismlarSoni, setQismlarSoni] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [tavsiya, setTavsiya] = useState(false);
+  const [isBanner, setIsBanner] = useState(false);
   
   // Multi Category Selection state
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
@@ -101,7 +102,8 @@ export default function Admin() {
         qismlar_soni: qismlarSoni ? parseInt(qismlarSoni) : 0,
         janrlar: selectedGenres.join(', '),
         video_url: videoUrl,
-        tavsiya: tavsiya ? 1 : 0
+        tavsiya: tavsiya ? 1 : 0,
+        is_banner: isBanner ? 1 : 0
       };
 
       let res;
@@ -148,6 +150,7 @@ export default function Admin() {
       setSelectedGenres([]);
       setVideoUrl('');
       setTavsiya(false);
+      setIsBanner(false);
       
       // Go back to list tab
       setActiveTab('manage_animes');
@@ -183,6 +186,7 @@ export default function Admin() {
     
     setVideoUrl(anime.video_url || '');
     setTavsiya(!!anime.tavsiya);
+    setIsBanner(!!anime.is_banner);
     
     // Switch to submit form tab
     setActiveTab('add_anime');
@@ -203,6 +207,7 @@ export default function Admin() {
     setSelectedGenres([]);
     setVideoUrl('');
     setTavsiya(false);
+    setIsBanner(false);
     setActiveTab('manage_animes');
   };
 
@@ -733,6 +738,21 @@ export default function Admin() {
                 </div>
                 <label htmlFor="tavsiya" className="ml-3 text-xs font-bold text-white cursor-pointer select-none uppercase tracking-wide">
                   Trend bo'limida ajratib ko'rsatilsin (Highlight in Trending)
+                </label>
+              </div>
+              
+              <div className="md:col-span-2 flex items-center mt-2 p-3 bg-[#000] rounded-sm border border-[#222]">
+                <div className="flex items-center h-4">
+                  <input
+                    id="isBanner"
+                    type="checkbox"
+                    checked={isBanner}
+                    onChange={(e) => setIsBanner(e.target.checked)}
+                    className="w-4 h-4 text-[#ff006a] bg-[#111] border-[#333] rounded-sm focus:ring-[#ff006a]/50 focus:ring-2 cursor-pointer"
+                  />
+                </div>
+                <label htmlFor="isBanner" className="ml-3 text-xs font-bold text-white cursor-pointer select-none uppercase tracking-wide">
+                  Asosiy Bannerda ko'rsatilsin (Bannerga qo'yiladi)
                 </label>
               </div>
 

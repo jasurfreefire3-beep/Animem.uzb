@@ -223,10 +223,8 @@ export default function AnimeDetails() {
 
   const handleEpisodeClick = (ep: any) => {
     setActiveEpisode(ep.number);
-    if (ep.video_url) {
-      setCurrentVideoUrl(ep.video_url);
-      window.scrollTo({ top: document.getElementById('player-section')?.offsetTop || 0, behavior: 'smooth' });
-    }
+    setCurrentVideoUrl(ep.video_url || '');
+    window.scrollTo({ top: document.getElementById('player-section')?.offsetTop || 0, behavior: 'smooth' });
   };
 
   const jsonLd = {
@@ -409,7 +407,7 @@ export default function AnimeDetails() {
 
                <div className="mb-4 md:mb-6">
                   {currentVideoUrl ? (
-                    <VideoPlayer url={currentVideoUrl} poster={anime.banner_url || anime.image_url} />
+                    <VideoPlayer key={currentVideoUrl} url={currentVideoUrl} poster={anime.banner_url || anime.image_url} />
                   ) : (
                     <div className="aspect-video bg-[#000] rounded-none md:rounded-sm shadow-xl overflow-hidden border-y md:border border-[#222] relative">
                       <img src={anime.banner_url || anime.image_url} className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm" />

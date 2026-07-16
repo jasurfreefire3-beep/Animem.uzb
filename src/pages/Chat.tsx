@@ -14,28 +14,37 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
+    if (!user) return;
 
-    const setupChatListener = async () => {
-      try {
-        const { firebaseService } = await import('../lib/firebaseService');
-        unsubscribe = firebaseService.subscribeChat((msgs) => {
-          setMessages(msgs);
-          scrollToBottom();
-        });
-      } catch (err) {
-        console.error("Error setting up chat listener:", err);
-      }
-    };
+    // Connect to the socket server
+    const socket = io(window.location.origin);
+    socketRef.current = socket;
 
-    setupChatListener();
+    socket.on('previousMessages', (prevMsgs: Message[]) => {
+      setMessages(prevMsgs);
+      scrollToBottom();
+    });
+
+    socket.on('newMessage', (newMsg: Message) => {
+      setMessages((prev) => {
+        if (prev.some(m => String(m.id) === String(newMsg.id))) return prev;
+        return [...prev, newMsg];
+      });
+      scrollToBottom();
+    });
+
+    socket.on('messageDeleted', (deletedId: any) => {
+      setMessages((prev) => prev.filter(msg => String(msg.id) !== String(deletedId)));
+    });
+
+    socket.on('chatCleared', () => {
+      setMessages([]);
+    });
 
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
+      socket.disconnect();
     };
-  }, []);
+  }, [user]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -45,16 +54,32 @@ export default function Chat() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !user) return;
+    if (!input.trim() || !user || !socketRef.current) return;
 
     try {
-      const { firebaseService } = await import('../lib/firebaseService');
-      await firebaseService.sendChatMessage(
-        user.id,
-        user.name,
-        input,
-        replyingTo ? { id: String(replyingTo.id), name: replyingTo.user_name, content: replyingTo.content } : null
-      );
+      const payload = {
+        user_id: user.id,
+        user_name: user.name,
+        content: input,
+        reply_to_id: replyingTo ? String(replyingTo.id) : null,
+        reply_to_name: replyingTo ? replyingTo.user_name : null,
+        reply_to_content: replyingTo ? replyingTo.content : null
+      };
+      
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+      const res = await fetch(`${API_BASE}/api/chat/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!res.ok) {
+        throw new Error("Failed to send message via API");
+      }
+      
       setInput('');
       setReplyingTo(null);
     } catch (err) {
@@ -65,9 +90,16 @@ export default function Chat() {
   const handleClearChat = async () => {
     if (window.confirm("Haqiqatan ham barcha xabarlarni o'chirmoqchimisiz? (Bu chatni butunlay tozalaydi)")) {
       try {
-        const { firebaseService } = await import('../lib/firebaseService');
-        await firebaseService.clearChat();
-        setMessages([]);
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const res = await fetch(`${API_BASE}/api/chat/clear`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!res.ok) {
+          throw new Error("Chatni tozalashda xatolik yuz berdi");
+        }
       } catch (e) {
         console.error("Failed to clear chat", e);
       }
@@ -77,8 +109,16 @@ export default function Chat() {
   const handleDeleteMessage = async (msgId: string | number) => {
     if (window.confirm("Ushbu xabarni o'chirmoqchimisiz?")) {
       try {
-        const { firebaseService } = await import('../lib/firebaseService');
-        await firebaseService.deleteChatMessage(String(msgId));
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const res = await fetch(`${API_BASE}/api/chat/messages/${msgId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!res.ok) {
+          throw new Error("Xabarni o'chirishda xatolik yuz berdi");
+        }
       } catch (e) {
         console.error("Failed to delete message", e);
       }

@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Anime } from '../types';
 import { Star, PlayCircle, Calendar, Play, Clock, Grid, MessageSquare, ChevronLeft, ChevronRight, TrendingUp, Info } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Home() {
   const [animes, setAnimes] = useState<Anime[]>([]);
   const [recentComments, setRecentComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingComments, setLoadingComments] = useState(true);
+  const [bannerIndex, setBannerIndex] = useState(0);
 
   useEffect(() => {
     const fetchHomeData = async () => {
@@ -37,6 +38,18 @@ export default function Home() {
     fetchHomeData();
   }, []);
 
+  const bannerAnimes = animes.filter(a => a.is_banner).length > 0 
+    ? animes.filter(a => a.is_banner) 
+    : animes.slice(0, 4);
+
+  useEffect(() => {
+    if (bannerAnimes.length <= 1) return;
+    const interval = setInterval(() => {
+      setBannerIndex(prev => (prev + 1) % bannerAnimes.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [bannerAnimes.length]);
+
   const popularAnimes = animes.slice(0, 4);
   const recentAnimes = animes.slice(0, 8);
   const updateList = animes.slice(0, 10);
@@ -49,7 +62,7 @@ export default function Home() {
      );
   }
 
-  const featuredAnime = popularAnimes[0];
+  const featuredAnime = bannerAnimes[bannerIndex] || bannerAnimes[0];
 
   const renderTitle = (title: string) => {
     const upper = title.toUpperCase();
@@ -80,31 +93,37 @@ export default function Home() {
   return (
     <div className="space-y-12 pb-20">
       {/* Featured Hero Banner */}
-      {featuredAnime && (
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative w-full rounded-lg overflow-hidden border border-white/10 bg-[#09090b] shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
-        >
-          {/* Background Blurred Image */}
-          <div className="absolute inset-0 w-full h-full overflow-hidden">
-            <img 
-              src={featuredAnime.banner_url || featuredAnime.image_url} 
-              alt={featuredAnime.title} 
-              className="w-full h-full object-cover scale-105 blur-[3px] opacity-40 md:opacity-30 transition-all duration-700" 
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/80 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#09090b] via-[#09090b]/60 to-transparent" />
-          </div>
+      <AnimatePresence mode="wait">
+        {featuredAnime && (
+          <motion.div 
+            key={featuredAnime.id}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.02 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            className="relative w-full rounded-lg overflow-hidden border border-white/10 bg-[#09090b] shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
+          >
+            {/* Background Blurred Image */}
+            <div className="absolute inset-0 w-full h-full overflow-hidden">
+              <img 
+                src={featuredAnime.banner_url || featuredAnime.image_url} 
+                alt={featuredAnime.title} 
+                className="w-full h-full object-cover scale-105 blur-[3px] opacity-40 md:opacity-30 transition-all duration-700" 
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/80 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#09090b] via-[#09090b]/60 to-transparent" />
+            </div>
 
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8 items-center p-6 sm:p-8 md:p-12">
-            {/* Left Content */}
-            <div className="md:col-span-8 space-y-6">
-              {/* Row 1: Badges */}
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="px-3 py-1 bg-[#ff006a] text-white text-[11px] font-black uppercase tracking-widest rounded-sm shadow-md">
-                  TAVSIYA
-                </span>
+            <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8 items-center p-6 sm:p-8 md:p-12">
+              {/* Left Content */}
+              <div className="md:col-span-8 space-y-6">
+                {/* Row 1: Badges */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {featuredAnime.tavsiya === 1 && (
+                    <span className="px-3 py-1 bg-[#ff006a] text-white text-[11px] font-black uppercase tracking-widest rounded-sm shadow-md">
+                      TAVSIYA
+                    </span>
+                  )}
                 <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-xs font-bold text-white">
                   <Star className="w-3.5 h-3.5 text-yellow-500 fill-current" />
                   <span>{featuredAnime.rating || '4.9'}</span>
@@ -180,7 +199,8 @@ export default function Home() {
             </div>
           </div>
         </motion.div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* Main Content Layout */}
       <div className="flex flex-col lg:flex-row gap-8">
