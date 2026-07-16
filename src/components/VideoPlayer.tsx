@@ -17,14 +17,93 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
   const [showControls, setShowControls] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [isPlayerJSReady, setIsPlayerJSReady] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsTimeoutRef = useRef<number | null>(null);
+  const playerJSRef = useRef<any>(null);
 
   // Detect player type
   const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
   const isEmbed = !isYouTube && (url.includes('embed') || url.includes('iframe') || url.includes('sibnet.ru') || url.includes('ok.ru') || url.includes('myvi') || !url.match(/\.(mp4|webm|ogg|m3u8|mkv)(\?.*)?$/i));
+
+  // Dynamically load PlayerJS script
+  useEffect(() => {
+    if (isYouTube || isEmbed) return;
+
+    if ((window as any).Playerjs) {
+      setIsPlayerJSReady(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = '/playerjs.js';
+    script.async = true;
+    script.onload = () => {
+      if ((window as any).Playerjs) {
+        console.log('PlayerJS successfully loaded!');
+        setIsPlayerJSReady(true);
+      }
+    };
+    script.onerror = () => {
+      console.log('PlayerJS script not found at /playerjs.js. Falling back to default player.');
+      setIsPlayerJSReady(false);
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      // Keep script in body to avoid reloading on remounts
+    };
+  }, [url, isYouTube, isEmbed]);
+
+  // Instantiate or update PlayerJS
+  useEffect(() => {
+    if (isPlayerJSReady && !isYouTube && !isEmbed) {
+      // Clear previous player instance if any
+      if (playerJSRef.current) {
+        try {
+          if (typeof playerJSRef.current.destroy === 'function') {
+            playerJSRef.current.destroy();
+          } else {
+            const el = document.getElementById('playerjs-container');
+            if (el) el.innerHTML = '';
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        playerJSRef.current = null;
+      }
+
+      // Initialize new Playerjs player
+      try {
+        const container = document.getElementById('playerjs-container');
+        if (container) {
+          container.innerHTML = ''; // clear any remaining DOM elements
+          playerJSRef.current = new (window as any).Playerjs({
+            id: 'playerjs-container',
+            file: url,
+            poster: poster
+          });
+        }
+      } catch (e) {
+        console.error('Failed to initialize PlayerJS:', e);
+      }
+    }
+
+    return () => {
+      if (playerJSRef.current) {
+        try {
+          if (typeof playerJSRef.current.destroy === 'function') {
+            playerJSRef.current.destroy();
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        playerJSRef.current = null;
+      }
+    };
+  }, [isPlayerJSReady, url, poster, isYouTube, isEmbed]);
 
   // Helper to format time (e.g. 02:35)
   const formatTime = (time: number) => {
@@ -269,6 +348,15 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
           allowFullScreen
           sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
         />
+      </div>
+    );
+  }
+
+  // --- PlayerJS player ---
+  if (isPlayerJSReady) {
+    return (
+      <div className="relative aspect-video bg-black rounded-sm overflow-hidden border border-[#222] shadow-2xl">
+        <div id="playerjs-container" className="w-full h-full"></div>
       </div>
     );
   }
