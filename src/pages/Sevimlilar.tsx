@@ -127,7 +127,7 @@ export default function Sevimlilar() {
                     </Link>
                     {anime.rating && (
                       <span className="flex items-center gap-0.5 text-yellow-400 font-black text-[10px] px-1 bg-[#222] rounded-sm">
-                        <Star className="w-2.5 h-2.5 fill-current" /> {anime.rating.toFixed(1)}
+                        <Star className="w-2.5 h-2.5 fill-current" /> {Number(anime.rating).toFixed(1)}
                       </span>
                     )}
                   </div>

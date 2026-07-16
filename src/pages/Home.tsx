@@ -241,7 +241,7 @@ export default function Home() {
                       </div>
                       <div className="absolute top-2 left-2 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm flex items-center gap-1">
                         <Star className="w-2.5 h-2.5 text-yellow-400 fill-current" />
-                        {anime.rating?.toFixed(1) || '8.5'}
+                        {Number(anime.rating || 8.5).toFixed(1)}
                       </div>
                     </div>
                     <h3 className="text-white font-medium text-sm line-clamp-1 group-hover:text-[#ff006a] transition-colors">

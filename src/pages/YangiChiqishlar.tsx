@@ -78,7 +78,7 @@ export default function YangiChiqishlar() {
                 
                 <div className="absolute top-2 left-2 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm flex items-center gap-1 border border-white/5">
                   <Star className="w-2.5 h-2.5 text-yellow-400 fill-current" />
-                  {anime.rating?.toFixed(1) || '8.5'}
+                  {Number(anime.rating || 8.5).toFixed(1)}
                 </div>
 
                 {/* Newly Added tag */}

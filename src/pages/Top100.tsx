@@ -90,7 +90,7 @@ export default function Top100() {
                     </Link>
                     <div className="flex items-center gap-1 mt-2">
                       <Star className="w-3.5 h-3.5 text-yellow-400 fill-current" />
-                      <span className="text-white text-xs font-bold">{anime.rating?.toFixed(1) || '9.5'}</span>
+                      <span className="text-white text-xs font-bold">{Number(anime.rating || 9.5).toFixed(1)}</span>
                       <span className="text-white/30 text-[10px]">({anime.rating_count || 120} ovoz)</span>
                     </div>
                     <div className="text-[10px] text-white/40 font-mono mt-1">
@@ -147,7 +147,7 @@ export default function Top100() {
                     {anime.title}
                   </Link>
                   <div className="flex items-center gap-3 text-[10px] text-white/40 font-mono mt-0.5">
-                    <span className="flex items-center gap-0.5"><Star className="w-3 h-3 text-yellow-400 fill-current" /> {anime.rating?.toFixed(1) || '8.2'}</span>
+                    <span className="flex items-center gap-0.5"><Star className="w-3 h-3 text-yellow-400 fill-current" /> {Number(anime.rating || 8.2).toFixed(1)}</span>
                     <span>•</span>
                     <span>{anime.yil || '2025'}</span>
                     <span>•</span>

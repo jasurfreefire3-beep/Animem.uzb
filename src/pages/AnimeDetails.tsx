@@ -336,7 +336,7 @@ export default function AnimeDetails() {
                     {anime.holati === 'Yakunlangan' ? 'YAKUNLANGAN' : 'EFIRDA'}
                   </span>
                   <span className="flex items-center gap-1 text-yellow-400 text-xs font-bold px-2.5 py-1 bg-black/60 rounded-sm border border-white/5">
-                    <Star className="w-3 h-3 fill-current" /> {anime.rating ? anime.rating.toFixed(1) : '9.2'}
+                    <Star className="w-3 h-3 fill-current" /> {anime.rating ? Number(anime.rating).toFixed(1) : '9.2'}
                   </span>
                   <span className="text-white/80 text-xs font-medium flex items-center gap-1 bg-black/60 px-2.5 py-1 rounded-sm border border-white/5">
                     <Calendar className="w-3 h-3" /> {anime.yil || '2026'}
