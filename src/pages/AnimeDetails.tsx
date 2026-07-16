@@ -8,8 +8,8 @@ import VideoPlayer from '../components/VideoPlayer';
 
 export default function AnimeDetails() {
   const params = useParams();
-  const { id } = params;
-  console.log("Params:", params);
+  const { animeId } = params;
+  const id = animeId;
   const navigate = useNavigate();
   const { user, token } = useAuth();
   const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
