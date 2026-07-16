@@ -128,6 +128,18 @@ export default function App() {
             <Route path="/profil" element={<Profil />} />
           </Routes>
         </main>
+
+        <footer className="p-4 text-center border-t border-[#1a1a1a] mt-auto">
+          <a
+            href="https://t.me/animemuz1"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 text-white/40 hover:text-[#0088cc] transition-colors text-xs uppercase tracking-wider"
+          >
+            <Send className="w-4 h-4" />
+            Telegram kanal
+          </a>
+        </footer>
       </div>
 
       {/* 4. Overlay Chat widgets */}
