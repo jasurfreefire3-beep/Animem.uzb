@@ -554,10 +554,23 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
 
   // --- Embed Frame Fallback ---
   if (isEmbed) {
+    let embedUrl = url;
+    // Extract src if it's a full iframe tag
+    if (url.trim().toLowerCase().startsWith('<iframe')) {
+        const match = url.match(/src\s*=\s*["']([^"']+)["']/i);
+        if (match) {
+            embedUrl = match[1];
+        } else {
+            console.error("Failed to extract src from iframe tag", url);
+            embedUrl = 'about:blank'; // Avoid setting it to the invalid iframe string
+        }
+    }
+    
+    console.log("DEBUG EMBED URL:", embedUrl);
     return (
       <div className="relative aspect-video bg-black rounded-sm overflow-hidden border border-[#222] shadow-2xl">
         <iframe
-          src={url}
+          src={embedUrl}
           title="Video Player"
           className="w-full h-full border-0"
           allowFullScreen

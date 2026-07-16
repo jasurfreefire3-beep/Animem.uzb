@@ -276,7 +276,10 @@ app.get("/api/comments/recent", async (req, res) => {
   }
 });
 
-// Get all animes
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+  res.status(200).send("OK");
+});
 app.get("/api/animes", async (req, res) => {
   try {
     const [rows]: any = await pool.query("SELECT * FROM animes ORDER BY id DESC");
@@ -519,25 +522,25 @@ app.post("/api/animes/:animeId/episodes", authenticateToken, async (req: any, re
   try {
     if (req.user.role !== "admin") return res.sendStatus(403);
 
-    const anime_id = req.params.animeId;
+    const anime_id = parseInt(req.params.animeId);
     const { episode_number, video_url } = req.body;
 
     // Check if episode already exists
     const [existing]: any = await pool.query(
       "SELECT id FROM episodes WHERE anime_id = ? AND episode_number = ?",
-      [anime_id, episode_number]
+      [anime_id, parseInt(episode_number)]
     );
 
     if (existing.length > 0) {
       await pool.query(
         "UPDATE episodes SET video_url = ? WHERE anime_id = ? AND episode_number = ?",
-        [video_url, anime_id, episode_number]
+        [video_url, anime_id, parseInt(episode_number)]
       );
       res.json({ message: "Qism yangilandi", id: existing[0].id });
     } else {
       const [result]: any = await pool.query(
         "INSERT INTO episodes (anime_id, episode_number, video_url) VALUES (?, ?, ?)",
-        [anime_id, episode_number, video_url]
+        [anime_id, parseInt(episode_number), video_url]
       );
       res.status(201).json({ message: "Qism yaratildi", id: result.insertId });
     }
@@ -649,6 +652,12 @@ app.delete("/api/chat/clear", authenticateToken, async (req: any, res) => {
 
 // Vite Dev Server / Static Files Setup
 async function start() {
+  // Keep alive for Render
+  setInterval(() => {
+    fetch(`http://localhost:${PORT}/api/health`)
+      .catch(err => console.error("Ping failed:", err));
+  }, 5 * 60 * 1000); // 5 minutes
+
   const distPath = path.join(process.cwd(), "dist");
   const isProduction = process.env.NODE_ENV === "production" || fs.existsSync(distPath);
 
