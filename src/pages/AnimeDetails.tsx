@@ -24,42 +24,43 @@ export default function AnimeDetails() {
   useEffect(() => {
     const fetchAllDetails = async () => {
       try {
-        const { firebaseService } = await import('../lib/firebaseService');
         if (!id) return;
-        const data = await firebaseService.getAnimeByIdOrSlug(id);
-        if (!data) return;
+        const res = await fetch(`${API_BASE}/api/animes/${id}`);
+        if (!res.ok) return;
+        const data = await res.json();
         setAnime(data);
         if (data.video_url) {
           setCurrentVideoUrl(data.video_url);
         }
 
         // Check if currently favorited
-        if (user) {
-          const cloudFavs = await firebaseService.getFavorites(user.id);
-          setIsFavorited(cloudFavs.includes(data.id));
-        } else {
-          const savedFavs = localStorage.getItem('anime_favorites');
-          if (savedFavs) {
-            try {
-              const favIds = JSON.parse(savedFavs);
-              setIsFavorited(favIds.includes(data.id));
-            } catch (e) {
-              console.error(e);
-            }
+        const savedFavs = localStorage.getItem('anime_favorites');
+        if (savedFavs) {
+          try {
+            const favIds = JSON.parse(savedFavs);
+            setIsFavorited(favIds.some((favId: any) => String(favId) === String(data.id)));
+          } catch (e) {
+            console.error(e);
           }
         }
 
         // Fetch episodes
-        const eps = await firebaseService.getEpisodes(data.id);
-        setEpisodesList(eps);
-        const ep1 = eps.find((e: any) => e.episode_number === 1);
-        if (ep1 && ep1.video_url) {
-          setCurrentVideoUrl(ep1.video_url);
+        const epRes = await fetch(`${API_BASE}/api/animes/${data.id}/episodes`);
+        if (epRes.ok) {
+          const eps = await epRes.json();
+          setEpisodesList(eps);
+          const ep1 = eps.find((e: any) => e.episode_number === 1);
+          if (ep1 && ep1.video_url) {
+            setCurrentVideoUrl(ep1.video_url);
+          }
         }
 
         // Fetch comments
-        const coms = await firebaseService.getComments(data.id);
-        setComments(coms);
+        const commRes = await fetch(`${API_BASE}/api/animes/${data.id}/comments`);
+        if (commRes.ok) {
+          const coms = await commRes.json();
+          setComments(coms);
+        }
       } catch (err) {
         console.error(err);
       }
@@ -74,64 +75,54 @@ export default function AnimeDetails() {
     if (anime && anime.id) {
       const saveHistory = async () => {
         try {
-          const { firebaseService } = await import('../lib/firebaseService');
-          if (user) {
-            await firebaseService.addToHistory(user.id, anime.id, activeEpisode);
-          } else {
-            const savedHistory = localStorage.getItem('anime_history');
-            let historyList = [];
-            if (savedHistory) {
-              try {
-                historyList = JSON.parse(savedHistory);
-              } catch (e) {
-                console.error(e);
-              }
+          const savedHistory = localStorage.getItem('anime_history');
+          let historyList = [];
+          if (savedHistory) {
+            try {
+              historyList = JSON.parse(savedHistory);
+            } catch (e) {
+              console.error(e);
             }
-            historyList = historyList.filter((item: any) => item.animeId !== anime.id);
-            historyList.unshift({
-              animeId: anime.id,
-              viewedAt: new Date().toISOString(),
-              lastEpisode: activeEpisode
-            });
-            historyList = historyList.slice(0, 20);
-            localStorage.setItem('anime_history', JSON.stringify(historyList));
           }
+          historyList = historyList.filter((item: any) => String(item.animeId) !== String(anime.id));
+          historyList.unshift({
+            animeId: anime.id,
+            viewedAt: new Date().toISOString(),
+            lastEpisode: activeEpisode
+          });
+          historyList = historyList.slice(0, 20);
+          localStorage.setItem('anime_history', JSON.stringify(historyList));
         } catch (e) {
           console.error(e);
         }
       };
       saveHistory();
     }
-  }, [anime, activeEpisode, user]);
+  }, [anime, activeEpisode]);
 
   const toggleFavorite = async () => {
     if (!anime) return;
     try {
-      const { firebaseService } = await import('../lib/firebaseService');
-      if (user) {
-        const isFav = await firebaseService.toggleFavorite(user.id, anime.id);
-        setIsFavorited(isFav);
-      } else {
-        const savedFavs = localStorage.getItem('anime_favorites');
-        let favIds = [];
-        if (savedFavs) {
-          try {
-            favIds = JSON.parse(savedFavs);
-          } catch (e) {
-            console.error(e);
-          }
+      const savedFavs = localStorage.getItem('anime_favorites');
+      let favIds = [];
+      if (savedFavs) {
+        try {
+          favIds = JSON.parse(savedFavs);
+        } catch (e) {
+          console.error(e);
         }
-
-        let updatedFavs;
-        if (isFavorited) {
-          updatedFavs = favIds.filter((favId: string) => favId !== anime.id);
-          setIsFavorited(false);
-        } else {
-          updatedFavs = [...favIds, anime.id];
-          setIsFavorited(true);
-        }
-        localStorage.setItem('anime_favorites', JSON.stringify(updatedFavs));
       }
+
+      let updatedFavs;
+      const animeIdStr = String(anime.id);
+      if (isFavorited) {
+        updatedFavs = favIds.filter((favId: any) => String(favId) !== animeIdStr);
+        setIsFavorited(false);
+      } else {
+        updatedFavs = [...favIds, anime.id];
+        setIsFavorited(true);
+      }
+      localStorage.setItem('anime_favorites', JSON.stringify(updatedFavs));
     } catch (e) {
       console.error(e);
     }
@@ -155,9 +146,11 @@ export default function AnimeDetails() {
   const fetchComments = async () => {
     if (!anime) return;
     try {
-      const { firebaseService } = await import('../lib/firebaseService');
-      const coms = await firebaseService.getComments(anime.id);
-      setComments(coms);
+      const res = await fetch(`${API_BASE}/api/animes/${anime.id}/comments`);
+      if (res.ok) {
+        const coms = await res.json();
+        setComments(coms);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -168,22 +161,41 @@ export default function AnimeDetails() {
     if (!newComment.trim() || !user || !anime) return;
 
     try {
-      const { firebaseService } = await import('../lib/firebaseService');
-      await firebaseService.addComment(anime.id, user.id, user.name, newComment);
-      setNewComment('');
-      fetchComments();
+      const res = await fetch(`${API_BASE}/api/animes/${anime.id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ content: newComment })
+      });
+
+      if (res.ok) {
+        setNewComment('');
+        fetchComments();
+      } else {
+        console.error("Failed to add comment:", await res.text());
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handleCommentDelete = async (commentId: string) => {
+  const handleCommentDelete = async (commentId: string | number) => {
     if (!user || !commentId) return;
     if (window.confirm("Ushbu izohni o'chirmoqchimisiz?")) {
       try {
-        const { firebaseService } = await import('../lib/firebaseService');
-        await firebaseService.deleteComment(commentId);
-        fetchComments();
+        const res = await fetch(`${API_BASE}/api/comments/${commentId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          fetchComments();
+        } else {
+          console.error("Failed to delete comment:", await res.text());
+        }
       } catch (err) {
         console.error("Failed to delete comment:", err);
       }

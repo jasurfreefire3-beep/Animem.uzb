@@ -20,23 +20,16 @@ export default function Tarix() {
   useEffect(() => {
     const fetchHistoryData = async () => {
       try {
-        const { firebaseService } = await import('../lib/firebaseService');
-        const animeData = await firebaseService.getAnimes();
-        setAnimes(animeData);
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const res = await fetch(`${API_BASE}/api/animes`);
+        if (res.ok) {
+          const animeData = await res.json();
+          setAnimes(animeData);
+        }
 
-        if (user) {
-          const cloudHistory = await firebaseService.getHistory(user.id);
-          const mapped = cloudHistory.map(item => ({
-            animeId: item.anime_id,
-            viewedAt: item.watched_at,
-            lastEpisode: item.episode_number
-          }));
-          setHistoryItems(mapped);
-        } else {
-          const savedHistory = localStorage.getItem('anime_history');
-          if (savedHistory) {
-            setHistoryItems(JSON.parse(savedHistory));
-          }
+        const savedHistory = localStorage.getItem('anime_history');
+        if (savedHistory) {
+          setHistoryItems(JSON.parse(savedHistory));
         }
       } catch (err) {
         console.error("Error fetching history:", err);
@@ -50,36 +43,18 @@ export default function Tarix() {
 
   const clearHistory = async () => {
     try {
-      if (user) {
-        const { doc, updateDoc } = await import('firebase/firestore');
-        const { db } = await import('../lib/firebase');
-        await updateDoc(doc(db, 'users', user.id), { history: [] });
-      } else {
-        localStorage.removeItem('anime_history');
-      }
+      localStorage.removeItem('anime_history');
       setHistoryItems([]);
     } catch (e) {
       console.error(e);
     }
   };
 
-  const removeHistoryItem = async (animeId: string) => {
+  const removeHistoryItem = async (animeId: string | number) => {
     try {
-      const updated = historyItems.filter(item => item.animeId !== animeId);
+      const updated = historyItems.filter(item => String(item.animeId) !== String(animeId));
       setHistoryItems(updated);
-
-      if (user) {
-        const { doc, updateDoc } = await import('firebase/firestore');
-        const { db } = await import('../lib/firebase');
-        const cloudHistory = updated.map(item => ({
-          anime_id: item.animeId,
-          watched_at: item.viewedAt,
-          episode_number: item.lastEpisode || 1
-        }));
-        await updateDoc(doc(db, 'users', user.id), { history: cloudHistory });
-      } else {
-        localStorage.setItem('anime_history', JSON.stringify(updated));
-      }
+      localStorage.setItem('anime_history', JSON.stringify(updated));
     } catch (e) {
       console.error(e);
     }
@@ -88,7 +63,7 @@ export default function Tarix() {
   // Find corresponding anime records for history items
   const historyList = historyItems
     .map(hist => {
-      const anime = animes.find(a => a.id === hist.animeId);
+      const anime = animes.find(a => String(a.id) === String(hist.animeId));
       if (!anime) return null;
       return {
         ...anime,

@@ -46,14 +46,18 @@ export default function Admin() {
 
   const [message, setMessage] = useState({ type: '', text: '' });
 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
   // Fetch all animes on component mount
   useEffect(() => {
     if (user?.role === 'admin') {
       const fetchAnimes = async () => {
         try {
-          const { firebaseService } = await import('../lib/firebaseService');
-          const data = await firebaseService.getAnimes();
-          setAnimes(data);
+          const res = await fetch(`${API_BASE}/api/animes`);
+          if (res.ok) {
+            const data = await res.json();
+            setAnimes(data);
+          }
         } catch (err) {
           console.error("Failed to fetch animes", err);
         }
@@ -97,15 +101,33 @@ export default function Admin() {
         qismlar_soni: qismlarSoni ? parseInt(qismlarSoni) : 0,
         janrlar: selectedGenres.join(', '),
         video_url: videoUrl,
-        tavsiya
+        tavsiya: tavsiya ? 1 : 0
       };
 
-      const { firebaseService } = await import('../lib/firebaseService');
-
+      let res;
       if (editingAnime) {
-        await firebaseService.updateAnime(editingAnime.id, payload);
+        res = await fetch(`${API_BASE}/api/animes/${editingAnime.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
       } else {
-        await firebaseService.addAnime(payload);
+        res = await fetch(`${API_BASE}/api/animes`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+      }
+
+      const resData = await res.json();
+      if (!res.ok) {
+        throw new Error(resData.error || 'Operation failed');
       }
 
       setMessage({ 
@@ -131,8 +153,11 @@ export default function Admin() {
       setActiveTab('manage_animes');
 
       // Refresh animes list
-      const data = await firebaseService.getAnimes();
-      setAnimes(data);
+      const freshRes = await fetch(`${API_BASE}/api/animes`);
+      if (freshRes.ok) {
+        const data = await freshRes.json();
+        setAnimes(data);
+      }
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     }
@@ -182,17 +207,25 @@ export default function Admin() {
   };
 
   // Delete Anime Handler
-  const handleDeleteAnime = async (animeId: string) => {
+  const handleDeleteAnime = async (animeId: string | number) => {
     setMessage({ type: '', text: '' });
     try {
-      const { firebaseService } = await import('../lib/firebaseService');
-      await firebaseService.deleteAnime(animeId);
+      const res = await fetch(`${API_BASE}/api/animes/${animeId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const resData = await res.json();
+      if (!res.ok) {
+        throw new Error(resData.error || 'Delete failed');
+      }
 
       setMessage({ type: 'success', text: "Anime muvaffaqiyatli o'chirildi!" });
       setDeleteConfirmId(null);
 
       // Update state
-      setAnimes(prev => prev.filter(a => a.id !== animeId));
+      setAnimes(prev => prev.filter(a => String(a.id) !== String(animeId)));
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     }
@@ -205,9 +238,11 @@ export default function Admin() {
     if (selectedAnimeId) {
       const fetchEps = async () => {
         try {
-          const { firebaseService } = await import('../lib/firebaseService');
-          const data = await firebaseService.getEpisodes(selectedAnimeId);
-          setEpisodesList(data);
+          const res = await fetch(`${API_BASE}/api/animes/${selectedAnimeId}/episodes`);
+          if (res.ok) {
+            const data = await res.json();
+            setEpisodesList(data);
+          }
         } catch (err) {
           console.error("Failed to fetch episodes:", err);
           setEpisodesList([]);
@@ -223,14 +258,27 @@ export default function Admin() {
     if (!selectedAnimeId) return;
     setMessage({ type: '', text: '' });
     try {
-      const { firebaseService } = await import('../lib/firebaseService');
-      await firebaseService.saveEpisode(selectedAnimeId, epNum, urlVal);
+      const res = await fetch(`${API_BASE}/api/animes/${selectedAnimeId}/episodes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ episode_number: epNum, video_url: urlVal })
+      });
+      const resData = await res.json();
+      if (!res.ok) {
+        throw new Error(resData.error || 'Failed to save episode');
+      }
       
       setMessage({ type: 'success', text: `${epNum}-qism muvaffaqiyatli saqlandi!` });
       
       // Refresh list
-      const data = await firebaseService.getEpisodes(selectedAnimeId);
-      setEpisodesList(data);
+      const epsRes = await fetch(`${API_BASE}/api/animes/${selectedAnimeId}/episodes`);
+      if (epsRes.ok) {
+        const data = await epsRes.json();
+        setEpisodesList(data);
+      }
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     }
@@ -241,8 +289,17 @@ export default function Admin() {
     if (!window.confirm(`${epNum}-qismni o'chirishga ruxsat berasizmi?`)) return;
     setMessage({ type: '', text: '' });
     try {
-      const { firebaseService } = await import('../lib/firebaseService');
-      await firebaseService.deleteEpisode(selectedAnimeId, epNum);
+      const res = await fetch(`${API_BASE}/api/animes/${selectedAnimeId}/episodes/${epNum}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const resData = await res.json();
+      if (!res.ok) {
+        throw new Error(resData.error || 'Failed to delete episode');
+      }
+
       setMessage({ type: 'success', text: `${epNum}-qism o'chirildi!` });
       setEpisodesList(prev => prev.filter(e => e.episode_number !== epNum));
     } catch (err: any) {

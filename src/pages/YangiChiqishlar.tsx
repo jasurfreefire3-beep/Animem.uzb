@@ -11,11 +11,13 @@ export default function YangiChiqishlar() {
   useEffect(() => {
     const fetchNewReleases = async () => {
       try {
-        const { firebaseService } = await import('../lib/firebaseService');
-        const data = await firebaseService.getAnimes();
-        // Sort by created_at descending
-        const sorted = [...data].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setAnimes(sorted);
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const res = await fetch(`${API_BASE}/api/animes`);
+        if (res.ok) {
+          const data = await res.json();
+          const sorted = [...data].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          setAnimes(sorted);
+        }
         setLoading(false);
       } catch (err) {
         console.error("Error fetching animes:", err);

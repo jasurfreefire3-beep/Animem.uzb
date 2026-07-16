@@ -23,9 +23,12 @@ export default function Jadval() {
   useEffect(() => {
     const fetchSchedule = async () => {
       try {
-        const { firebaseService } = await import('../lib/firebaseService');
-        const data = await firebaseService.getAnimes();
-        setAnimes(data);
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const res = await fetch(`${API_BASE}/api/animes`);
+        if (res.ok) {
+          const data = await res.json();
+          setAnimes(data);
+        }
         setLoading(false);
       } catch (err) {
         console.error("Error fetching animes:", err);

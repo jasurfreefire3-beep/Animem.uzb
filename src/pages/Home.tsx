@@ -13,13 +13,20 @@ export default function Home() {
   useEffect(() => {
     const fetchHomeData = async () => {
       try {
-        const { firebaseService } = await import('../lib/firebaseService');
-        const animeData = await firebaseService.getAnimes();
-        setAnimes(animeData);
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        
+        const animeRes = await fetch(`${API_BASE}/api/animes`);
+        if (animeRes.ok) {
+          const animeData = await animeRes.json();
+          setAnimes(animeData);
+        }
         setLoading(false);
 
-        const commentsData = await firebaseService.getRecentComments();
-        setRecentComments(commentsData);
+        const commentsRes = await fetch(`${API_BASE}/api/comments/recent`);
+        if (commentsRes.ok) {
+          const commentsData = await commentsRes.json();
+          setRecentComments(commentsData);
+        }
         setLoadingComments(false);
       } catch (err) {
         console.error("Error loading homepage data:", err);

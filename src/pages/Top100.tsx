@@ -11,10 +11,13 @@ export default function Top100() {
   useEffect(() => {
     const fetchTopAnimes = async () => {
       try {
-        const { firebaseService } = await import('../lib/firebaseService');
-        const data = await firebaseService.getAnimes();
-        const sorted = [...data].sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        setAnimes(sorted);
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const res = await fetch(`${API_BASE}/api/animes`);
+        if (res.ok) {
+          const data = await res.json();
+          const sorted = [...data].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+          setAnimes(sorted);
+        }
         setLoading(false);
       } catch (err) {
         console.error("Error fetching animes:", err);

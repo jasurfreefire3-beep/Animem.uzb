@@ -15,18 +15,16 @@ export default function Sevimlilar() {
   useEffect(() => {
     const fetchFavoritesData = async () => {
       try {
-        const { firebaseService } = await import('../lib/firebaseService');
-        const animeData = await firebaseService.getAnimes();
-        setAnimes(animeData);
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const res = await fetch(`${API_BASE}/api/animes`);
+        if (res.ok) {
+          const animeData = await res.json();
+          setAnimes(animeData);
+        }
 
-        if (user) {
-          const cloudFavs = await firebaseService.getFavorites(user.id);
-          setFavoriteIds(cloudFavs);
-        } else {
-          const savedFavs = localStorage.getItem('anime_favorites');
-          if (savedFavs) {
-            setFavoriteIds(JSON.parse(savedFavs));
-          }
+        const savedFavs = localStorage.getItem('anime_favorites');
+        if (savedFavs) {
+          setFavoriteIds(JSON.parse(savedFavs));
         }
       } catch (err) {
         console.error("Error loading favorites:", err);
@@ -38,23 +36,19 @@ export default function Sevimlilar() {
     fetchFavoritesData();
   }, [user]);
 
-  const handleUnfavorite = async (id: string) => {
+  const handleUnfavorite = async (id: string | number) => {
     try {
-      const { firebaseService } = await import('../lib/firebaseService');
-      if (user) {
-        await firebaseService.toggleFavorite(user.id, id);
-        setFavoriteIds(prev => prev.filter(favId => favId !== id));
-      } else {
-        const updated = favoriteIds.filter((favId) => favId !== id);
-        setFavoriteIds(updated);
-        localStorage.setItem('anime_favorites', JSON.stringify(updated));
-      }
+      const updated = favoriteIds.filter((favId) => String(favId) !== String(id));
+      setFavoriteIds(updated);
+      localStorage.setItem('anime_favorites', JSON.stringify(updated));
     } catch (err) {
       console.error(err);
     }
   };
 
-  const favoriteAnimes = animes.filter((anime) => favoriteIds.includes(anime.id));
+  const favoriteAnimes = animes.filter((anime) => 
+    favoriteIds.some(favId => String(favId) === String(anime.id))
+  );
 
   // For high-fidelity visual tab simulation
   const filteredFavorites = favoriteAnimes.filter((anime) => {
