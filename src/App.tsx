@@ -24,8 +24,15 @@ import Profil from './pages/Profil';
 
 export default function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [showTelegramBanner, setShowTelegramBanner] = useState(true);
+  const [showTelegramBanner, setShowTelegramBanner] = useState(() => {
+    const closed = localStorage.getItem('telegramBannerClosed');
+    return closed !== 'true';
+  });
 
+  const closeBanner = () => {
+    setShowTelegramBanner(false);
+    localStorage.setItem('telegramBannerClosed', 'true');
+  };
   const toggleMobileSidebar = () => {
     setMobileSidebarOpen(!mobileSidebarOpen);
   };
@@ -67,7 +74,7 @@ export default function App() {
                   Telegram kanalga o'tish
                 </motion.a>
                 <button
-                  onClick={() => setShowTelegramBanner(false)}
+                  onClick={closeBanner}
                   className="text-white/40 hover:text-white p-1 rounded-full hover:bg-white/5 transition-colors shrink-0"
                 >
                   <X className="w-4 h-4" />
@@ -77,7 +84,8 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
-      {/* 1. Desktop Sidebar (Persistent) */}
+
+      {/* 2. Desktop Sidebar (Persistent) */}
       <div className="hidden md:block w-64 shrink-0">
         <div className="w-64 h-screen fixed left-0 top-0 z-40 border-r border-[#1a1a1a] bg-[#09090b]">
           <Sidebar />
@@ -105,7 +113,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/anime/:id" element={<AnimeDetails />} />
+            <Route path="/anime/:slug" element={<AnimeDetails />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/chat" element={<Chat />} />
             

@@ -20,6 +20,7 @@ export default function AnimeDetails() {
   const [isFavorited, setIsFavorited] = useState(false);
   const [lightsOff, setLightsOff] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [userRating, setUserRating] = useState(0);
 
   useEffect(() => {
     const fetchAllDetails = async () => {
@@ -31,6 +32,16 @@ export default function AnimeDetails() {
         setAnime(data);
         if (data.video_url) {
           setCurrentVideoUrl(data.video_url);
+        }
+
+        // Fetch user rating
+        if (user && token) {
+            fetch(`${API_BASE}/api/animes/${data.id}/rating`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(res => res.json())
+            .then(data => setUserRating(data.rating || 0))
+            .catch(err => console.error(err));
         }
 
         // Check if currently favorited
@@ -140,6 +151,28 @@ export default function AnimeDetails() {
       navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleRate = async (newRating: number) => {
+    if (!user || !anime) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/animes/${anime.id}/rate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ rating: newRating })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setUserRating(newRating);
+        setAnime({ ...anime, rating: data.rating, rating_count: data.count });
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -295,7 +328,7 @@ export default function AnimeDetails() {
                     {anime.holati === 'Yakunlangan' ? 'YAKUNLANGAN' : 'EFIRDA'}
                   </span>
                   <span className="flex items-center gap-1 text-yellow-400 text-xs font-bold px-2.5 py-1 bg-black/60 rounded-sm border border-white/5">
-                    <Star className="w-3 h-3 fill-current" /> {anime.rating || '9.2'}
+                    <Star className="w-3 h-3 fill-current" /> {anime.rating ? anime.rating.toFixed(1) : '9.2'}
                   </span>
                   <span className="text-white/80 text-xs font-medium flex items-center gap-1 bg-black/60 px-2.5 py-1 rounded-sm border border-white/5">
                     <Calendar className="w-3 h-3" /> {anime.yil || '2026'}
@@ -317,6 +350,16 @@ export default function AnimeDetails() {
                       {translateGenre(g)}
                     </span>
                   ))}
+                </div>
+
+                {/* Rating Stars */}
+                <div className="flex items-center gap-0.5 ml-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                        <button key={star} onClick={() => handleRate(star)} className="text-yellow-400 hover:scale-110 transition-transform">
+                            <Star className={`w-4 h-4 ${star <= (userRating || Math.round(anime.rating || 0)) ? 'fill-current' : 'text-gray-600'}`} />
+                        </button>
+                    ))}
+                    <span className="text-white/40 text-[10px] ml-2">({anime.rating_count || 0} baho)</span>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">

@@ -394,6 +394,58 @@ app.delete("/api/comments/:commentId", authenticateToken, async (req: any, res) 
   }
 });
 
+// Rate anime
+app.post("/api/animes/:animeId/rate", authenticateToken, async (req: any, res) => {
+  try {
+    const animeId = req.params.animeId;
+    const userId = req.user.id;
+    const { rating } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: "Reyting 1 va 5 oralig'ida bo'lishi kerak" });
+    }
+
+    // Upsert rating
+    await pool.query(
+      "INSERT INTO ratings (user_id, anime_id, rating) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE rating = ?",
+      [userId, animeId, rating, rating]
+    );
+
+    // Update anime average rating
+    const [rows]: any = await pool.query(
+      "SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM ratings WHERE anime_id = ?",
+      [animeId]
+    );
+    const { avg_rating, count } = rows[0];
+
+    await pool.query(
+      "UPDATE animes SET rating = ?, rating_count = ? WHERE id = ?",
+      [avg_rating, count, animeId]
+    );
+
+    res.json({ message: "Reyting saqlandi", rating: avg_rating, count });
+  } catch (err) {
+    console.error("Rate anime error:", err);
+    res.status(500).json({ error: "Failed to save rating" });
+  }
+});
+
+// Get user rating for anime
+app.get("/api/animes/:animeId/rating", authenticateToken, async (req: any, res) => {
+  try {
+    const animeId = req.params.animeId;
+    const userId = req.user.id;
+    const [rows]: any = await pool.query(
+      "SELECT rating FROM ratings WHERE anime_id = ? AND user_id = ?",
+      [animeId, userId]
+    );
+    res.json({ rating: rows.length > 0 ? rows[0].rating : 0 });
+  } catch (err) {
+    console.error("Get rating error:", err);
+    res.status(500).json({ error: "Failed to fetch rating" });
+  }
+});
+
 // Admin Route: Add Anime
 app.post("/api/animes", authenticateToken, async (req: any, res) => {
   try {
