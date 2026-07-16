@@ -7,7 +7,9 @@ import { motion } from 'motion/react';
 import VideoPlayer from '../components/VideoPlayer';
 
 export default function AnimeDetails() {
-  const { id } = useParams();
+  const params = useParams();
+  const { id } = params;
+  console.log("Params:", params);
   const navigate = useNavigate();
   const { user, token } = useAuth();
   const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
@@ -25,10 +27,16 @@ export default function AnimeDetails() {
   useEffect(() => {
     const fetchAllDetails = async () => {
       try {
+        console.log("Fetching anime details for ID:", id);
         if (!id) return;
         const res = await fetch(`${API_BASE}/api/animes/${id}`);
-        if (!res.ok) return;
+        console.log("Response status:", res.status);
+        if (!res.ok) {
+          console.error("Fetch failed:", await res.text());
+          return;
+        }
         const data = await res.json();
+        console.log("Fetched anime:", data);
         setAnime(data);
         if (data.video_url) {
           setCurrentVideoUrl(data.video_url);

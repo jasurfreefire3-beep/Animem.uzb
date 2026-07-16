@@ -38,9 +38,7 @@ export default function Home() {
     fetchHomeData();
   }, []);
 
-  const bannerAnimes = animes.filter(a => a.is_banner).length > 0 
-    ? animes.filter(a => a.is_banner) 
-    : animes.slice(0, 4);
+  const bannerAnimes = animes.filter(a => a.is_banner);
 
   useEffect(() => {
     if (bannerAnimes.length <= 1) return;
