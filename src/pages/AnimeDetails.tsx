@@ -23,6 +23,7 @@ export default function AnimeDetails() {
   const [lightsOff, setLightsOff] = useState(false);
   const [copied, setCopied] = useState(false);
   const [userRating, setUserRating] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     const fetchAllDetails = async () => {
@@ -410,11 +411,19 @@ export default function AnimeDetails() {
                className="bg-[#111] border border-[#222] rounded-sm p-6"
             >
                <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2 uppercase tracking-wide">
-                 <Eye className="w-4 h-4 text-[#ff006a]" /> Synopsis
+                 <Eye className="w-4 h-4 text-[#ff006a]" /> Tavsif
                </h2>
                <p className="text-white/70 text-sm leading-relaxed text-justify">
-                 {anime.description}
+                 {isExpanded ? anime.description : anime.description.slice(0, 300) + (anime.description.length > 300 ? '...' : '')}
                </p>
+               {anime.description.length > 300 && (
+                 <button 
+                   onClick={() => setIsExpanded(!isExpanded)} 
+                   className="text-[#ff006a] text-xs font-bold mt-2 hover:underline"
+                 >
+                   {isExpanded ? "Kamroq o'qish" : "Ko'proq o'qish"}
+                 </button>
+               )}
                <div className="flex gap-4 mt-6 pt-4 border-t border-[#222]">
                  <button onClick={handleShare} className="text-white/50 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors">
                    <Share2 className="w-3.5 h-3.5" /> {copied ? "Nusxalandi!" : "Ulashish"}

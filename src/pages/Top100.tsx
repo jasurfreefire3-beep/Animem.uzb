@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Anime } from '../types';
+import { Anime, toSlug } from '../types';
 import { Star, Award, Eye, Play } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -85,7 +85,7 @@ export default function Top100() {
                     <span className="text-[10px] font-bold text-[#ff006a] uppercase tracking-widest block mb-1">
                       {rank === 1 ? 'OLTIN REYTING' : rank === 2 ? 'KUMUSH REYTING' : 'BRONZA REYTING'}
                     </span>
-                    <Link to={`/anime/${anime.id}`} className="text-white font-bold text-sm hover:text-[#ff006a] transition-colors line-clamp-2">
+                    <Link to={`/anime/${anime.id}/${toSlug(anime.title)}`} className="text-white font-bold text-sm hover:text-[#ff006a] transition-colors line-clamp-2">
                       {anime.title}
                     </Link>
                     <div className="flex items-center gap-1 mt-2">
@@ -102,7 +102,7 @@ export default function Top100() {
                 <div className="mt-4 pt-3 border-t border-[#222] flex items-center justify-between z-10">
                   <span className="text-white/40 text-[11px] font-mono">Series • {anime.yil || '2024'}</span>
                   <Link
-                    to={`/anime/${anime.id}`}
+                    to={`/anime/${anime.id}/${toSlug(anime.title)}`}
                     className="bg-[#ff006a] hover:bg-[#d40058] text-white text-xs font-bold px-3 py-1.5 rounded-sm transition-colors flex items-center gap-1"
                   >
                     <Play size={10} className="fill-current" /> Watch Now
@@ -143,7 +143,7 @@ export default function Top100() {
 
                 {/* Title */}
                 <div className="min-w-0 flex-1">
-                  <Link to={`/anime/${anime.id}`} className="text-white text-sm font-bold truncate hover:text-[#ff006a] transition-colors block">
+                  <Link to={`/anime/${anime.id}/${toSlug(anime.title)}`} className="text-white text-sm font-bold truncate hover:text-[#ff006a] transition-colors block">
                     {anime.title}
                   </Link>
                   <div className="flex items-center gap-3 text-[10px] text-white/40 font-mono mt-0.5">
@@ -159,7 +159,7 @@ export default function Top100() {
               {/* Action Button */}
               <div className="ml-4 shrink-0">
                 <Link
-                  to={`/anime/${anime.id}`}
+                  to={`/anime/${anime.id}/${toSlug(anime.title)}`}
                   className="bg-[#222] hover:bg-[#333] border border-[#333] text-white font-bold text-xs px-3.5 py-1.5 rounded-sm transition-colors"
                 >
                   Ko'rish

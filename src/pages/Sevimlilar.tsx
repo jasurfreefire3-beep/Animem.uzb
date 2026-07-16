@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Anime } from '../types';
+import { Anime, toSlug } from '../types';
 import { Heart, Grid, Star, Play, Archive, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
@@ -122,7 +122,7 @@ export default function Sevimlilar() {
                 {/* Info details */}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <Link to={`/anime/${anime.id}`} className="text-white font-bold text-sm hover:text-[#ff006a] transition-colors truncate block">
+                    <Link to={`/anime/${anime.id}/${toSlug(anime.title)}`} className="text-white font-bold text-sm hover:text-[#ff006a] transition-colors truncate block">
                       {anime.title}
                     </Link>
                     {anime.rating && (
@@ -147,7 +147,7 @@ export default function Sevimlilar() {
                   <Heart size={16} className="fill-current" />
                 </button>
                 <Link
-                  to={`/anime/${anime.id}`}
+                  to={`/anime/${anime.id}/${toSlug(anime.title)}`}
                   className="bg-[#222] hover:bg-[#333] border border-[#333] text-white font-bold text-xs px-4 py-2.5 rounded-sm transition-colors"
                 >
                   Tomosha qilish

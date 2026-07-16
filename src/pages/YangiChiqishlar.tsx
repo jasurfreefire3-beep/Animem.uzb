@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Anime } from '../types';
+import { Anime, toSlug } from '../types';
 import { Clock, Star, Play, PlayCircle, Calendar } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -56,7 +56,7 @@ export default function YangiChiqishlar() {
             transition={{ delay: idx * 0.02 }}
             className="group relative"
           >
-            <Link to={`/anime/${anime.id}`} className="block">
+            <Link to={`/anime/${anime.id}/${toSlug(anime.title)}`} className="block">
               <div className="relative aspect-[3/4] overflow-hidden mb-2 rounded-sm bg-[#111] border border-[#222]">
                 <img
                   src={anime.image_url}

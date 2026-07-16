@@ -704,12 +704,6 @@ app.delete("/api/chat/clear", authenticateToken, async (req: any, res) => {
 
 // Vite Dev Server / Static Files Setup
 async function start() {
-  // Keep alive for Render
-  setInterval(() => {
-    fetch(`http://localhost:${PORT}/api/health`)
-      .catch(err => console.error("Ping failed:", err));
-  }, 5 * 60 * 1000); // 5 minutes
-
   const distPath = path.join(process.cwd(), "dist");
   const isProduction = process.env.NODE_ENV === "production" || fs.existsSync(distPath);
 

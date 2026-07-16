@@ -414,19 +414,6 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
     };
   }, [handlePlayPause, handleToggleFullscreen, handleSkip, isYouTube, isEmbed, isMuted, volume]);
 
-  // Scroll wheel to adjust volume
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (isYouTube || isEmbed || playerError) return;
-    e.preventDefault();
-    const delta = e.deltaY;
-    setVolume(prev => {
-      const change = delta > 0 ? -0.05 : 0.05;
-      const next = Math.max(0, Math.min(1, prev + change));
-      triggerHud(next === 0 ? 'mute' : 'volume', `${Math.round(next * 100)}%`);
-      return next;
-    });
-  };
-
   // Sync fullscreen exit via escape key
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -598,7 +585,6 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
     <div
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      onWheel={handleWheel}
       onMouseLeave={() => {
         if (isPlaying) {
           setShowControls(false);
@@ -617,6 +603,7 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
         onClick={handleVideoClick}
         className="w-full h-full object-contain bg-black"
         playsInline
+        preload="auto"
       />
 
       {/* Double Tap Seek Feedback Ripple animation */}
