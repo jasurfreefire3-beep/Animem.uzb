@@ -3,46 +3,55 @@ import { Link } from 'react-router-dom';
 import { Anime } from '../types';
 import { Heart, Grid, Star, Play, Archive, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '../context/AuthContext';
 
 export default function Sevimlilar() {
   const [animes, setAnimes] = useState<Anime[]>([]);
   const [loading, setLoading] = useState(true);
-  const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'barchasi' | 'animelar' | 'qismlar'>('barchasi');
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Fetch all anime
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-    fetch(`${API_BASE}/api/animes`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setAnimes(data);
-        } else {
-          console.error("Invalid data format for animes:", data);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching animes:", err);
-        setLoading(false);
-      });
-
-    // Load favorites from localStorage
-    const savedFavs = localStorage.getItem('anime_favorites');
-    if (savedFavs) {
+    const fetchFavoritesData = async () => {
       try {
-        setFavoriteIds(JSON.parse(savedFavs));
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }, []);
+        const { firebaseService } = await import('../lib/firebaseService');
+        const animeData = await firebaseService.getAnimes();
+        setAnimes(animeData);
 
-  const handleUnfavorite = (id: number) => {
-    const updated = favoriteIds.filter((favId) => favId !== id);
-    setFavoriteIds(updated);
-    localStorage.setItem('anime_favorites', JSON.stringify(updated));
+        if (user) {
+          const cloudFavs = await firebaseService.getFavorites(user.id);
+          setFavoriteIds(cloudFavs);
+        } else {
+          const savedFavs = localStorage.getItem('anime_favorites');
+          if (savedFavs) {
+            setFavoriteIds(JSON.parse(savedFavs));
+          }
+        }
+      } catch (err) {
+        console.error("Error loading favorites:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFavoritesData();
+  }, [user]);
+
+  const handleUnfavorite = async (id: string) => {
+    try {
+      const { firebaseService } = await import('../lib/firebaseService');
+      if (user) {
+        await firebaseService.toggleFavorite(user.id, id);
+        setFavoriteIds(prev => prev.filter(favId => favId !== id));
+      } else {
+        const updated = favoriteIds.filter((favId) => favId !== id);
+        setFavoriteIds(updated);
+        localStorage.setItem('anime_favorites', JSON.stringify(updated));
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const favoriteAnimes = animes.filter((anime) => favoriteIds.includes(anime.id));

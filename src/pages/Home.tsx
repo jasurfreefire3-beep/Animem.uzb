@@ -11,34 +11,23 @@ export default function Home() {
   const [loadingComments, setLoadingComments] = useState(true);
 
   useEffect(() => {
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-    fetch(`${API_BASE}/api/animes`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setAnimes(data);
-        } else {
-          console.error("Invalid data format for animes:", data);
-        }
+    const fetchHomeData = async () => {
+      try {
+        const { firebaseService } = await import('../lib/firebaseService');
+        const animeData = await firebaseService.getAnimes();
+        setAnimes(animeData);
         setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching animes:", err);
-        setLoading(false);
-      });
 
-    fetch(`${API_BASE}/api/comments/recent`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setRecentComments(data);
-        }
+        const commentsData = await firebaseService.getRecentComments();
+        setRecentComments(commentsData);
         setLoadingComments(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching comments:", err);
+      } catch (err) {
+        console.error("Error loading homepage data:", err);
+        setLoading(false);
         setLoadingComments(false);
-      });
+      }
+    };
+    fetchHomeData();
   }, []);
 
   const popularAnimes = animes.slice(0, 4);

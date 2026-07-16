@@ -1,11 +1,12 @@
 export interface User {
-  id: number;
+  id: string;
   name: string;
   role: 'user' | 'admin';
+  email?: string;
 }
 
 export interface Anime {
-  id: number;
+  id: string;
   title: string;
   description: string;
   image_url: string;
@@ -23,20 +24,20 @@ export interface Anime {
 }
 
 export interface Comment {
-  id: number;
-  anime_id: number;
-  user_id: number;
+  id: string;
+  anime_id: string;
+  user_id: string;
   user_name: string;
   content: string;
   created_at: string;
 }
 
 export interface Message {
-  id: number;
-  user_id: number;
+  id: string;
+  user_id: string;
   user_name: string;
   content: string;
-  reply_to_id?: number | null;
+  reply_to_id?: string | null;
   reply_to_name?: string | null;
   reply_to_content?: string | null;
   created_at: string;

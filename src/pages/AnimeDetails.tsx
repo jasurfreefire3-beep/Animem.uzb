@@ -22,93 +22,119 @@ export default function AnimeDetails() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/animes/${id}`)
-      .then((res) => res.json())
-      .then(data => {
+    const fetchAllDetails = async () => {
+      try {
+        const { firebaseService } = await import('../lib/firebaseService');
+        if (!id) return;
+        const data = await firebaseService.getAnimeByIdOrSlug(id);
+        if (!data) return;
         setAnime(data);
         if (data.video_url) {
           setCurrentVideoUrl(data.video_url);
         }
 
         // Check if currently favorited
-        const savedFavs = localStorage.getItem('anime_favorites');
-        if (savedFavs) {
-          try {
-            const favIds = JSON.parse(savedFavs);
-            setIsFavorited(favIds.includes(data.id));
-          } catch (e) {
-            console.error(e);
-          }
-        }
-      });
-
-    fetch(`${API_BASE}/api/animes/${id}/episodes`)
-      .then((res) => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setEpisodesList(data);
-          // Automatically select first episode video if it exists
-          const ep1 = data.find((e: any) => e.episode_number === 1);
-          if (ep1 && ep1.video_url) {
-            setCurrentVideoUrl(ep1.video_url);
-          }
+        if (user) {
+          const cloudFavs = await firebaseService.getFavorites(user.id);
+          setIsFavorited(cloudFavs.includes(data.id));
         } else {
-          setEpisodesList([]);
+          const savedFavs = localStorage.getItem('anime_favorites');
+          if (savedFavs) {
+            try {
+              const favIds = JSON.parse(savedFavs);
+              setIsFavorited(favIds.includes(data.id));
+            } catch (e) {
+              console.error(e);
+            }
+          }
         }
-      })
-      .catch(err => {
-        console.error("Failed to fetch episodes:", err);
-        setEpisodesList([]);
-      });
 
-    fetchComments();
+        // Fetch episodes
+        const eps = await firebaseService.getEpisodes(data.id);
+        setEpisodesList(eps);
+        const ep1 = eps.find((e: any) => e.episode_number === 1);
+        if (ep1 && ep1.video_url) {
+          setCurrentVideoUrl(ep1.video_url);
+        }
+
+        // Fetch comments
+        const coms = await firebaseService.getComments(data.id);
+        setComments(coms);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchAllDetails();
     window.scrollTo(0, 0);
-  }, [id]);
+  }, [id, user]);
 
   // Handle saving history when activeEpisode changes
   useEffect(() => {
     if (anime && anime.id) {
-      const savedHistory = localStorage.getItem('anime_history');
-      let historyList = [];
-      if (savedHistory) {
+      const saveHistory = async () => {
         try {
-          historyList = JSON.parse(savedHistory);
+          const { firebaseService } = await import('../lib/firebaseService');
+          if (user) {
+            await firebaseService.addToHistory(user.id, anime.id, activeEpisode);
+          } else {
+            const savedHistory = localStorage.getItem('anime_history');
+            let historyList = [];
+            if (savedHistory) {
+              try {
+                historyList = JSON.parse(savedHistory);
+              } catch (e) {
+                console.error(e);
+              }
+            }
+            historyList = historyList.filter((item: any) => item.animeId !== anime.id);
+            historyList.unshift({
+              animeId: anime.id,
+              viewedAt: new Date().toISOString(),
+              lastEpisode: activeEpisode
+            });
+            historyList = historyList.slice(0, 20);
+            localStorage.setItem('anime_history', JSON.stringify(historyList));
+          }
         } catch (e) {
           console.error(e);
         }
-      }
-      historyList = historyList.filter((item: any) => item.animeId !== anime.id);
-      historyList.unshift({
-        animeId: anime.id,
-        viewedAt: new Date().toISOString(),
-        lastEpisode: activeEpisode
-      });
-      historyList = historyList.slice(0, 20);
-      localStorage.setItem('anime_history', JSON.stringify(historyList));
+      };
+      saveHistory();
     }
-  }, [anime, activeEpisode]);
+  }, [anime, activeEpisode, user]);
 
-  const toggleFavorite = () => {
+  const toggleFavorite = async () => {
     if (!anime) return;
-    const savedFavs = localStorage.getItem('anime_favorites');
-    let favIds = [];
-    if (savedFavs) {
-      try {
-        favIds = JSON.parse(savedFavs);
-      } catch (e) {
-        console.error(e);
-      }
-    }
+    try {
+      const { firebaseService } = await import('../lib/firebaseService');
+      if (user) {
+        const isFav = await firebaseService.toggleFavorite(user.id, anime.id);
+        setIsFavorited(isFav);
+      } else {
+        const savedFavs = localStorage.getItem('anime_favorites');
+        let favIds = [];
+        if (savedFavs) {
+          try {
+            favIds = JSON.parse(savedFavs);
+          } catch (e) {
+            console.error(e);
+          }
+        }
 
-    let updatedFavs;
-    if (isFavorited) {
-      updatedFavs = favIds.filter((favId: number) => favId !== anime.id);
-      setIsFavorited(false);
-    } else {
-      updatedFavs = [...favIds, anime.id];
-      setIsFavorited(true);
+        let updatedFavs;
+        if (isFavorited) {
+          updatedFavs = favIds.filter((favId: string) => favId !== anime.id);
+          setIsFavorited(false);
+        } else {
+          updatedFavs = [...favIds, anime.id];
+          setIsFavorited(true);
+        }
+        localStorage.setItem('anime_favorites', JSON.stringify(updatedFavs));
+      }
+    } catch (e) {
+      console.error(e);
     }
-    localStorage.setItem('anime_favorites', JSON.stringify(updatedFavs));
   };
 
   const handleShare = () => {
@@ -126,42 +152,38 @@ export default function AnimeDetails() {
     }
   };
 
-  let fetchComments = () => {
-    fetch(`/api/animes/${id}/comments`)
-      .then((res) => res.json())
-      .then(setComments);
+  const fetchComments = async () => {
+    if (!anime) return;
+    try {
+      const { firebaseService } = await import('../lib/firebaseService');
+      const coms = await firebaseService.getComments(anime.id);
+      setComments(coms);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim() || !user) return;
+    if (!newComment.trim() || !user || !anime) return;
 
-    await fetch(`${API_BASE}/api/animes/${id}/comments`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ content: newComment }),
-    });
-
-    setNewComment('');
-    fetchComments();
+    try {
+      const { firebaseService } = await import('../lib/firebaseService');
+      await firebaseService.addComment(anime.id, user.id, user.name, newComment);
+      setNewComment('');
+      fetchComments();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleCommentDelete = async (commentId: number) => {
-    if (!token || !commentId) return;
+  const handleCommentDelete = async (commentId: string) => {
+    if (!user || !commentId) return;
     if (window.confirm("Ushbu izohni o'chirmoqchimisiz?")) {
       try {
-        const res = await fetch(`${API_BASE}/api/comments/${commentId}`, {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        if (res.ok) {
-          fetchComments();
-        }
+        const { firebaseService } = await import('../lib/firebaseService');
+        await firebaseService.deleteComment(commentId);
+        fetchComments();
       } catch (err) {
         console.error("Failed to delete comment:", err);
       }

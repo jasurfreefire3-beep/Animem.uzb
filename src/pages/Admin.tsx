@@ -33,7 +33,7 @@ export default function Admin() {
   const [editingAnime, setEditingAnime] = useState<Anime | null>(null);
 
   // Deletion States
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Episodes Form States
   const [animes, setAnimes] = useState<Anime[]>([]);
@@ -49,10 +49,16 @@ export default function Admin() {
   // Fetch all animes on component mount
   useEffect(() => {
     if (user?.role === 'admin') {
-      fetch('/api/animes')
-        .then(res => res.json())
-        .then(data => setAnimes(data))
-        .catch(err => console.error("Failed to fetch animes", err));
+      const fetchAnimes = async () => {
+        try {
+          const { firebaseService } = await import('../lib/firebaseService');
+          const data = await firebaseService.getAnimes();
+          setAnimes(data);
+        } catch (err) {
+          console.error("Failed to fetch animes", err);
+        }
+      };
+      fetchAnimes();
     }
   }, [user]);
 
@@ -94,19 +100,13 @@ export default function Admin() {
         tavsiya
       };
 
-      const url = editingAnime ? `/api/animes/${editingAnime.id}` : '/api/animes';
-      const method = editingAnime ? 'PUT' : 'POST';
+      const { firebaseService } = await import('../lib/firebaseService');
 
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error(editingAnime ? 'Anime tahrirlashda xatolik!' : 'Yangi anime yaratishda xatolik!');
+      if (editingAnime) {
+        await firebaseService.updateAnime(editingAnime.id, payload);
+      } else {
+        await firebaseService.addAnime(payload);
+      }
 
       setMessage({ 
         type: 'success', 
@@ -131,9 +131,8 @@ export default function Admin() {
       setActiveTab('manage_animes');
 
       // Refresh animes list
-      fetch('/api/animes')
-        .then(res => res.json())
-        .then(data => setAnimes(data));
+      const data = await firebaseService.getAnimes();
+      setAnimes(data);
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     }
@@ -182,18 +181,12 @@ export default function Admin() {
     setActiveTab('manage_animes');
   };
 
-  // Delete Anime Handler (Cascade on backend deletes episodes & comments first)
-  const handleDeleteAnime = async (animeId: number) => {
+  // Delete Anime Handler
+  const handleDeleteAnime = async (animeId: string) => {
     setMessage({ type: '', text: '' });
     try {
-      const res = await fetch(`/api/animes/${animeId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        }
-      });
-
-      if (!res.ok) throw new Error("Anime o'chirishda xatolik yuz berdi.");
+      const { firebaseService } = await import('../lib/firebaseService');
+      await firebaseService.deleteAnime(animeId);
 
       setMessage({ type: 'success', text: "Anime muvaffaqiyatli o'chirildi!" });
       setDeleteConfirmId(null);
@@ -210,19 +203,17 @@ export default function Admin() {
 
   useEffect(() => {
     if (selectedAnimeId) {
-      fetch(`/api/animes/${selectedAnimeId}/episodes`)
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            setEpisodesList(data);
-          } else {
-            setEpisodesList([]);
-          }
-        })
-        .catch(err => {
+      const fetchEps = async () => {
+        try {
+          const { firebaseService } = await import('../lib/firebaseService');
+          const data = await firebaseService.getEpisodes(selectedAnimeId);
+          setEpisodesList(data);
+        } catch (err) {
           console.error("Failed to fetch episodes:", err);
           setEpisodesList([]);
-        });
+        }
+      };
+      fetchEps();
     } else {
       setEpisodesList([]);
     }
@@ -232,31 +223,14 @@ export default function Admin() {
     if (!selectedAnimeId) return;
     setMessage({ type: '', text: '' });
     try {
-      const res = await fetch('/api/episodes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ 
-          anime_id: parseInt(selectedAnimeId), 
-          episode_number: epNum, 
-          video_url: urlVal 
-        }),
-      });
-
-      if (!res.ok) throw new Error('Failed to save episode');
+      const { firebaseService } = await import('../lib/firebaseService');
+      await firebaseService.saveEpisode(selectedAnimeId, epNum, urlVal);
       
       setMessage({ type: 'success', text: `${epNum}-qism muvaffaqiyatli saqlandi!` });
       
       // Refresh list
-      fetch(`/api/animes/${selectedAnimeId}/episodes`)
-        .then(r => r.json())
-        .then(d => { 
-          if (Array.isArray(d)) {
-            setEpisodesList(d); 
-          }
-        });
+      const data = await firebaseService.getEpisodes(selectedAnimeId);
+      setEpisodesList(data);
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     }
@@ -267,14 +241,8 @@ export default function Admin() {
     if (!window.confirm(`${epNum}-qismni o'chirishga ruxsat berasizmi?`)) return;
     setMessage({ type: '', text: '' });
     try {
-      const res = await fetch(`/api/episodes/${selectedAnimeId}/${epNum}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) throw new Error('Failed to delete episode');
+      const { firebaseService } = await import('../lib/firebaseService');
+      await firebaseService.deleteEpisode(selectedAnimeId, epNum);
       setMessage({ type: 'success', text: `${epNum}-qism o'chirildi!` });
       setEpisodesList(prev => prev.filter(e => e.episode_number !== epNum));
     } catch (err: any) {
@@ -293,7 +261,7 @@ export default function Admin() {
     const nextEpNum = maxEpNum + 1;
     
     const newEp = {
-      anime_id: parseInt(selectedAnimeId),
+      anime_id: selectedAnimeId,
       episode_number: nextEpNum,
       video_url: '',
       isNew: true

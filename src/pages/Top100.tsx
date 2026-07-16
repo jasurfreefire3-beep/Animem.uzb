@@ -9,23 +9,19 @@ export default function Top100() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-    fetch(`${API_BASE}/api/animes`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          // Sort by rating desc
-          const sorted = [...data].sort((a, b) => (b.rating || 0) - (a.rating || 0));
-          setAnimes(sorted);
-        } else {
-          console.error("Invalid data format for animes:", data);
-        }
+    const fetchTopAnimes = async () => {
+      try {
+        const { firebaseService } = await import('../lib/firebaseService');
+        const data = await firebaseService.getAnimes();
+        const sorted = [...data].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+        setAnimes(sorted);
         setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error("Error fetching animes:", err);
         setLoading(false);
-      });
+      }
+    };
+    fetchTopAnimes();
   }, []);
 
   if (loading) {

@@ -17,29 +17,28 @@ export default function ChatWidget() {
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Connect to the socket when ChatWidget is open
+  // Connect to the Firestore listener when ChatWidget is open
   useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
     if (isOpen) {
-      socketRef.current = io();
-
-      socketRef.current.on('previousMessages', (msgs: Message[]) => {
-        setMessages(msgs);
-        scrollToBottom();
-      });
-
-      socketRef.current.on('newMessage', (msg: Message) => {
-        setMessages((prev) => [...prev, msg]);
-        scrollToBottom();
-      });
-
-      socketRef.current.on('chatCleared', () => {
-        setMessages([]);
-      });
-
-      return () => {
-        socketRef.current?.disconnect();
+      const setupChat = async () => {
+        try {
+          const { firebaseService } = await import('../lib/firebaseService');
+          unsubscribe = firebaseService.subscribeChat((msgs) => {
+            setMessages(msgs);
+            scrollToBottom();
+          });
+        } catch (err) {
+          console.error("Error subscribing to chat:", err);
+        }
       };
+      setupChat();
     }
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [isOpen]);
 
   const scrollToBottom = () => {
@@ -48,35 +47,31 @@ export default function ChatWidget() {
     }, 100);
   };
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || !user) return;
     
-    socketRef.current?.emit('sendMessage', {
-      user_id: user.id,
-      user_name: user.name,
-      content: inputValue,
-      reply_to_id: replyingTo?.id || null,
-      reply_to_name: replyingTo?.user_name || null,
-      reply_to_content: replyingTo?.content || null,
-    });
-    setInputValue('');
-    setReplyingTo(null);
+    try {
+      const { firebaseService } = await import('../lib/firebaseService');
+      await firebaseService.sendChatMessage(
+        user.id,
+        user.name,
+        inputValue,
+        replyingTo ? { id: String(replyingTo.id), name: replyingTo.user_name, content: replyingTo.content } : null
+      );
+      setInputValue('');
+      setReplyingTo(null);
+    } catch (err) {
+      console.error("Failed to send message:", err);
+    }
   };
 
   const handleClearChat = async () => {
-    if (!token) return;
     if (window.confirm("Haqiqatan ham barcha xabarlarni o'chirmoqchimisiz?")) {
       try {
-        const res = await fetch('/api/chat/clear', {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        if (res.ok) {
-          setMessages([]);
-        }
+        const { firebaseService } = await import('../lib/firebaseService');
+        await firebaseService.clearChat();
+        setMessages([]);
       } catch (e) {
         console.error("Failed to clear chat", e);
       }

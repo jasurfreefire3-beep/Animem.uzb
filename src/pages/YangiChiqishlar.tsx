@@ -9,23 +9,20 @@ export default function YangiChiqishlar() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-    fetch(`${API_BASE}/api/animes`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          // Sort by ID/created_at descending to simulate newly added releases
-          const sorted = [...data].sort((a, b) => b.id - a.id);
-          setAnimes(sorted);
-        } else {
-          console.error("Invalid data format for animes:", data);
-        }
+    const fetchNewReleases = async () => {
+      try {
+        const { firebaseService } = await import('../lib/firebaseService');
+        const data = await firebaseService.getAnimes();
+        // Sort by created_at descending
+        const sorted = [...data].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        setAnimes(sorted);
         setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error("Error fetching animes:", err);
         setLoading(false);
-      });
+      }
+    };
+    fetchNewReleases();
   }, []);
 
   if (loading) {

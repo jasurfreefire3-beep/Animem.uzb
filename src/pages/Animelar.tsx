@@ -14,21 +14,18 @@ export default function Animelar() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-    fetch(`${API_BASE}/api/animes`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setAnimes(data);
-        } else {
-          console.error("Invalid data format for animes:", data);
-        }
+    const fetchAnimes = async () => {
+      try {
+        const { firebaseService } = await import('../lib/firebaseService');
+        const data = await firebaseService.getAnimes();
+        setAnimes(data);
         setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error("Error fetching animes:", err);
         setLoading(false);
-      });
+      }
+    };
+    fetchAnimes();
   }, []);
 
   const genres = [

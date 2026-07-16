@@ -14,30 +14,26 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Connect to same origin
-    socketRef.current = io();
+    let unsubscribe: (() => void) | undefined;
 
-    socketRef.current.on('previousMessages', (msgs: Message[]) => {
-      setMessages(msgs);
-      scrollToBottom();
-    });
+    const setupChatListener = async () => {
+      try {
+        const { firebaseService } = await import('../lib/firebaseService');
+        unsubscribe = firebaseService.subscribeChat((msgs) => {
+          setMessages(msgs);
+          scrollToBottom();
+        });
+      } catch (err) {
+        console.error("Error setting up chat listener:", err);
+      }
+    };
 
-    socketRef.current.on('newMessage', (msg: Message) => {
-      setMessages((prev) => [...prev, msg]);
-      scrollToBottom();
-    });
-
-    socketRef.current.on('messageDeleted', (deletedId: any) => {
-      const numericId = Number(deletedId);
-      setMessages((prev) => prev.filter((m) => m.id !== numericId));
-    });
-
-    socketRef.current.on('chatCleared', () => {
-      setMessages([]);
-    });
+    setupChatListener();
 
     return () => {
-      socketRef.current?.disconnect();
+      if (unsubscribe) {
+        unsubscribe();
+      }
     };
   }, []);
 
@@ -47,56 +43,42 @@ export default function Chat() {
     }, 100);
   };
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || !user) return;
 
-    socketRef.current?.emit('sendMessage', {
-      user_id: user.id,
-      user_name: user.name,
-      content: input,
-      reply_to_id: replyingTo?.id || null,
-      reply_to_name: replyingTo?.user_name || null,
-      reply_to_content: replyingTo?.content || null,
-    });
-    setInput('');
-    setReplyingTo(null);
+    try {
+      const { firebaseService } = await import('../lib/firebaseService');
+      await firebaseService.sendChatMessage(
+        user.id,
+        user.name,
+        input,
+        replyingTo ? { id: String(replyingTo.id), name: replyingTo.user_name, content: replyingTo.content } : null
+      );
+      setInput('');
+      setReplyingTo(null);
+    } catch (err) {
+      console.error("Failed to send message:", err);
+    }
   };
 
   const handleClearChat = async () => {
-    if (!token) return;
     if (window.confirm("Haqiqatan ham barcha xabarlarni o'chirmoqchimisiz? (Bu chatni butunlay tozalaydi)")) {
       try {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-        const res = await fetch(`${API_BASE}/api/chat/clear`, {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        if (res.ok) {
-          setMessages([]);
-        }
+        const { firebaseService } = await import('../lib/firebaseService');
+        await firebaseService.clearChat();
+        setMessages([]);
       } catch (e) {
         console.error("Failed to clear chat", e);
       }
     }
   };
 
-  const handleDeleteMessage = async (msgId: number) => {
-    if (!token || !msgId) return;
+  const handleDeleteMessage = async (msgId: string | number) => {
     if (window.confirm("Ushbu xabarni o'chirmoqchimisiz?")) {
       try {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-        const res = await fetch(`${API_BASE}/api/chat/messages/${msgId}`, {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        if (res.ok) {
-          setMessages((prev) => prev.filter(m => m.id !== msgId));
-        }
+        const { firebaseService } = await import('../lib/firebaseService');
+        await firebaseService.deleteChatMessage(String(msgId));
       } catch (e) {
         console.error("Failed to delete message", e);
       }

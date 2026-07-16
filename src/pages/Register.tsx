@@ -12,17 +12,18 @@ export default function Register() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const syncFirebaseUser = async (firebaseToken: string) => {
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-    const res = await fetch(`${API_BASE}/api/auth/firebase`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: firebaseToken })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-    login(data.token, data.user);
-    navigate('/');
+  const syncFirebaseUser = async (firebaseUser: any) => {
+    try {
+      const { firebaseService } = await import('../lib/firebaseService');
+      const email = firebaseUser.email || '';
+      const name = firebaseUser.displayName || email.split('@')[0] || "User";
+      const userProfile = await firebaseService.syncUserProfile(firebaseUser.uid, name, email);
+      login(firebaseUser.uid, userProfile);
+      navigate('/');
+    } catch (err: any) {
+      console.error(err);
+      setError('Profile sync failed: ' + err.message);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,8 +36,7 @@ export default function Register() {
       
       const result = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(result.user, { displayName: name });
-      const token = await result.user.getIdToken();
-      await syncFirebaseUser(token);
+      await syncFirebaseUser(result.user);
     } catch (err: any) {
       setError(err.message || 'Registration failed');
     }
@@ -48,8 +48,7 @@ export default function Register() {
       const { auth, googleProvider } = await import('../lib/firebase');
       
       const result = await signInWithPopup(auth, googleProvider);
-      const token = await result.user.getIdToken();
-      await syncFirebaseUser(token);
+      await syncFirebaseUser(result.user);
     } catch (err: any) {
       console.error(err);
       setError('Failed to initialize Google Login: ' + err.message);

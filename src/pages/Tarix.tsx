@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import { Anime } from '../types';
 import { History, Trash2, Calendar, Star, Play, Film } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '../context/AuthContext';
 
 interface HistoryItem {
-  animeId: number;
+  animeId: string;
   viewedAt: string;
   lastEpisode?: number;
 }
@@ -14,45 +15,74 @@ export default function Tarix() {
   const [animes, setAnimes] = useState<Anime[]>([]);
   const [loading, setLoading] = useState(true);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Fetch all anime
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-    fetch(`${API_BASE}/api/animes`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setAnimes(data);
-        } else {
-          console.error("Invalid data format for animes:", data);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching animes:", err);
-        setLoading(false);
-      });
-
-    // Load history
-    const savedHistory = localStorage.getItem('anime_history');
-    if (savedHistory) {
+    const fetchHistoryData = async () => {
       try {
-        setHistoryItems(JSON.parse(savedHistory));
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }, []);
+        const { firebaseService } = await import('../lib/firebaseService');
+        const animeData = await firebaseService.getAnimes();
+        setAnimes(animeData);
 
-  const clearHistory = () => {
-    setHistoryItems([]);
-    localStorage.removeItem('anime_history');
+        if (user) {
+          const cloudHistory = await firebaseService.getHistory(user.id);
+          const mapped = cloudHistory.map(item => ({
+            animeId: item.anime_id,
+            viewedAt: item.watched_at,
+            lastEpisode: item.episode_number
+          }));
+          setHistoryItems(mapped);
+        } else {
+          const savedHistory = localStorage.getItem('anime_history');
+          if (savedHistory) {
+            setHistoryItems(JSON.parse(savedHistory));
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching history:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistoryData();
+  }, [user]);
+
+  const clearHistory = async () => {
+    try {
+      if (user) {
+        const { doc, updateDoc } = await import('firebase/firestore');
+        const { db } = await import('../lib/firebase');
+        await updateDoc(doc(db, 'users', user.id), { history: [] });
+      } else {
+        localStorage.removeItem('anime_history');
+      }
+      setHistoryItems([]);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const removeHistoryItem = (animeId: number) => {
-    const updated = historyItems.filter(item => item.animeId !== animeId);
-    setHistoryItems(updated);
-    localStorage.setItem('anime_history', JSON.stringify(updated));
+  const removeHistoryItem = async (animeId: string) => {
+    try {
+      const updated = historyItems.filter(item => item.animeId !== animeId);
+      setHistoryItems(updated);
+
+      if (user) {
+        const { doc, updateDoc } = await import('firebase/firestore');
+        const { db } = await import('../lib/firebase');
+        const cloudHistory = updated.map(item => ({
+          anime_id: item.animeId,
+          watched_at: item.viewedAt,
+          episode_number: item.lastEpisode || 1
+        }));
+        await updateDoc(doc(db, 'users', user.id), { history: cloudHistory });
+      } else {
+        localStorage.setItem('anime_history', JSON.stringify(updated));
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // Find corresponding anime records for history items

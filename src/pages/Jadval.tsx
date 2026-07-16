@@ -21,21 +21,18 @@ export default function Jadval() {
   ];
 
   useEffect(() => {
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-    fetch(`${API_BASE}/api/animes`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setAnimes(data);
-        } else {
-          console.error("Invalid data format for animes:", data);
-        }
+    const fetchSchedule = async () => {
+      try {
+        const { firebaseService } = await import('../lib/firebaseService');
+        const data = await firebaseService.getAnimes();
+        setAnimes(data);
         setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error("Error fetching animes:", err);
         setLoading(false);
-      });
+      }
+    };
+    fetchSchedule();
 
     // Load notification state
     const savedNotifications = localStorage.getItem('anime_schedule_reminders');
@@ -48,9 +45,9 @@ export default function Jadval() {
     }
   }, []);
 
-  const toggleNotification = (animeId: number) => {
+  const toggleNotification = (animeId: string) => {
     const updated = { ...notifications, [animeId]: !notifications[animeId] };
-    setNotifications(updated);
+    setNotifications(updated as any);
     localStorage.setItem('anime_schedule_reminders', JSON.stringify(updated));
   };
 
@@ -58,8 +55,13 @@ export default function Jadval() {
   const getScheduleForDay = (dayId: number) => {
     return animes
       .filter((anime) => {
-        // Deterministic day assignment based on ID
-        const assignedDay = (anime.id % 7) + 1;
+        // Deterministic day assignment based on string ID hash
+        let hash = 0;
+        const idStr = String(anime.id);
+        for (let i = 0; i < idStr.length; i++) {
+          hash = idStr.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const assignedDay = Math.abs(hash % 7) + 1;
         return assignedDay === dayId;
       })
       .map((anime, index) => {
