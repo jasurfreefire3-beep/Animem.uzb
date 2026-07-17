@@ -82,13 +82,25 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
   const [isAdMode, setIsAdMode] = useState(true);
   const [adCurrentTime, setAdCurrentTime] = useState(0);
   const [isAdPlaying, setIsAdPlaying] = useState(true);
+  const [adUrl, setAdUrl] = useState('/ANIMEM_UZ_UZS_UNIVERSAL_15.mp4');
   const adVideoRef = useRef<HTMLVideoElement>(null);
   
-  const AD_URL = '/ANIMEM_UZ_UZS_UNIVERSAL_15.mp4';
+  const AD_VIDEOS = [
+    '/ANIMEM_UZ_UZS_UNIVERSAL_15.mp4',
+    '/ANIMEM_UZ_UZS_CASINO_103.mp4',
+    '/ANIMEM_UZ_UZS_CASINO_105.mp4',
+    '/ANIMEM_UZ_UZS_SPORT_137.mp4',
+    '/ANIMEM_UZ_UZS_SPORT_54.mp4',
+    '/ANIMEM_UZ_UZS_SPORT_61.mp4',
+    '/ANIMEM_UZ_UZS_SPORT_67.mp4',
+    '/ANIMEM_UZ_UZS_SPORT_82.mp4',
+  ];
   const AD_LINK = 'https://velzom.com/323v?p=%2Fregistration%2F';
 
   useEffect(() => {
     if (url) {
+      const randomAd = AD_VIDEOS[Math.floor(Math.random() * AD_VIDEOS.length)];
+      setAdUrl(randomAd);
       setIsAdMode(true);
       setAdCurrentTime(0);
       setIsAdPlaying(true);
@@ -548,7 +560,7 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
       <div className="relative aspect-video bg-black rounded-sm overflow-hidden border border-[#222] shadow-2xl group">
          <video 
            ref={adVideoRef}
-           src={AD_URL}
+           src={adUrl}
            className="w-full h-full object-contain cursor-pointer"
            autoPlay
            playsInline
