@@ -15,6 +15,10 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "anime_super_secret_key";
@@ -60,9 +64,36 @@ async function testDbConnection() {
   try {
     const connection = await pool.getConnection();
     console.log("Connected to MySQL database successfully!");
+    
+    // Create notifications table if not exists
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log("Verified notifications table in MySQL.");
+
+    // Check if avatar_url column exists in users
+    const [columns]: any = await connection.query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_NAME = 'users' 
+        AND COLUMN_NAME = 'avatar_url' 
+        AND TABLE_SCHEMA = DATABASE()
+    `);
+
+    if (columns.length === 0) {
+      await connection.query(`
+        ALTER TABLE users ADD COLUMN avatar_url MEDIUMTEXT DEFAULT NULL
+      `);
+      console.log("Added avatar_url column to users table.");
+    }
+
     connection.release();
   } catch (err) {
-    console.error("Database connection failed on startup:", err);
+    console.error("Database connection/migration failed on startup:", err);
   }
 }
 testDbConnection();
@@ -148,7 +179,7 @@ app.post("/api/auth/register", async (req, res) => {
     const role = email === "mosinjonovjasurbek28@gmail.com" ? "admin" : "user";
 
     const [result]: any = await pool.query(
-      "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
+      "INSERT INTO users (name, email, password, role, avatar_url) VALUES (?, ?, ?, ?, NULL)",
       [name, email, hashedPassword, role]
     );
 
@@ -157,6 +188,7 @@ app.post("/api/auth/register", async (req, res) => {
       name,
       email,
       role,
+      avatar_url: null,
     };
 
     const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: "30d" });
@@ -196,6 +228,7 @@ app.post("/api/auth/login", async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      avatar_url: user.avatar_url,
     };
 
     const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: "30d" });
@@ -212,7 +245,7 @@ app.post("/api/auth/login", async (req, res) => {
 
 app.post("/api/auth/google", async (req, res) => {
   try {
-    const { email, name } = req.body;
+    const { email, name, avatar_url } = req.body;
     if (!email || !name) {
       return res.status(400).json({ error: "Kerakli ma'lumotlar yo'q" });
     }
@@ -227,8 +260,8 @@ app.post("/api/auth/google", async (req, res) => {
       const hashedPassword = await bcrypt.hash(randomPass, 10);
       
       const [result]: any = await pool.query(
-        "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
-        [name, email, hashedPassword, role]
+        "INSERT INTO users (name, email, password, role, avatar_url) VALUES (?, ?, ?, ?, ?)",
+        [name, email, hashedPassword, role, avatar_url || null]
       );
       
       user = {
@@ -236,7 +269,14 @@ app.post("/api/auth/google", async (req, res) => {
         name,
         email,
         role,
+        avatar_url: avatar_url || null,
       };
+    } else {
+      // If user exists but doesn't have an avatar, or if google avatar is newer, we can save it
+      if (avatar_url && !user.avatar_url) {
+        await pool.query("UPDATE users SET avatar_url = ? WHERE id = ?", [avatar_url, user.id]);
+        user.avatar_url = avatar_url;
+      }
     }
 
     const userPayload = {
@@ -244,6 +284,7 @@ app.post("/api/auth/google", async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      avatar_url: user.avatar_url,
     };
 
     const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: "30d" });
@@ -254,6 +295,91 @@ app.post("/api/auth/google", async (req, res) => {
     });
   } catch (error: any) {
     console.error("Google Login error:", error);
+    res.status(500).json({ error: "Serverda xatolik yuz berdi" });
+  }
+});
+
+// Get all notifications from MySQL
+app.get("/api/notifications", async (req, res) => {
+  try {
+    const [rows]: any = await pool.query("SELECT * FROM notifications ORDER BY id DESC LIMIT 50");
+    res.json(rows);
+  } catch (err) {
+    console.error("Notifications fetch error:", err);
+    res.status(500).json({ error: "Bildirishnomalarni yuklashda xatolik" });
+  }
+});
+
+// Post a new notification (Admin only)
+app.post("/api/notifications", authenticateToken, async (req: any, res) => {
+  try {
+    if (req.user.role !== "admin") return res.sendStatus(403);
+    const { message } = req.body;
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: "Xabar matni bo'sh bo'lishi mumkin emas!" });
+    }
+
+    const [result]: any = await pool.query(
+      "INSERT INTO notifications (message) VALUES (?)",
+      [message.trim()]
+    );
+
+    res.status(201).json({
+      id: result.insertId,
+      message: message.trim(),
+      created_at: new Date()
+    });
+  } catch (err) {
+    console.error("Create notification error:", err);
+    res.status(500).json({ error: "Bildirishnoma yaratishda xatolik" });
+  }
+});
+
+// Update user profile photo (Avatar) as base64 string in MySQL
+app.post("/api/user/avatar", authenticateToken, async (req: any, res) => {
+  try {
+    const userId = req.user.id;
+    const { avatar_url } = req.body;
+
+    if (!avatar_url) {
+      return res.status(400).json({ error: "Rasm topilmadi" });
+    }
+
+    await pool.query("UPDATE users SET avatar_url = ? WHERE id = ?", [avatar_url, userId]);
+
+    // Get updated user details
+    const [rows]: any = await pool.query("SELECT id, name, email, role, avatar_url FROM users WHERE id = ?", [userId]);
+    const updatedUser = rows[0];
+
+    res.json({ message: "Profil rasmi muvaffaqiyatli yangilandi", user: updatedUser });
+  } catch (err) {
+    console.error("Upload avatar error:", err);
+    res.status(500).json({ error: "Profil rasmini yuklashda xatolik yuz berdi" });
+  }
+});
+
+// Update user profile name
+app.put("/api/user/profile", authenticateToken, async (req: any, res) => {
+  try {
+    const userId = req.user.id;
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "Ism bo'sh bo'lishi mumkin emas" });
+    }
+
+    await pool.query("UPDATE users SET name = ? WHERE id = ?", [name.trim(), userId]);
+
+    // Get updated user details
+    const [rows]: any = await pool.query("SELECT id, name, email, role, avatar_url FROM users WHERE id = ?", [userId]);
+    const updatedUser = rows[0];
+
+    // Generate new token with updated user details
+    const token = jwt.sign(updatedUser, JWT_SECRET, { expiresIn: "30d" });
+
+    res.json({ message: "Profil yangilandi", user: updatedUser, token });
+  } catch (err) {
+    console.error("Update profile error:", err);
     res.status(500).json({ error: "Serverda xatolik yuz berdi" });
   }
 });

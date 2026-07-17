@@ -4,15 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ShieldAlert, Plus, Link as LinkIcon, Image, Type, AlignLeft, 
   Calendar, Building, ListOrdered, Tag, Film, Tv, Video, 
-  Trash2, Edit2, Search, X, Check, Eye 
+  Trash2, Edit2, Search, X, Check, Eye, Bell 
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Anime, GENRE_MAP, translateGenre } from '../types';
+import AdminNotifications from '../components/AdminNotifications';
 
 export default function Admin() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'manage_animes' | 'add_anime' | 'episodes'>('manage_animes');
+  const [activeTab, setActiveTab] = useState<'manage_animes' | 'add_anime' | 'episodes' | 'notifications'>('manage_animes');
   
   // Anime Form States
   const [title, setTitle] = useState('');
@@ -388,6 +389,18 @@ export default function Admin() {
         >
           <ListOrdered size={16} />
           <span>Qismlarni Boshqarish</span>
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('notifications');
+            setMessage({ type: '', text: '' });
+          }}
+          className={`flex items-center space-x-2 px-3 sm:px-6 py-2 sm:py-2.5 rounded-sm text-xs sm:text-sm font-bold transition-colors flex-1 justify-center ${
+            activeTab === 'notifications' ? 'bg-[#ff006a] text-white' : 'text-white/50 hover:bg-[#222] hover:text-white'
+          }`}
+        >
+          <Bell size={16} />
+          <span>Bildirishnomalar</span>
         </button>
       </div>
 
@@ -958,6 +971,16 @@ export default function Admin() {
               <p className="text-xs text-white/30 mt-1 max-w-xs mx-auto">Iltimos, yuqoridagi ro'yxatdan anime yoki film tanlang.</p>
             </div>
           )}
+        </motion.div>
+      )}
+
+      {/* Tab 4: Notifications */}
+      {activeTab === 'notifications' && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <AdminNotifications />
         </motion.div>
       )}
     </div>

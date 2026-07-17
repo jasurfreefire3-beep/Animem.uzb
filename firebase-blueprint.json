@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "Notification": {
+      "title": "Notification",
+      "description": "An application notification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "isRead": { "type": "boolean" }
+      },
+      "required": ["message", "createdAt", "isRead"]
+    }
+  },
+  "firestore": {
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "System-wide notifications"
+    }
+  }
+}

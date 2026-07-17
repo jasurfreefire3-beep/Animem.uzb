@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Notification } from '../types';
 import { Search, LogOut, User, Bell, Menu, PlusCircle, Heart, Settings, X, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import logoImg from '../logo.png';
@@ -16,8 +17,32 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const [searchValue, setSearchValue] = useState(searchParams.get('search') || '');
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifCount, setNotifCount] = useState(3);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [lastReadId, setLastReadId] = useState<number>(() => {
+    return Number(localStorage.getItem('last_read_notif_id') || '0');
+  });
+
+  const notifCount = notifications.filter(n => Number(n.id) > lastReadId).length;
   const [showMobileSearch, setShowMobileSearch] = useState(false);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const res = await fetch(`${API_BASE}/api/notifications`);
+        if (res.ok) {
+          const data = await res.json();
+          setNotifications(data);
+        }
+      } catch (err) {
+        console.error("Error fetching notifications:", err);
+      }
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 15000);
+    return () => clearInterval(interval);
+  }, []);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -55,13 +80,6 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
     setShowProfileDropdown(false);
     navigate('/');
   };
-
-  // Mock list of releases for notification bell
-  const mockNotifications = [
-    { id: 1, title: 'Solo Leveling 2-mavsum', ep: '6-qism chiqdi!', time: '10 daqiqa oldin' },
-    { id: 2, title: 'Naruto Shippuden', ep: 'Uzbek tilida yangilandi', time: '1 soat oldin' },
-    { id: 3, title: 'Demon Slayer Castle', ep: 'Premyera treyleri yuklandi', time: 'Bugun' },
-  ];
 
   return (
     <header className="fixed top-0 right-0 left-0 md:left-64 h-20 md:h-16 bg-[#09090b]/95 backdrop-blur-md border-b border-[#1a1a1a] z-30 px-4 md:px-8 flex items-center justify-between text-white select-none">
@@ -159,14 +177,21 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
         <div className="relative" ref={notifRef}>
           <button
             onClick={() => {
-              setShowNotifications(!showNotifications);
-              setNotifCount(0); // clear count
+              const nextShow = !showNotifications;
+              setShowNotifications(nextShow);
+              if (nextShow && notifications.length > 0) {
+                const highestId = Math.max(...notifications.map(n => Number(n.id)));
+                setLastReadId(highestId);
+                localStorage.setItem('last_read_notif_id', String(highestId));
+              }
             }}
             className="p-2 text-white/60 hover:text-white hover:bg-[#111] rounded-sm transition-all relative"
           >
             <Bell size={18} />
             {notifCount > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-[#ff006a] rounded-full ring-2 ring-[#09090b]" />
+              <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-[#ff006a] rounded-full text-[9px] flex items-center justify-center font-bold text-white ring-2 ring-[#09090b]">
+                {notifCount}
+              </span>
             )}
           </button>
 
@@ -176,7 +201,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                className="absolute right-0 mt-3 w-80 bg-[#111113] border border-[#1a1a1c] rounded-sm shadow-2xl overflow-hidden text-sm z-50"
+                className="absolute right-[-40px] sm:right-0 mt-3 w-[calc(100vw-32px)] sm:w-80 bg-[#111113] border border-[#1a1a1c] rounded-sm shadow-2xl overflow-hidden text-sm z-50"
               >
                 <div className="p-3 border-b border-[#222] bg-[#0c0c0e] flex items-center justify-between">
                   <span className="font-bold text-xs uppercase tracking-wider text-white/50">Bildirishnomalar</span>
@@ -185,21 +210,19 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
                   </button>
                 </div>
                 <div className="divide-y divide-[#1a1a1c] max-h-72 overflow-y-auto custom-scrollbar">
-                  {mockNotifications.map((n) => (
-                    <div key={n.id} className="p-3 hover:bg-[#161619] transition-colors cursor-pointer">
-                      <p className="font-bold text-xs text-white/90 line-clamp-1">{n.title}</p>
-                      <p className="text-xs text-white/50 mt-0.5 line-clamp-1">{n.ep}</p>
-                      <span className="text-[9px] text-[#ff006a] font-mono mt-1 block">{n.time}</span>
-                    </div>
-                  ))}
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-xs text-center text-white/40">Yangi bildirishnomalar yo'q.</div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div key={n.id} className="p-3 hover:bg-[#161619] transition-colors cursor-pointer">
+                        <p className="font-bold text-xs text-white/90">{n.message}</p>
+                        <span className="text-[9px] text-[#ff006a] font-mono mt-1 block">
+                          {n.created_at ? new Date(n.created_at).toLocaleString('uz-UZ') : 'Yangi'}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
-                <Link
-                  to="/jadval"
-                  onClick={() => setShowNotifications(false)}
-                  className="block text-center p-2.5 text-xs font-bold bg-[#0c0c0e] text-[#ff006a] hover:underline border-t border-[#1a1a1c]"
-                >
-                  Barcha yangilanishlar jadvali
-                </Link>
               </motion.div>
             )}
           </AnimatePresence>
@@ -212,8 +235,12 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
               onClick={() => setShowProfileDropdown(!showProfileDropdown)}
               className="flex items-center space-x-2 p-1 rounded-sm hover:bg-[#111] transition-all"
             >
-              <div className="w-8 h-8 rounded-full bg-[#1c1c1e] border border-[#ff006a]/30 flex items-center justify-center font-bold text-xs text-[#ff006a] uppercase">
-                {user.name.charAt(0)}
+              <div className="w-8 h-8 rounded-full border border-[#ff006a]/30 overflow-hidden flex items-center justify-center bg-[#1c1c1e] text-[#ff006a] uppercase font-bold text-xs">
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  user.name.charAt(0)
+                )}
               </div>
               <span className="text-xs font-bold hidden md:inline text-white/80">{user.name}</span>
             </button>

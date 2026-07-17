@@ -54,7 +54,8 @@ export default function Register() {
         body: JSON.stringify({ 
           email: user.email, 
           name: user.displayName || 'Google User', 
-          uid: user.uid 
+          uid: user.uid,
+          avatar_url: user.photoURL
         }),
       });
 

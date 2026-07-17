@@ -78,6 +78,23 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
   const seekBarRef = useRef<HTMLDivElement>(null);
   const playerJSRef = useRef<any>(null);
 
+  // Ad Player State
+  const [isAdMode, setIsAdMode] = useState(true);
+  const [adCurrentTime, setAdCurrentTime] = useState(0);
+  const [isAdPlaying, setIsAdPlaying] = useState(true);
+  const adVideoRef = useRef<HTMLVideoElement>(null);
+  
+  const AD_URL = '/ANIMEM_UZ_UZS_UNIVERSAL_15.mp4';
+  const AD_LINK = 'https://velzom.com/323v?p=%2Fregistration%2F';
+
+  useEffect(() => {
+    if (url) {
+      setIsAdMode(true);
+      setAdCurrentTime(0);
+      setIsAdPlaying(true);
+    }
+  }, [url]);
+
   // Check URL type
   const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
   const isDirectVideo = !!url.match(/\.(mp4|webm|ogg|m3u8|mkv)(\?.*)?$/i);
@@ -523,6 +540,69 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
   const handleSeekBarMouseLeave = () => {
     setHoverTime(null);
   };
+
+  // --- Ad Player ---
+  if (isAdMode && url) {
+    const canSkip = adCurrentTime >= 10;
+    return (
+      <div className="relative aspect-video bg-black rounded-sm overflow-hidden border border-[#222] shadow-2xl group">
+         <video 
+           ref={adVideoRef}
+           src={AD_URL}
+           className="w-full h-full object-contain cursor-pointer"
+           autoPlay
+           playsInline
+           onClick={() => {
+             window.open(AD_LINK, '_blank');
+           }}
+           onTimeUpdate={(e) => {
+             setAdCurrentTime(e.currentTarget.currentTime);
+           }}
+           onPlay={() => setIsAdPlaying(true)}
+           onPause={() => setIsAdPlaying(false)}
+           onEnded={() => setIsAdMode(false)}
+         />
+         {/* UI for Ad */}
+         <div className="absolute top-4 left-4 bg-[#ff006a]/80 text-white text-[10px] uppercase px-2 py-1 tracking-wider font-black pointer-events-none rounded-sm">
+           Reklama
+         </div>
+         <div className="absolute bottom-6 right-6 z-50">
+           {canSkip ? (
+             <button 
+               onClick={(e) => {
+                 e.stopPropagation();
+                 setIsAdMode(false);
+               }}
+               className="bg-[#18181b]/90 hover:bg-[#ff006a] text-white px-5 py-2.5 text-xs font-black backdrop-blur-md border border-white/10 transition-colors flex items-center gap-2 rounded-sm cursor-pointer shadow-2xl"
+             >
+               O'TKAZIB YUBORISH <FastForward size={14} className="fill-current"/>
+             </button>
+           ) : (
+             <div className="bg-[#18181b]/90 text-white/50 px-5 py-2.5 text-xs font-black backdrop-blur-md border border-white/10 pointer-events-none rounded-sm">
+               O'TKAZIB YUBORISH ({Math.ceil(10 - adCurrentTime)}S)
+             </div>
+           )}
+         </div>
+         <div className="absolute bottom-6 left-6 z-50">
+             <button 
+               onClick={(e) => {
+                  e.stopPropagation();
+                  if (adVideoRef.current) {
+                     if (isAdPlaying) {
+                        adVideoRef.current.pause();
+                     } else {
+                        adVideoRef.current.play();
+                     }
+                  }
+               }}
+               className="bg-[#18181b]/90 hover:bg-white/20 text-white w-10 h-10 flex items-center justify-center rounded-sm backdrop-blur-md border border-white/10 transition-colors cursor-pointer"
+             >
+               {isAdPlaying ? <Pause size={16} className="fill-current"/> : <Play size={16} className="fill-current ml-0.5"/>}
+             </button>
+         </div>
+      </div>
+    );
+  }
 
   // --- YouTube Frame Fallback ---
   if (isYouTube) {

@@ -3,6 +3,7 @@ export interface User {
   name: string;
   role: 'user' | 'admin';
   email?: string;
+  avatar_url?: string;
 }
 
 export interface Anime {
@@ -20,7 +21,16 @@ export interface Anime {
   janrlar: string;
   video_url: string;
   tavsiya: boolean;
+  is_banner?: boolean | number;
   created_at: string;
+}
+
+export interface Notification {
+  id: string;
+  message: string;
+  createdAt?: any;
+  created_at?: string;
+  isRead?: boolean;
 }
 
 export interface Comment {
