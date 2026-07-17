@@ -19,7 +19,7 @@ export default function Register() {
     setError('');
 
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+      const API_BASE = '';
       const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: {
@@ -45,7 +45,7 @@ export default function Register() {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+      const API_BASE = '';
       const res = await fetch(`${API_BASE}/api/auth/google`, {
         method: 'POST',
         headers: {

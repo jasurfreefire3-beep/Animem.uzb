@@ -13,8 +13,10 @@ const pool = mysql.createPool({
 
 async function checkDb() {
   try {
-    const [result] = await pool.query("DESCRIBE animes");
-    console.log("Animes table:", result);
+    const [[{ count: animeCount }]]: any = await pool.query("SELECT COUNT(*) as count FROM animes");
+    const [[{ count: episodeCount }]]: any = await pool.query("SELECT COUNT(*) as count FROM episodes");
+    const [[{ count: notificationCount }]]: any = await pool.query("SELECT COUNT(*) as count FROM notifications");
+    console.log({ animeCount, episodeCount, notificationCount });
   } catch (error) {
     console.error(error);
   } finally {

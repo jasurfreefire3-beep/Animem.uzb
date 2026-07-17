@@ -70,7 +70,7 @@ export default function ChatWidget() {
         reply_to_content: replyingTo ? replyingTo.content : null
       };
 
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+      const API_BASE = '';
       const res = await fetch(`${API_BASE}/api/chat/messages`, {
         method: 'POST',
         headers: {
@@ -94,7 +94,7 @@ export default function ChatWidget() {
   const handleClearChat = async () => {
     if (window.confirm("Haqiqatan ham barcha xabarlarni o'chirmoqchimisiz?")) {
       try {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const API_BASE = '';
         await fetch(`${API_BASE}/api/chat/clear`, {
           method: 'DELETE',
           headers: {

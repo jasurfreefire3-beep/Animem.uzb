@@ -12,7 +12,7 @@ export default function AnimeDetails() {
   const id = animeId;
   const navigate = useNavigate();
   const { user, token } = useAuth();
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+  const API_BASE = '';
   const [anime, setAnime] = useState<Anime | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [episodesList, setEpisodesList] = useState<any[]>([]);

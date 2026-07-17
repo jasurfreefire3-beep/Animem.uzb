@@ -66,7 +66,7 @@ export default function Chat() {
         reply_to_content: replyingTo ? replyingTo.content : null
       };
       
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+      const API_BASE = '';
       const res = await fetch(`${API_BASE}/api/chat/messages`, {
         method: 'POST',
         headers: {
@@ -90,7 +90,7 @@ export default function Chat() {
   const handleClearChat = async () => {
     if (window.confirm("Haqiqatan ham barcha xabarlarni o'chirmoqchimisiz? (Bu chatni butunlay tozalaydi)")) {
       try {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const API_BASE = '';
         const res = await fetch(`${API_BASE}/api/chat/clear`, {
           method: 'DELETE',
           headers: {
@@ -109,7 +109,7 @@ export default function Chat() {
   const handleDeleteMessage = async (msgId: string | number) => {
     if (window.confirm("Ushbu xabarni o'chirmoqchimisiz?")) {
       try {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const API_BASE = '';
         const res = await fetch(`${API_BASE}/api/chat/messages/${msgId}`, {
           method: 'DELETE',
           headers: {

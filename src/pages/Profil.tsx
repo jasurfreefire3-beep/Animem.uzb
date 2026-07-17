@@ -92,7 +92,7 @@ export default function Profil() {
 
     try {
       const resizedBase64 = await resizeImage(file, 150, 150);
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+      const API_BASE = '';
       
       const res = await fetch(`${API_BASE}/api/user/avatar`, {
         method: 'POST',
@@ -123,7 +123,7 @@ export default function Profil() {
     setError('');
 
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+      const API_BASE = '';
       const res = await fetch(`${API_BASE}/api/user/profile`, {
         method: 'PUT',
         headers: {

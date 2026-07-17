@@ -28,7 +28,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const API_BASE = '';
         const res = await fetch(`${API_BASE}/api/notifications`);
         if (res.ok) {
           const data = await res.json();

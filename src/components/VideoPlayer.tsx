@@ -82,6 +82,7 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
   const [isAdMode, setIsAdMode] = useState(true);
   const [adCurrentTime, setAdCurrentTime] = useState(0);
   const [isAdPlaying, setIsAdPlaying] = useState(true);
+  const [isAdMuted, setIsAdMuted] = useState(true);
   const [adUrl, setAdUrl] = useState('/ANIMEM_UZ_UZS_UNIVERSAL_15.mp4');
   const adVideoRef = useRef<HTMLVideoElement>(null);
   
@@ -485,6 +486,7 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
     };
     const onCanPlay = () => setIsLoading(false);
     const onWaiting = () => setIsLoading(true);
+    const onPlaying = () => setIsLoading(false);
     
     const onError = () => {
       setIsLoading(false);
@@ -498,6 +500,7 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
     video.addEventListener('loadstart', onLoadStart);
     video.addEventListener('canplay', onCanPlay);
     video.addEventListener('waiting', onWaiting);
+    video.addEventListener('playing', onPlaying);
     video.addEventListener('error', onError);
 
     // Load source
@@ -512,6 +515,7 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
       video.removeEventListener('loadstart', onLoadStart);
       video.removeEventListener('canplay', onCanPlay);
       video.removeEventListener('waiting', onWaiting);
+      video.removeEventListener('playing', onPlaying);
       video.removeEventListener('error', onError);
     };
   }, [url]);
@@ -564,6 +568,7 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
            className="w-full h-full object-contain cursor-pointer"
            autoPlay
            playsInline
+           muted={isAdMuted}
            onClick={() => {
              window.open(AD_LINK, '_blank');
            }}
@@ -578,24 +583,24 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
          <div className="absolute top-4 left-4 bg-[#ff006a]/80 text-white text-[10px] uppercase px-2 py-1 tracking-wider font-black pointer-events-none rounded-sm">
            Reklama
          </div>
-         <div className="absolute bottom-6 right-6 z-50">
+         <div className="absolute bottom-3 right-3 z-50">
            {canSkip ? (
              <button 
                onClick={(e) => {
                  e.stopPropagation();
                  setIsAdMode(false);
                }}
-               className="bg-[#18181b]/90 hover:bg-[#ff006a] text-white px-5 py-2.5 text-xs font-black backdrop-blur-md border border-white/10 transition-colors flex items-center gap-2 rounded-sm cursor-pointer shadow-2xl"
+               className="bg-[#18181b]/95 hover:bg-[#ff006a] text-white px-2 py-1 text-[9px] font-bold tracking-wider backdrop-blur-md border border-white/10 transition-colors flex items-center gap-1 rounded-xs cursor-pointer shadow-md h-7"
              >
-               O'TKAZIB YUBORISH <FastForward size={14} className="fill-current"/>
+               O'TKAZIB YUBORISH <FastForward size={9} className="fill-current"/>
              </button>
            ) : (
-             <div className="bg-[#18181b]/90 text-white/50 px-5 py-2.5 text-xs font-black backdrop-blur-md border border-white/10 pointer-events-none rounded-sm">
+             <div className="bg-[#18181b]/95 text-white/50 px-2 py-1 text-[9px] font-bold tracking-wider backdrop-blur-md border border-white/10 pointer-events-none rounded-xs h-7 flex items-center">
                O'TKAZIB YUBORISH ({Math.ceil(10 - adCurrentTime)}S)
              </div>
            )}
          </div>
-         <div className="absolute bottom-6 left-6 z-50">
+         <div className="absolute bottom-3 left-3 z-50 flex gap-1.5">
              <button 
                onClick={(e) => {
                   e.stopPropagation();
@@ -607,10 +612,19 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
                      }
                   }
                }}
-               className="bg-[#18181b]/90 hover:bg-white/20 text-white w-10 h-10 flex items-center justify-center rounded-sm backdrop-blur-md border border-white/10 transition-colors cursor-pointer"
+               className="bg-[#18181b]/90 hover:bg-white/20 text-white w-7 h-7 flex items-center justify-center rounded-xs backdrop-blur-md border border-white/10 transition-colors cursor-pointer"
              >
-               {isAdPlaying ? <Pause size={16} className="fill-current"/> : <Play size={16} className="fill-current ml-0.5"/>}
+               {isAdPlaying ? <Pause size={12} className="fill-current"/> : <Play size={12} className="fill-current ml-0.5"/>}
              </button>
+         <button 
+                onClick={(e) => {
+                   e.stopPropagation();
+                   setIsAdMuted(!isAdMuted);
+                }}
+                className="bg-[#18181b]/90 hover:bg-white/20 text-white w-7 h-7 flex items-center justify-center rounded-xs backdrop-blur-md border border-white/10 transition-colors cursor-pointer"
+              >
+                {isAdMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+              </button>
          </div>
       </div>
     );
@@ -695,7 +709,7 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
         onClick={handleVideoClick}
         className="w-full h-full object-contain bg-black"
         playsInline
-        preload="auto"
+        preload="metadata"
       />
 
       {/* Double Tap Seek Feedback Ripple animation */}

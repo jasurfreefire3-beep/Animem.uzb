@@ -14,7 +14,7 @@ export default function Home() {
   useEffect(() => {
     const fetchHomeData = async () => {
       try {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+        const API_BASE = '';
         
         const animeRes = await fetch(`${API_BASE}/api/animes`);
         if (animeRes.ok) {

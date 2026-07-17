@@ -48,7 +48,7 @@ export default function Admin() {
 
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+  const API_BASE = '';
 
   // Fetch all animes on component mount
   useEffect(() => {

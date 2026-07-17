@@ -831,7 +831,11 @@ app.delete("/api/chat/clear", authenticateToken, async (req: any, res) => {
 // Vite Dev Server / Static Files Setup
 async function start() {
   const distPath = path.join(process.cwd(), "dist");
+  const publicPath = path.join(process.cwd(), "public");
   const isProduction = process.env.NODE_ENV === "production" || fs.existsSync(distPath);
+
+  // Serve public folder directly using express for faster video loading and range requests
+  app.use(express.static(publicPath));
 
   if (!isProduction) {
     const vite = await createViteServer({
