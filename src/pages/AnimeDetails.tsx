@@ -32,8 +32,9 @@ export default function AnimeDetails() {
         if (!id) return;
         const res = await fetch(`${API_BASE}/api/animes/${id}`);
         console.log("Response status:", res.status);
-        if (!res.ok) {
-          console.error("Fetch failed:", await res.text());
+        const resType = res.headers.get("content-type");
+        if (!res.ok || !resType || !resType.includes("application/json")) {
+          console.error("Fetch failed or non-JSON response:", res.status);
           return;
         }
         const data = await res.json();
@@ -48,7 +49,13 @@ export default function AnimeDetails() {
             fetch(`${API_BASE}/api/animes/${data.id}/rating`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
-            .then(res => res.json())
+            .then(res => {
+              const contentType = res.headers.get("content-type");
+              if (res.ok && contentType && contentType.includes("application/json")) {
+                return res.json();
+              }
+              return { rating: 0 };
+            })
             .then(data => setUserRating(data.rating || 0))
             .catch(err => console.error(err));
         }
@@ -66,7 +73,8 @@ export default function AnimeDetails() {
 
         // Fetch episodes
         const epRes = await fetch(`${API_BASE}/api/animes/${data.id}/episodes`);
-        if (epRes.ok) {
+        const epType = epRes.headers.get("content-type");
+        if (epRes.ok && epType && epType.includes("application/json")) {
           const eps = await epRes.json();
           setEpisodesList(eps);
           const ep1 = eps.find((e: any) => e.episode_number === 1);
@@ -77,7 +85,8 @@ export default function AnimeDetails() {
 
         // Fetch comments
         const commRes = await fetch(`${API_BASE}/api/animes/${data.id}/comments`);
-        if (commRes.ok) {
+        const commType = commRes.headers.get("content-type");
+        if (commRes.ok && commType && commType.includes("application/json")) {
           const coms = await commRes.json();
           setComments(coms);
         }

@@ -17,14 +17,16 @@ export default function Home() {
         const API_BASE = '';
         
         const animeRes = await fetch(`${API_BASE}/api/animes`);
-        if (animeRes.ok) {
+        const animeType = animeRes.headers.get("content-type");
+        if (animeRes.ok && animeType && animeType.includes("application/json")) {
           const animeData = await animeRes.json();
           setAnimes(animeData);
         }
         setLoading(false);
 
         const commentsRes = await fetch(`${API_BASE}/api/comments/recent`);
-        if (commentsRes.ok) {
+        const commentsType = commentsRes.headers.get("content-type");
+        if (commentsRes.ok && commentsType && commentsType.includes("application/json")) {
           const commentsData = await commentsRes.json();
           setRecentComments(commentsData);
         }

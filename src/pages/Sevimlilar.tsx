@@ -17,7 +17,8 @@ export default function Sevimlilar() {
       try {
         const API_BASE = '';
         const res = await fetch(`${API_BASE}/api/animes`);
-        if (res.ok) {
+        const contentType = res.headers.get("content-type");
+        if (res.ok && contentType && contentType.includes("application/json")) {
           const animeData = await res.json();
           setAnimes(animeData);
         }

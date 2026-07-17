@@ -18,7 +18,8 @@ export default function Animelar() {
       try {
         const API_BASE = '';
         const res = await fetch(`${API_BASE}/api/animes`);
-        if (res.ok) {
+        const contentType = res.headers.get("content-type");
+        if (res.ok && contentType && contentType.includes("application/json")) {
           const data = await res.json();
           setAnimes(data);
         }

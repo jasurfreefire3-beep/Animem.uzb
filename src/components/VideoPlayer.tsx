@@ -81,9 +81,10 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
   // Ad Player State
   const [isAdMode, setIsAdMode] = useState(true);
   const [adCurrentTime, setAdCurrentTime] = useState(0);
-  const [isAdPlaying, setIsAdPlaying] = useState(true);
-  const [isAdMuted, setIsAdMuted] = useState(true);
+  const [isAdPlaying, setIsAdPlaying] = useState(false);
+  const [isAdMuted, setIsAdMuted] = useState(false);
   const [adUrl, setAdUrl] = useState('/ANIMEM_UZ_UZS_UNIVERSAL_15.mp4');
+  const [adSecondsRemaining, setAdSecondsRemaining] = useState(5);
   const adVideoRef = useRef<HTMLVideoElement>(null);
   
   const AD_VIDEOS = [
@@ -98,15 +99,50 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
   ];
   const AD_LINK = 'https://velzom.com/323v?p=%2Fregistration%2F';
 
+  // Real-time ad countdown timer to prevent being stuck if autoplay is blocked
+  useEffect(() => {
+    let interval: any = null;
+    if (isAdMode && url) {
+      setAdSecondsRemaining(5);
+      interval = setInterval(() => {
+        setAdSecondsRemaining(prev => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isAdMode, url]);
+
   useEffect(() => {
     if (url) {
       const randomAd = AD_VIDEOS[Math.floor(Math.random() * AD_VIDEOS.length)];
       setAdUrl(randomAd);
       setIsAdMode(true);
       setAdCurrentTime(0);
-      setIsAdPlaying(true);
+      setIsAdPlaying(false);
+      setAdSecondsRemaining(5);
     }
   }, [url]);
+
+  // Safety backup timeout: skip ad if it gets stuck for more than 7 seconds
+  useEffect(() => {
+    let timeout: any = null;
+    if (isAdMode && url) {
+      timeout = setTimeout(() => {
+        console.log('Ad safety timeout triggered, skipping ad.');
+        setIsAdMode(false);
+      }, 7000);
+    }
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [isAdMode, url]);
 
   // Check URL type
   const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
@@ -559,7 +595,7 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
 
   // --- Ad Player ---
   if (isAdMode && url) {
-    const canSkip = adCurrentTime >= 10;
+    const canSkip = adSecondsRemaining === 0;
     return (
       <div className="relative aspect-video bg-black rounded-sm overflow-hidden border border-[#222] shadow-2xl group">
          <video 
@@ -575,12 +611,41 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
            onTimeUpdate={(e) => {
              setAdCurrentTime(e.currentTarget.currentTime);
            }}
-           onPlay={() => setIsAdPlaying(true)}
+           onPlay={() => {
+             setIsAdPlaying(true);
+             try {
+               sessionStorage.setItem('last_ad_shown_time', String(Date.now()));
+             } catch (e) {
+               console.error(e);
+             }
+           }}
            onPause={() => setIsAdPlaying(false)}
            onEnded={() => setIsAdMode(false)}
+           onError={() => {
+             console.error("Ad video failed to load, skipping ad.");
+             setIsAdMode(false);
+           }}
          />
+
+         {/* Big Play Button Overlay for Ad if paused/blocked by autoplay */}
+         {!isAdPlaying && (
+           <div 
+             onClick={(e) => {
+               e.stopPropagation();
+               if (adVideoRef.current) {
+                 adVideoRef.current.play().catch(err => console.error("Ad play failed:", err));
+               }
+             }}
+             className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer transition-all hover:bg-black/50 z-10"
+           >
+             <div className="w-16 h-16 rounded-full bg-[#ff006a] text-white flex items-center justify-center shadow-lg shadow-[#ff006a]/30 hover:scale-110 transition-transform">
+               <Play size={28} className="fill-current ml-1" />
+             </div>
+           </div>
+         )}
+
          {/* UI for Ad */}
-         <div className="absolute top-4 left-4 bg-[#ff006a]/80 text-white text-[10px] uppercase px-2 py-1 tracking-wider font-black pointer-events-none rounded-sm">
+         <div className="absolute top-4 left-4 bg-[#ff006a]/80 text-white text-[10px] uppercase px-2 py-1 tracking-wider font-black pointer-events-none rounded-sm z-20">
            Reklama
          </div>
          <div className="absolute bottom-3 right-3 z-50">
@@ -596,7 +661,7 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
              </button>
            ) : (
              <div className="bg-[#18181b]/95 text-white/50 px-2 py-1 text-[9px] font-bold tracking-wider backdrop-blur-md border border-white/10 pointer-events-none rounded-xs h-7 flex items-center">
-               O'TKAZIB YUBORISH ({Math.ceil(10 - adCurrentTime)}S)
+               O'TKAZIB YUBORISH ({adSecondsRemaining}S)
              </div>
            )}
          </div>
@@ -616,15 +681,7 @@ export default function VideoPlayer({ url, poster }: VideoPlayerProps) {
              >
                {isAdPlaying ? <Pause size={12} className="fill-current"/> : <Play size={12} className="fill-current ml-0.5"/>}
              </button>
-         <button 
-                onClick={(e) => {
-                   e.stopPropagation();
-                   setIsAdMuted(!isAdMuted);
-                }}
-                className="bg-[#18181b]/90 hover:bg-white/20 text-white w-7 h-7 flex items-center justify-center rounded-xs backdrop-blur-md border border-white/10 transition-colors cursor-pointer"
-              >
-                {isAdMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
-              </button>
+         
          </div>
       </div>
     );

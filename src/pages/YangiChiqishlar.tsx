@@ -13,7 +13,8 @@ export default function YangiChiqishlar() {
       try {
         const API_BASE = '';
         const res = await fetch(`${API_BASE}/api/animes`);
-        if (res.ok) {
+        const contentType = res.headers.get("content-type");
+        if (res.ok && contentType && contentType.includes("application/json")) {
           const data = await res.json();
           const sorted = [...data].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           setAnimes(sorted);
