@@ -13,28 +13,45 @@ export default function Home() {
 
   useEffect(() => {
     const fetchHomeData = async () => {
-      try {
-        const API_BASE = '';
-        
-        const animeRes = await fetch(`${API_BASE}/api/animes`);
-        const animeType = animeRes.headers.get("content-type");
-        if (animeRes.ok && animeType && animeType.includes("application/json")) {
-          const animeData = await animeRes.json();
-          setAnimes(animeData);
-        }
-        setLoading(false);
+      const API_BASE = '';
+      let retries = 3;
+      let delay = 1000;
 
-        const commentsRes = await fetch(`${API_BASE}/api/comments/recent`);
-        const commentsType = commentsRes.headers.get("content-type");
-        if (commentsRes.ok && commentsType && commentsType.includes("application/json")) {
-          const commentsData = await commentsRes.json();
-          setRecentComments(commentsData);
+      while (retries > 0) {
+        try {
+          const animeRes = await fetch(`${API_BASE}/api/animes`);
+          if (!animeRes.ok) {
+            throw new Error(`HTTP error ${animeRes.status}`);
+          }
+          const animeType = animeRes.headers.get("content-type");
+          if (animeType && animeType.includes("application/json")) {
+            const animeData = await animeRes.json();
+            setAnimes(animeData);
+          }
+          setLoading(false);
+
+          const commentsRes = await fetch(`${API_BASE}/api/comments/recent`);
+          if (commentsRes.ok) {
+            const commentsType = commentsRes.headers.get("content-type");
+            if (commentsType && commentsType.includes("application/json")) {
+              const commentsData = await commentsRes.json();
+              setRecentComments(commentsData);
+            }
+          }
+          setLoadingComments(false);
+          return; // Exit on successful fetch
+        } catch (err) {
+          retries--;
+          console.warn(`Fetch home data failed. Retries remaining: ${retries}`, err);
+          if (retries === 0) {
+            console.error("Error loading homepage data after retries:", err);
+            setLoading(false);
+            setLoadingComments(false);
+          } else {
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2; // Exponential backoff
+          }
         }
-        setLoadingComments(false);
-      } catch (err) {
-        console.error("Error loading homepage data:", err);
-        setLoading(false);
-        setLoadingComments(false);
       }
     };
     fetchHomeData();

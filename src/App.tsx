@@ -24,14 +24,10 @@ import Profil from './pages/Profil';
 
 export default function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [showTelegramBanner, setShowTelegramBanner] = useState(() => {
-    const closed = localStorage.getItem('telegramBannerClosed');
-    return closed !== 'true';
-  });
+  const [showTelegramBanner, setShowTelegramBanner] = useState(true);
 
   const closeBanner = () => {
     setShowTelegramBanner(false);
-    localStorage.setItem('telegramBannerClosed', 'true');
   };
   const toggleMobileSidebar = () => {
     setMobileSidebarOpen(!mobileSidebarOpen);
@@ -46,38 +42,71 @@ export default function App() {
       <AnimatePresence>
         {showTelegramBanner && (
           <motion.div
-            initial={{ y: -100, opacity: 0 }}
+            initial={{ y: -150, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -100, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 120, damping: 15 }}
-            className="fixed top-0 left-0 right-0 z-[100] bg-[#09090b]/95 backdrop-blur-md border-b border-[#0088cc]/30 shadow-[0_4px_30px_rgba(0,136,204,0.25)] py-3 px-4 md:px-8"
+            exit={{ y: -150, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 100, damping: 15 }}
+            className="fixed top-4 left-4 right-4 z-[100] max-w-7xl mx-auto"
           >
-            <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-sm">
-              <div className="flex items-center gap-3">
-                <div className="bg-[#0088cc]/10 p-1.5 rounded-full border border-[#0088cc]/30 animate-bounce">
-                  <Send className="w-4 h-4 text-[#0088cc] fill-current" />
+            <div className="relative w-full rounded-2xl bg-gradient-to-r from-[#070e17] via-[#0b172a] to-[#070e17] border border-cyan-500/30 p-4 md:p-6 shadow-[0_10px_40px_rgba(0,136,204,0.25)] flex flex-col lg:flex-row items-center justify-between gap-4 md:gap-6">
+              {/* Left Side: Icon, Badges, Title & Subtitle */}
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-4 flex-1">
+                {/* Logo with NEW badge */}
+                <div className="relative shrink-0">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#0088cc] to-[#00bfff] flex items-center justify-center shadow-lg shadow-[#0088cc]/30">
+                    <svg viewBox="0 0 24 24" className="w-8 h-8 text-white fill-current">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.24-5.54 3.65-.52.36-.99.54-1.41.53-.46-.01-1.35-.26-2.01-.48-.81-.27-1.46-.41-1.4-.87.03-.24.36-.49.99-.75 3.86-1.68 6.43-2.78 7.72-3.3 3.67-1.48 4.44-1.74 4.94-1.75.11 0 .35.03.5.16.13.11.17.26.18.37 0 .04.01.18 0 .27z" />
+                    </svg>
+                  </div>
+                  <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full border-2 border-[#070e17] shadow-md uppercase tracking-wider animate-pulse">
+                    New
+                  </span>
                 </div>
-                <p className="text-white font-medium text-xs md:text-sm">
-                  Telegram kanalimizga obuna bo'ling! Eng so'nggi premyeralar va sifatli animelar faqat bizda.
-                </p>
+
+                {/* Content */}
+                <div className="flex-1 text-center md:text-left">
+                  {/* Badges */}
+                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-2">
+                    <span className="bg-[#0088cc]/10 text-[#00c8ff] text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded-md border border-[#00c8ff]/20 uppercase">
+                      TELEGRAM KANAL
+                    </span>
+                    <span className="bg-[#ffbb00]/10 text-[#ffbb00] text-[10px] font-bold px-2.5 py-0.5 rounded-md border border-[#ffbb00]/20 flex items-center gap-1">
+                      ✨ Rasmiy
+                    </span>
+                  </div>
+
+                  {/* Title & Description */}
+                  <h3 className="text-white font-bold text-base md:text-lg tracking-tight leading-snug">
+                    Bizning Rasmiy Telegram Kanalimizga Qo'shiling!
+                  </h3>
+                  <p className="text-slate-400 text-xs md:text-sm mt-1 max-w-3xl leading-relaxed">
+                    Eng yangi animelar, premyeralar, o'zbekcha tarjimalar va do'stona suhbatlarni o'tkazib yubormaslik uchun hoziroq a'zo bo'ling!
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+
+              {/* Right Side: Action Button and Close Button */}
+              <div className="flex items-center gap-3 w-full lg:w-auto justify-center lg:justify-end shrink-0">
                 <motion.a
                   href="https://t.me/animemuz1"
                   target="_blank"
                   rel="noopener noreferrer"
-                  whileHover={{ scale: 1.05, boxShadow: "0 0 15px rgba(0, 136, 204, 0.4)" }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-[#0088cc] hover:bg-[#0077b5] text-white px-5 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#0088cc]/20 transition-all uppercase tracking-wider cursor-pointer"
+                  whileHover={{ scale: 1.03, boxShadow: "0 0 20px rgba(0, 136, 204, 0.4)" }}
+                  whileTap={{ scale: 0.98 }}
+                  className="bg-gradient-to-r from-[#0088cc] to-[#00aaff] hover:from-[#0077bb] hover:to-[#0099ee] text-white px-6 py-3 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#0088cc]/20 transition-all uppercase tracking-wider cursor-pointer w-full sm:w-auto"
                 >
-                  <Send className="w-3.5 h-3.5 fill-current" />
-                  Telegram kanalga o'tish
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 text-white fill-current">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.24-5.54 3.65-.52.36-.99.54-1.41.53-.46-.01-1.35-.26-2.01-.48-.81-.27-1.46-.41-1.4-.87.03-.24.36-.49.99-.75 3.86-1.68 6.43-2.78 7.72-3.3 3.67-1.48 4.44-1.74 4.94-1.75.11 0 .35.03.5.16.13.11.17.26.18.37 0 .04.01.18 0 .27z" />
+                  </svg>
+                  Kanalga o'tish
                 </motion.a>
+
                 <button
                   onClick={closeBanner}
-                  className="text-white/40 hover:text-white p-1 rounded-full hover:bg-white/5 transition-colors shrink-0"
+                  className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer transition-all shrink-0"
+                  aria-label="Yopish"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
