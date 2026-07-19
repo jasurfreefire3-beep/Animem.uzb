@@ -2,16 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Anime, Comment, translateGenre, toSlug } from '../types';
-import { Star, MessageSquare, Send, Clock, Play, Plus, Calendar, Building, ListOrdered, Share2, Heart, Flag, PlayCircle, Eye, Shield, Moon, Sun, Trash2 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Star, MessageSquare, Send, Clock, Play, Plus, Calendar, Building, ListOrdered, Share2, Heart, Flag, PlayCircle, Eye, Shield, Moon, Sun, Trash2, Trophy, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import VideoPlayer from '../components/VideoPlayer';
 
 export default function AnimeDetails() {
   const params = useParams();
-  const { animeId } = params;
-  const id = animeId;
+  const { slug } = params;
   const navigate = useNavigate();
-  const { user, token } = useAuth();
+  const { user, token, logout } = useAuth();
   const API_BASE = '';
   const [anime, setAnime] = useState<Anime | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -24,13 +23,30 @@ export default function AnimeDetails() {
   const [copied, setCopied] = useState(false);
   const [userRating, setUserRating] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [hoveredStar, setHoveredStar] = useState<number | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [ratingStatus, setRatingStatus] = useState<string | null>(null);
+  const [ratingSummary, setRatingSummary] = useState<{ average: number; total: number; distribution: Record<number, number> } | null>(null);
+
+  const fetchRatingSummary = async (animeId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/animes/${animeId}/ratings-summary`);
+      const contentType = res.headers.get("content-type");
+      if (res.ok && contentType && contentType.includes("application/json")) {
+        const data = await res.json();
+        setRatingSummary(data);
+      }
+    } catch (err) {
+      console.error("Error fetching rating summary:", err);
+    }
+  };
 
   useEffect(() => {
     const fetchAllDetails = async () => {
       try {
-        console.log("Fetching anime details for ID:", id);
-        if (!id) return;
-        const res = await fetch(`${API_BASE}/api/animes/${id}`);
+        console.log("Fetching anime details for slug:", slug);
+        if (!slug) return;
+        const res = await fetch(`${API_BASE}/api/animes/by-slug/${slug}`);
         console.log("Response status:", res.status);
         const resType = res.headers.get("content-type");
         if (!res.ok || !resType || !resType.includes("application/json")) {
@@ -40,6 +56,7 @@ export default function AnimeDetails() {
         const data = await res.json();
         console.log("Fetched anime:", data);
         setAnime(data);
+        fetchRatingSummary(data.id);
         if (data.video_url) {
           setCurrentVideoUrl(data.video_url);
         }
@@ -97,7 +114,7 @@ export default function AnimeDetails() {
 
     fetchAllDetails();
     window.scrollTo(0, 0);
-  }, [id, user]);
+  }, [slug, user]);
 
   // Handle saving history when activeEpisode changes
   useEffect(() => {
@@ -173,8 +190,13 @@ export default function AnimeDetails() {
   };
 
   const handleRate = async (newRating: number) => {
-    if (!user || !anime) return;
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    if (!anime) return;
     try {
+      setRatingStatus("Saqlanmoqda...");
       const res = await fetch(`${API_BASE}/api/animes/${anime.id}/rate`, {
         method: 'POST',
         headers: {
@@ -184,13 +206,34 @@ export default function AnimeDetails() {
         body: JSON.stringify({ rating: newRating })
       });
 
-      if (res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        logout();
+        setRatingStatus("Sessiya muddati tugadi. Iltimos, qaytadan tizimga kiring.");
+        setTimeout(() => setRatingStatus(null), 5000);
+        return;
+      }
+
+      const contentType = res.headers.get("content-type");
+      if (res.ok && contentType && contentType.includes("application/json")) {
         const data = await res.json();
         setUserRating(newRating);
         setAnime({ ...anime, rating: data.rating, rating_count: data.count });
+        fetchRatingSummary(anime.id);
+        setRatingStatus("Muvaffaqiyatli saqlandi!");
+        setTimeout(() => setRatingStatus(null), 3000);
+      } else {
+        let errorMsg = "Xatolik yuz berdi";
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          errorMsg = data.error || errorMsg;
+        }
+        setRatingStatus(errorMsg);
+        setTimeout(() => setRatingStatus(null), 4000);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setRatingStatus(err.message || "Ulanishda xatolik yuz berdi");
+      setTimeout(() => setRatingStatus(null), 4000);
     }
   };
 
@@ -373,8 +416,18 @@ export default function AnimeDetails() {
                 {/* Rating Stars */}
                 <div className="flex items-center gap-0.5 ml-2">
                     {[1, 2, 3, 4, 5].map((star) => (
-                        <button key={star} onClick={() => handleRate(star)} className="text-yellow-400 hover:scale-110 transition-transform">
-                            <Star className={`w-4 h-4 ${star <= (userRating || Math.round(anime.rating || 0)) ? 'fill-current' : 'text-gray-600'}`} />
+                        <button 
+                            key={star} 
+                            onClick={() => {
+                              const section = document.getElementById('ratings-section');
+                              if (section) {
+                                section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }
+                            }} 
+                            className="text-yellow-400 hover:scale-110 transition-transform cursor-pointer"
+                            title="Baholash bo'limiga o'tish"
+                        >
+                            <Star className={`w-4 h-4 ${star <= Math.round((anime.rating || 9.2) / 2) ? 'text-[#ff9900] fill-[#ff9900]' : 'text-gray-600'}`} />
                         </button>
                     ))}
                     <span className="text-white/40 text-[10px] ml-2">({anime.rating_count || 0} baho)</span>
@@ -516,8 +569,166 @@ export default function AnimeDetails() {
                </div>
             </motion.section>
 
+            {/* Reyting va Sharhlar Section */}
+            {anime && (
+              <motion.section
+                id="ratings-section"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.45 }}
+                className="bg-[#111] border border-[#222] rounded-sm p-6 my-6"
+              >
+                {/* Header Row */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-[#222] mb-6">
+                  {/* Left Side: Trophy & Titles */}
+                  <div className="flex items-center gap-4">
+                    {/* Golden-bordered box for Trophy */}
+                    <div className="w-16 h-16 bg-[#ff9900]/10 border border-[#ff9900]/30 rounded-xl flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(255,153,0,0.1)]">
+                      <Trophy className="w-7 h-7 text-[#ff9900]" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-extrabold text-white tracking-wide">
+                        Reyting va Sharhlar
+                      </h2>
+                      <p className="text-white/40 text-xs mt-1">
+                        Boshqa foydalanuvchilarning fikrlari va baholari
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right Side: Average Rating Only */}
+                  <div className="flex items-center gap-4 bg-[#161618] border border-[#222] px-6 py-4 rounded-xl shrink-0">
+                    <div>
+                      <div className="text-3xl font-black text-[#ff9900] flex items-baseline gap-1">
+                        {ratingSummary?.average !== undefined ? ratingSummary.average : (anime.rating ? Number(anime.rating).toFixed(1) : '0.0')}
+                        <span className="text-sm font-medium text-white/30">/10</span>
+                      </div>
+                      <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mt-0.5">
+                        O'rtacha baho
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                 {/* Bottom Grid: Your Rating vs Distribution */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
+                  {/* Left Col: Your Rating */}
+                  <div className="lg:col-span-6 bg-[#161618] border border-[#222] rounded-xl p-4 sm:p-6 flex flex-col justify-between min-h-[200px] sm:min-h-[220px]">
+                    <div>
+                      <h3 className="text-xs font-black text-white/50 uppercase tracking-widest mb-4">
+                        Sizning bahoingiz
+                      </h3>
+                      
+                      {/* 10 Stars Row (Fluid & Responsive Grid) */}
+                      <div className="grid grid-cols-10 gap-1 sm:gap-2 mb-4 max-w-full" onMouseLeave={() => setHoveredStar(null)}>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((starVal) => {
+                          const isHighlighted = (hoveredStar !== null ? hoveredStar : userRating) >= starVal;
+                          return (
+                            <button
+                              key={starVal}
+                              onClick={() => {
+                                handleRate(starVal);
+                                setHoveredStar(null);
+                              }}
+                              onMouseEnter={() => setHoveredStar(starVal)}
+                              className="aspect-square w-full min-w-0 flex items-center justify-center transition-all transform hover:scale-125 focus:outline-none cursor-pointer"
+                              title={user ? `${starVal} ball` : "Ovoz berish uchun tizimga kiring"}
+                            >
+                              <Star
+                                className={`w-full h-full max-w-[28px] max-h-[28px] transition-colors ${
+                                  isHighlighted 
+                                    ? 'text-[#ff9900] fill-[#ff9900]' 
+                                    : 'text-white/20 hover:text-[#ff9900]/60'
+                                }`}
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Status/Helper Text with live save status */}
+                      <p className="text-xs italic text-[#ff9900] font-medium min-h-[1.25rem]">
+                        {ratingStatus ? (
+                          <span className={ratingStatus.includes("Xatolik") ? "text-red-500 font-bold" : "text-green-400 font-bold"}>
+                            {ratingStatus}
+                          </span>
+                        ) : !user ? (
+                          "Baholash uchun tizimga kiring"
+                        ) : userRating > 0 ? (
+                          `Siz ${userRating} ball berdingiz!`
+                        ) : (
+                          "Baholash uchun yulduzchalarni bosing"
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Sharh Yozish Button */}
+                    <div className="mt-6">
+                      <button
+                        onClick={() => {
+                          const el = document.getElementById('comment-textarea');
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            el.focus();
+                          } else {
+                            const section = document.getElementById('comment-section');
+                            if (section) {
+                              section.scrollIntoView({ behavior: 'smooth' });
+                            }
+                          }
+                        }}
+                        className="flex items-center gap-2 border border-white/10 hover:border-[#ff006a]/40 bg-[#222]/30 hover:bg-[#ff006a]/10 text-white hover:text-[#ff006a] font-bold text-xs px-5 py-3 rounded-lg uppercase tracking-wider transition-all duration-300 shadow-md cursor-pointer"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        Sharh yozish
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right Col: Rating Distribution */}
+                  <div className="lg:col-span-6 bg-[#161618] border border-[#222] rounded-xl p-6">
+                    <h3 className="text-xs font-black text-white/50 uppercase tracking-widest mb-4">
+                      Baholar taqsimoti
+                    </h3>
+
+                    <div className="space-y-2.5">
+                      {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((ratingVal) => {
+                        const count = ratingSummary?.distribution?.[ratingVal] || 0;
+                        const total = ratingSummary?.total || 0;
+                        const percentage = total > 0 ? (count / total) * 100 : 0;
+
+                        return (
+                          <div key={ratingVal} className="flex items-center gap-3">
+                            {/* Rating Label */}
+                            <span className="w-5 text-right text-xs font-bold text-white/60 font-mono">
+                              {ratingVal}
+                            </span>
+                            {/* Small Star */}
+                            <Star className="w-3.5 h-3.5 text-[#ff9900] fill-[#ff9900] shrink-0" />
+                            
+                            {/* Progress Bar Container */}
+                            <div className="flex-1 h-2 bg-black/40 rounded-full overflow-hidden border border-white/[0.03]">
+                              <div
+                                className="h-full bg-gradient-to-r from-[#ff9900] to-[#ffb84d] rounded-full transition-all duration-500"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+
+                            {/* Count Text */}
+                            <span className="w-10 text-xs font-medium text-white/40 text-right font-mono">
+                              {count} ta
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </motion.section>
+            )}
+
             {/* Comments Section */}
             <motion.section 
+               id="comment-section"
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
                transition={{ delay: 0.5 }}
@@ -537,6 +748,7 @@ export default function AnimeDetails() {
                      </div>
                      <form onSubmit={handleCommentSubmit}>
                         <textarea
+                           id="comment-textarea"
                            value={newComment}
                            onChange={(e) => setNewComment(e.target.value)}
                            placeholder="Add a comment..."
@@ -621,6 +833,77 @@ export default function AnimeDetails() {
            </div>
          </div>
       </div>
+
+      <AnimatePresence>
+        {showLoginPrompt && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLoginPrompt(false)}
+              className="absolute inset-0 bg-black/85 backdrop-blur-md"
+            />
+            
+            {/* Modal Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', duration: 0.5 }}
+              className="relative w-full max-w-md bg-[#0c0c0e] border border-white/10 rounded-xl p-6 md:p-8 shadow-[0_20px_50px_rgba(255,0,106,0.15)] text-center overflow-hidden"
+            >
+              {/* Radial background accent */}
+              <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#ff006a]/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-yellow-500/5 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Close Button */}
+              <button
+                onClick={() => setShowLoginPrompt(false)}
+                className="absolute top-4 right-4 text-white/40 hover:text-white p-1.5 rounded-full hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Icon */}
+              <div className="w-16 h-16 bg-[#ff006a]/10 border border-[#ff006a]/20 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(255,0,106,0.15)]">
+                <Star className="w-8 h-8 text-[#ff006a] fill-current animate-pulse" />
+              </div>
+
+              {/* Titles */}
+              <h3 className="text-xl font-extrabold text-white mb-2 uppercase tracking-wide">
+                Baholash va Sharh Yozish
+              </h3>
+              <p className="text-white/60 text-sm mb-8 leading-relaxed max-w-xs mx-auto">
+                Animega o'z bahoingizni berish va fikringizni bildirish uchun avval tizimga kirishingiz kerak.
+              </p>
+
+              {/* Actions */}
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    setShowLoginPrompt(false);
+                    navigate('/login');
+                  }}
+                  className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white py-3 px-6 rounded-xl font-bold text-sm tracking-wider uppercase transition-all shadow-lg shadow-[#ff006a]/25 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+                >
+                  Tizimga kirish
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLoginPrompt(false);
+                    navigate('/register');
+                  }}
+                  className="w-full bg-[#18181b] border border-white/10 hover:bg-[#27272a] text-white py-3 px-6 rounded-xl font-bold text-sm tracking-wider uppercase transition-all cursor-pointer"
+                >
+                  Ro'yxatdan o'tish
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

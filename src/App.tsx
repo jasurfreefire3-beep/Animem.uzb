@@ -142,7 +142,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/anime/:animeId/:slug" element={<AnimeDetails />} />
+            <Route path="/anime/:slug" element={<AnimeDetails />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/chat" element={<Chat />} />
             

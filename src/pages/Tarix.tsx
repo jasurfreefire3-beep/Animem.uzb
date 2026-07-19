@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Anime } from '../types';
+import { Anime, toSlug } from '../types';
 import { History, Trash2, Calendar, Star, Play, Film } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
@@ -126,7 +126,7 @@ export default function Tarix() {
 
                 {/* Info */}
                 <div className="min-w-0 flex-1">
-                  <Link to={`/anime/${item.id}`} className="text-white font-bold text-sm hover:text-[#ff006a] transition-colors truncate block">
+                  <Link to={`/anime/${toSlug(item.title)}`} className="text-white font-bold text-sm hover:text-[#ff006a] transition-colors truncate block">
                     {item.title}
                   </Link>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/40 mt-1 font-mono">
@@ -147,7 +147,7 @@ export default function Tarix() {
                   <Trash2 size={14} />
                 </button>
                 <Link
-                  to={`/anime/${item.id}`}
+                  to={`/anime/${toSlug(item.title)}`}
                   className="bg-[#ff006a] hover:bg-[#d40058] text-white font-bold text-xs px-4 py-2.5 rounded-sm transition-colors flex items-center gap-1.5"
                 >
                   <Play size={11} className="fill-current" /> Davom ettirish

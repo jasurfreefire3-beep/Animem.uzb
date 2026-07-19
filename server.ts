@@ -31,8 +31,12 @@ const pool = mysql.createPool({
   password: process.env.DB_PASSWORD || "pw_7GNRdocASAIUzobl5Ezatle9fwRC3oYq",
   database: process.env.DB_NAME || "dataanime",
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 15,
   queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
+  idleTimeout: 30000,
+  connectTimeout: 20000,
 });
 
 // Create Server
@@ -402,14 +406,96 @@ app.get("/api/comments/recent", async (req, res) => {
   }
 });
 
+// Helper functions for file-backed rating database (data.json)
+const DATA_FILE_PATH = path.join(process.cwd(), "data.json");
+
+interface RatingRecord {
+  id: number;
+  user_id: number;
+  anime_id: number;
+  rating: number;
+  created_at: string;
+}
+
+async function getRatingsFromFile(): Promise<RatingRecord[]> {
+  try {
+    if (!fs.existsSync(DATA_FILE_PATH)) {
+      let initialRatings: RatingRecord[] = [];
+      try {
+        const [rows]: any = await pool.query("SELECT * FROM ratings");
+        initialRatings = rows.map((r: any) => ({
+          id: r.id,
+          user_id: r.user_id,
+          anime_id: r.anime_id,
+          rating: r.rating,
+          created_at: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString()
+        }));
+        console.log("Successfully migrated ratings from MySQL to data.json:", initialRatings.length);
+      } catch (dbErr) {
+        console.warn("Could not fetch ratings from MySQL on initialization, starting with empty list:", dbErr);
+      }
+      
+      await fs.promises.writeFile(DATA_FILE_PATH, JSON.stringify({ ratings: initialRatings }, null, 2));
+      return initialRatings;
+    }
+    const content = await fs.promises.readFile(DATA_FILE_PATH, "utf-8");
+    const data = JSON.parse(content);
+    return data.ratings || [];
+  } catch (error) {
+    console.error("Error reading ratings from data.json:", error);
+    return [];
+  }
+}
+
+async function saveRatingsToFile(ratings: RatingRecord[]): Promise<boolean> {
+  try {
+    await fs.promises.writeFile(DATA_FILE_PATH, JSON.stringify({ ratings }, null, 2));
+    return true;
+  } catch (error) {
+    console.error("Error writing ratings to data.json:", error);
+    return false;
+  }
+}
+
+async function mergeRatingsWithAnimes(animes: any[]): Promise<any[]> {
+  try {
+    const ratings = await getRatingsFromFile();
+    const statsMap: Record<number, { sum: number; count: number }> = {};
+    for (const r of ratings) {
+      if (!statsMap[r.anime_id]) {
+        statsMap[r.anime_id] = { sum: 0, count: 0 };
+      }
+      statsMap[r.anime_id].sum += r.rating;
+      statsMap[r.anime_id].count += 1;
+    }
+    return animes.map(anime => {
+      const stats = statsMap[anime.id];
+      if (stats) {
+        return {
+          ...anime,
+          rating: parseFloat((stats.sum / stats.count).toFixed(1)),
+          rating_count: stats.count
+        };
+      }
+      // Preserve the pre-existing database ratings if no rating exists in data.json
+      return anime;
+    });
+  } catch (err) {
+    console.error("mergeRatingsWithAnimes error:", err);
+    return animes;
+  }
+}
+
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.status(200).send("OK");
 });
+
 app.get("/api/animes", async (req, res) => {
   try {
     const [rows]: any = await pool.query("SELECT * FROM animes ORDER BY id DESC");
-    res.json(rows);
+    const merged = await mergeRatingsWithAnimes(rows);
+    res.json(merged);
   } catch (err) {
     console.error("Animes fetch error:", err);
     res.status(500).json({ error: "Failed to fetch animes" });
@@ -424,9 +510,36 @@ app.get("/api/animes/:id", async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: "Anime topilmadi" });
     }
-    res.json(rows[0]);
+    const merged = await mergeRatingsWithAnimes(rows);
+    res.json(merged[0]);
   } catch (err) {
     console.error("Anime details fetch error:", err);
+    res.status(500).json({ error: "Failed to fetch anime details" });
+  }
+});
+
+// Get single anime by slug
+app.get("/api/animes/by-slug/:slug", async (req, res) => {
+  try {
+    const slug = req.params.slug;
+    const [rows]: any = await pool.query("SELECT * FROM animes");
+    const toSlugLocal = (text: string): string => {
+      if (!text) return "";
+      return text
+        .toLowerCase()
+        .replace(/o['’`‘]/g, "o")
+        .replace(/g['’`‘]/g, "g")
+        .replace(/[^a-z0-9\u0400-\u04FF]+/gi, "-")
+        .replace(/^-+|-+$/g, "");
+    };
+    const anime = rows.find((r: any) => toSlugLocal(r.title) === slug);
+    if (!anime) {
+      return res.status(404).json({ error: "Anime topilmadi" });
+    }
+    const merged = await mergeRatingsWithAnimes([anime]);
+    res.json(merged[0]);
+  } catch (err) {
+    console.error("Anime details by slug fetch error:", err);
     res.status(500).json({ error: "Failed to fetch anime details" });
   }
 });
@@ -523,49 +636,145 @@ app.delete("/api/comments/:commentId", authenticateToken, async (req: any, res) 
 // Rate anime
 app.post("/api/animes/:animeId/rate", authenticateToken, async (req: any, res) => {
   try {
-    const animeId = req.params.animeId;
-    const userId = req.user.id;
-    const { rating } = req.body;
+    const animeId = parseInt(req.params.animeId, 10);
+    const userId = parseInt(req.user.id, 10);
+    const rating = parseInt(req.body.rating, 10);
 
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({ error: "Reyting 1 va 5 oralig'ida bo'lishi kerak" });
+    console.log("Rate request details:", { userId, animeId, rating });
+
+    if (isNaN(animeId) || isNaN(userId)) {
+      console.warn("Invalid animeId or userId", { animeId, userId });
+      return res.status(400).json({ error: "Foydalanuvchi yoki anime ID noto'g'ri" });
     }
 
-    // Upsert rating
-    await pool.query(
-      "INSERT INTO ratings (user_id, anime_id, rating) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE rating = ?",
-      [userId, animeId, rating, rating]
-    );
+    if (isNaN(rating) || rating < 1 || rating > 10) {
+      console.warn("Invalid rating value", { rating });
+      return res.status(400).json({ error: "Reyting 1 va 10 oralig'ida bo'lishi kerak" });
+    }
 
-    // Update anime average rating
-    const [rows]: any = await pool.query(
-      "SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM ratings WHERE anime_id = ?",
-      [animeId]
-    );
-    const { avg_rating, count } = rows[0];
+    // Get current ratings from data.json
+    const ratings = await getRatingsFromFile();
 
-    await pool.query(
-      "UPDATE animes SET rating = ?, rating_count = ? WHERE id = ?",
-      [avg_rating, count, animeId]
-    );
+    // Find if rating already exists
+    const existingIndex = ratings.findIndex(r => r.user_id === userId && r.anime_id === animeId);
+    if (existingIndex >= 0) {
+      ratings[existingIndex].rating = rating;
+      ratings[existingIndex].created_at = new Date().toISOString();
+    } else {
+      const maxId = ratings.reduce((max, r) => r.id > max ? r.id : max, 0);
+      ratings.push({
+        id: maxId + 1,
+        user_id: userId,
+        anime_id: animeId,
+        rating: rating,
+        created_at: new Date().toISOString()
+      });
+    }
 
+    // Save back to data.json
+    await saveRatingsToFile(ratings);
+
+    // Calculate average rating and count for this anime
+    const animeRatings = ratings.filter(r => r.anime_id === animeId);
+    const count = animeRatings.length;
+    const sum = animeRatings.reduce((acc, r) => acc + r.rating, 0);
+    const avg_rating = count > 0 ? parseFloat((sum / count).toFixed(1)) : 0;
+
+    // Gracefully attempt to sync to MySQL database in background
+    try {
+      await pool.query(
+        "INSERT INTO ratings (user_id, anime_id, rating) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE rating = ?",
+        [userId, animeId, rating, rating]
+      );
+      await pool.query(
+        "UPDATE animes SET rating = ?, rating_count = ? WHERE id = ?",
+        [avg_rating, count, animeId]
+      );
+    } catch (dbErr) {
+      console.warn("Could not sync rating to MySQL database, but local rating was saved to data.json:", dbErr);
+    }
+
+    console.log("Rating successfully saved to data.json!", { animeId, avg_rating, count });
     res.json({ message: "Reyting saqlandi", rating: avg_rating, count });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Rate anime error:", err);
-    res.status(500).json({ error: "Failed to save rating" });
+    res.status(500).json({ error: err.message || "Failed to save rating" });
+  }
+});
+
+// Get ratings distribution and summary for an anime
+app.get("/api/animes/:animeId/ratings-summary", async (req, res) => {
+  try {
+    const animeId = parseInt(req.params.animeId, 10);
+    if (isNaN(animeId)) {
+      return res.status(400).json({ error: "Noto'g'ri anime ID" });
+    }
+    
+    // Read from data.json
+    const ratings = await getRatingsFromFile();
+    const animeRatings = ratings.filter(r => r.anime_id === animeId);
+    
+    let totalCount = animeRatings.length;
+    const sum = animeRatings.reduce((acc, r) => acc + r.rating, 0);
+    let avgRating = totalCount > 0 ? parseFloat((sum / totalCount).toFixed(1)) : 0;
+
+    // Database fallback if no file-backed rating exists yet
+    if (totalCount === 0) {
+      try {
+        const [rows]: any = await pool.query("SELECT rating, rating_count FROM animes WHERE id = ?", [animeId]);
+        if (rows.length > 0) {
+          avgRating = Number(rows[0].rating) || 0;
+          totalCount = Number(rows[0].rating_count) || 0;
+        }
+      } catch (dbErr) {
+        console.warn("Could not fetch database fallback rating in ratings-summary:", dbErr);
+      }
+    }
+
+    const distribution: Record<number, number> = {};
+    for (let i = 1; i <= 10; i++) {
+      distribution[i] = 0;
+    }
+    animeRatings.forEach(row => {
+      if (row.rating >= 1 && row.rating <= 10) {
+        distribution[row.rating] = (distribution[row.rating] || 0) + 1;
+      }
+    });
+
+    // If we have database fallback rating with 0 distribution, put it in the matching key
+    if (totalCount > 0 && animeRatings.length === 0) {
+      const roundedRating = Math.round(avgRating);
+      if (roundedRating >= 1 && roundedRating <= 10) {
+        distribution[roundedRating] = totalCount;
+      }
+    }
+
+    res.json({
+      average: avgRating,
+      total: totalCount,
+      distribution
+    });
+  } catch (err) {
+    console.error("Get ratings summary error:", err);
+    res.status(500).json({ error: "Failed to fetch ratings summary" });
   }
 });
 
 // Get user rating for anime
 app.get("/api/animes/:animeId/rating", authenticateToken, async (req: any, res) => {
   try {
-    const animeId = req.params.animeId;
-    const userId = req.user.id;
-    const [rows]: any = await pool.query(
-      "SELECT rating FROM ratings WHERE anime_id = ? AND user_id = ?",
-      [animeId, userId]
-    );
-    res.json({ rating: rows.length > 0 ? rows[0].rating : 0 });
+    const animeId = parseInt(req.params.animeId, 10);
+    const userId = parseInt(req.user.id, 10);
+    
+    if (isNaN(animeId) || isNaN(userId)) {
+      return res.json({ rating: 0 });
+    }
+
+    // Read from data.json
+    const ratings = await getRatingsFromFile();
+    const userRatingObj = ratings.find(r => r.anime_id === animeId && r.user_id === userId);
+
+    res.json({ rating: userRatingObj ? userRatingObj.rating : 0 });
   } catch (err) {
     console.error("Get rating error:", err);
     res.status(500).json({ error: "Failed to fetch rating" });

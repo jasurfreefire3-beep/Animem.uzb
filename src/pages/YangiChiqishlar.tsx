@@ -57,7 +57,7 @@ export default function YangiChiqishlar() {
             transition={{ delay: idx * 0.02 }}
             className="group relative"
           >
-            <Link to={`/anime/${anime.id}/${toSlug(anime.title)}`} className="block">
+            <Link to={`/anime/${toSlug(anime.title)}`} className="block">
               <div className="relative aspect-[3/4] overflow-hidden mb-2 rounded-sm bg-[#111] border border-[#222]">
                 <img
                   src={anime.image_url}

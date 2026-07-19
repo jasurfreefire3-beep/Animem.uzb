@@ -184,14 +184,14 @@ export default function Home() {
               {/* Row 5: Action Buttons */}
               <div className="flex flex-wrap items-center gap-4 pt-2">
                 <Link 
-                  to={`/anime/${featuredAnime.id}/${toSlug(featuredAnime.title)}`}
+                  to={`/anime/${toSlug(featuredAnime.title)}`}
                   className="bg-[#ff006a] hover:bg-[#d40058] text-white px-6 py-3 rounded-sm font-black flex items-center gap-2 shadow-lg shadow-[#ff006a]/20 transition-all text-xs uppercase tracking-wider cursor-pointer"
                 >
                   <Play className="w-4 h-4 fill-current text-white" /> 
                   TOMOSHA QILISH
                 </Link>
                 <Link 
-                  to={`/anime/${featuredAnime.id}/${toSlug(featuredAnime.title)}`}
+                  to={`/anime/${toSlug(featuredAnime.title)}`}
                   className="bg-black/40 hover:bg-black/60 border border-white/10 text-white px-6 py-3 rounded-sm font-bold flex items-center gap-2 transition-all text-xs uppercase tracking-wider cursor-pointer"
                 >
                   <Info className="w-4 h-4" /> 
@@ -243,7 +243,7 @@ export default function Home() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
                 >
-                  <Link to={`/anime/${anime.id}/${toSlug(anime.title)}`} className="group block relative">
+                  <Link to={`/anime/${toSlug(anime.title)}`} className="group block relative">
                     <div className="relative aspect-[3/4] overflow-hidden mb-2 rounded-sm bg-[#111]">
                       <img 
                         src={anime.image_url} 
@@ -285,7 +285,7 @@ export default function Home() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {updateList.map((anime, idx) => (
                   <Link 
-                    to={`/anime/${anime.id}/${toSlug(anime.title)}`} 
+                    to={`/anime/${toSlug(anime.title)}`} 
                     key={anime.id} 
                     className="flex items-center gap-3 p-2 rounded hover:bg-[#222] transition-colors group"
                   >
@@ -334,7 +334,7 @@ export default function Home() {
                ) : (
                  recentComments.map((c, i) => (
                    <Link 
-                     to={`/anime/${c.anime_id}/${toSlug(c.anime_title)}`} 
+                     to={`/anime/${toSlug(c.anime_title)}`}
                      key={i} 
                      className="block group bg-[#000] p-3 rounded-sm border border-[#222] hover:border-[#ff006a]/30 transition-colors"
                    >

@@ -149,7 +149,7 @@ export default function Animelar() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.03 }}
             >
-              <Link to={`/anime/${anime.id}/${toSlug(anime.title)}`} className="group block relative">
+              <Link to={`/anime/${toSlug(anime.title)}`} className="group block relative">
                 <div className="relative aspect-[3/4] overflow-hidden mb-2 rounded-sm bg-[#111] border border-[#222]">
                   <img
                     src={anime.image_url}
@@ -201,7 +201,7 @@ export default function Animelar() {
               <div className="flex-1 min-w-0 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <Link to={`/anime/${anime.id}/${toSlug(anime.title)}`} className="text-white font-bold text-base truncate group-hover:text-[#ff006a] transition-colors">
+                    <Link to={`/anime/${toSlug(anime.title)}`} className="text-white font-bold text-base truncate group-hover:text-[#ff006a] transition-colors">
                       {anime.title}
                     </Link>
                     {anime.rating && (
@@ -222,7 +222,7 @@ export default function Animelar() {
               </div>
               <div className="flex items-center shrink-0 pr-2">
                 <Link
-                  to={`/anime/${anime.id}/${toSlug(anime.title)}`}
+                  to={`/anime/${toSlug(anime.title)}`}
                   className="bg-[#ff006a] hover:bg-[#d40058] text-white text-xs font-bold px-4 py-2 rounded-sm transition-colors flex items-center gap-1.5"
                 >
                   <Play size={12} className="fill-current" /> Tomosha qilish

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Anime } from '../types';
+import { Anime, toSlug } from '../types';
 import { Bell, BellOff, Calendar, Clock, Film } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -152,7 +152,7 @@ export default function Jadval() {
 
                 {/* Title & Episode No */}
                 <div className="min-w-0 flex-1">
-                  <Link to={`/anime/${item.id}`} className="text-white font-bold text-sm hover:text-[#ff006a] transition-colors truncate block">
+                  <Link to={`/anime/${toSlug(item.title)}`} className="text-white font-bold text-sm hover:text-[#ff006a] transition-colors truncate block">
                     {item.title}
                   </Link>
                   <p className="text-white/40 text-[11px] font-medium font-mono mt-0.5 uppercase tracking-wide">
@@ -175,7 +175,7 @@ export default function Jadval() {
                   {isNotified ? <Bell size={15} className="fill-current" /> : <Bell size={15} />}
                 </button>
                 <Link
-                  to={`/anime/${item.id}`}
+                  to={`/anime/${toSlug(item.title)}`}
                   className="bg-[#222] hover:bg-[#333] border border-[#333] hover:border-white/10 text-white font-bold text-xs px-4 py-2 rounded-sm transition-colors"
                 >
                   Tafsilotlar
