@@ -29,7 +29,41 @@ interface SidebarProps {
 export default function Sidebar({ onClose, onGenreSelect }: SidebarProps) {
   const location = useLocation();
   const { user } = useAuth();
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved !== 'light';
+  });
+
+  useEffect(() => {
+    // Initial sync
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light') {
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+    }
+
+    const handleGlobalThemeChange = () => {
+      const savedTheme = localStorage.getItem('theme');
+      setDarkMode(savedTheme !== 'light');
+    };
+
+    window.addEventListener('theme-changed', handleGlobalThemeChange);
+    return () => window.removeEventListener('theme-changed', handleGlobalThemeChange);
+  }, []);
+
+  const toggleDarkMode = () => {
+    const newValue = !darkMode;
+    setDarkMode(newValue);
+    const themeKey = newValue ? 'dark' : 'light';
+    localStorage.setItem('theme', themeKey);
+    if (themeKey === 'light') {
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+    }
+    window.dispatchEvent(new Event('theme-changed'));
+  };
 
   const menuItems = [
     { name: 'Bosh sahifa', path: '/', icon: Home },
@@ -144,8 +178,9 @@ export default function Sidebar({ onClose, onGenreSelect }: SidebarProps) {
       <div className="p-4 border-t border-[#1a1a1a] bg-[#0c0c0e] flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <button 
-            onClick={() => setDarkMode(!darkMode)}
-            className="p-2 hover:bg-[#1a1a1a] rounded text-white/50 hover:text-white transition-all"
+            onClick={toggleDarkMode}
+            className="p-2 hover:bg-[#1a1a1a] rounded text-white/50 hover:text-white transition-all cursor-pointer"
+            title={darkMode ? "Kungi rejim" : "Tungi rejim"}
           >
             {darkMode ? <Moon size={16} /> : <Sun size={16} />}
           </button>

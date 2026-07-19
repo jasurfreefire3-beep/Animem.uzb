@@ -3,13 +3,24 @@ import { Settings, Eye, Globe, Film, ToggleLeft, ToggleRight, Sparkles, Check } 
 import { motion } from 'motion/react';
 
 export default function Sozlamalar() {
-  const [theme, setTheme] = useState('Qorong\'i');
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved === 'light' ? 'Yorug\'' : 'Qorong\'i';
+  });
   const [language, setLanguage] = useState('O\'zbekcha');
   const [quality, setQuality] = useState('1080p');
   const [autoPlay, setAutoPlay] = useState(true);
   const [savedMessage, setSavedMessage] = useState(false);
 
   useEffect(() => {
+    // Sync with html class initial state
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+    }
+
     // Load config from localStorage
     const savedAutoPlay = localStorage.getItem('anime_settings_autoplay');
     if (savedAutoPlay !== null) {
@@ -23,7 +34,28 @@ export default function Sozlamalar() {
     if (savedLang) {
       setLanguage(savedLang);
     }
+
+    const syncTheme = () => {
+      const currentSaved = localStorage.getItem('theme');
+      setTheme(currentSaved === 'light' ? 'Yorug\'' : 'Qorong\'i');
+    };
+
+    window.addEventListener('theme-changed', syncTheme);
+    return () => window.removeEventListener('theme-changed', syncTheme);
   }, []);
+
+  const handleThemeChange = (val: string) => {
+    setTheme(val);
+    const themeKey = val === 'Yorug\'' ? 'light' : 'dark';
+    localStorage.setItem('theme', themeKey);
+    if (themeKey === 'light') {
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+    }
+    window.dispatchEvent(new Event('theme-changed'));
+    triggerSaveAlert();
+  };
 
   const handleAutoplayToggle = () => {
     const newVal = !autoPlay;
@@ -87,19 +119,14 @@ export default function Sozlamalar() {
             {['Qorong\'i', 'Yorug\''].map((t) => (
               <button
                 key={t}
-                onClick={() => {
-                  setTheme(t);
-                  triggerSaveAlert();
-                }}
-                className={`px-4 py-2 rounded-sm text-xs font-bold border transition-colors ${
+                onClick={() => handleThemeChange(t)}
+                className={`px-4 py-2 rounded-sm text-xs font-bold border transition-colors cursor-pointer ${
                   theme === t 
                     ? 'bg-[#ff006a] border-[#ff006a] text-white shadow-[0_0_10px_rgba(255,0,106,0.2)]' 
                     : 'bg-[#000] border-[#222] text-white/50 hover:text-white hover:border-[#333]'
                 }`}
-                disabled={t === 'Yorug\''} // Lock to Dark Mode to preserve exact ANIMEUZ dark UI
-                title={t === 'Yorug\'' ? 'Faqat qorong\'i rejim mavjud' : ''}
               >
-                {t} {t === 'Yorug\'' && '(Tez kunda)'}
+                {t}
               </button>
             ))}
           </div>

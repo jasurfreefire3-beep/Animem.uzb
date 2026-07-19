@@ -723,15 +723,46 @@ export default function Admin() {
               </div>
 
               {/* Episode 1 URL */}
-              <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-white/50 mb-1.5 uppercase">1-Qism Video URL (Boshlang'ich qism)</label>
+              <div className="md:col-span-2 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-white/50 uppercase">1-Qism Manbasi</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (videoUrl.includes('t.me')) setVideoUrl('');
+                      }}
+                      className={`px-3 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider border transition-colors cursor-pointer ${
+                        !videoUrl.includes('t.me')
+                          ? 'bg-[#111] border-[#ff006a] text-white font-black shadow-[0_0_8px_rgba(255,0,106,0.15)]'
+                          : 'bg-[#000] border-[#222] text-white/40 hover:text-white'
+                      }`}
+                    >
+                      Video Player
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!videoUrl.includes('t.me')) setVideoUrl('https://t.me/Animem_uz_bot?start=one_pice');
+                      }}
+                      className={`px-3 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider border transition-colors cursor-pointer ${
+                        videoUrl.includes('t.me')
+                          ? 'bg-blue-600/20 border-blue-500 text-blue-400 font-black'
+                          : 'bg-[#000] border-[#222] text-white/40 hover:text-white'
+                      }`}
+                    >
+                      Telegram Havola
+                    </button>
+                  </div>
+                </div>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Film className="h-4 w-4 text-white/30" />
                   </div>
                   <input
-                    type="url"
+                    type="text"
                     value={videoUrl}
+                    placeholder={videoUrl.includes('t.me') ? "https://t.me/Animem_uz_bot?start=..." : "https://ia601904.us.archive.org/2/items/..."}
                     onChange={(e) => setVideoUrl(e.target.value)}
                     className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a]/50 transition-colors"
                   />
@@ -884,6 +915,7 @@ export default function Admin() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {episodesList.map((ep, idx) => {
                       const inputId = `file-upload-${ep.episode_number}`;
+                      const isTelegramUrl = ep.video_url && (ep.video_url.includes('t.me') || ep.video_url.includes('telegram'));
                       return (
                         <div 
                           key={idx}
@@ -894,6 +926,40 @@ export default function Admin() {
                             <span className="text-xs font-black text-white/80 uppercase tracking-widest bg-[#111] px-2 py-1 rounded border border-[#222]">
                               {ep.episode_number}-qism
                             </span>
+                            
+                            <div className="flex gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (isTelegramUrl) {
+                                    handleLocalUrlChange(ep.episode_number, '');
+                                  }
+                                }}
+                                className={`px-2 py-1 rounded-sm text-[9px] font-bold uppercase transition-colors cursor-pointer border ${
+                                  !isTelegramUrl
+                                    ? 'bg-[#111] border-[#ff006a] text-white font-black'
+                                    : 'bg-[#000] border-[#222] text-white/40 hover:text-white'
+                                }`}
+                              >
+                                Video
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!isTelegramUrl) {
+                                    handleLocalUrlChange(ep.episode_number, 'https://t.me/Animem_uz_bot?start=one_pice');
+                                  }
+                                }}
+                                className={`px-2 py-1 rounded-sm text-[9px] font-bold uppercase transition-colors cursor-pointer border ${
+                                  isTelegramUrl
+                                    ? 'bg-blue-600/20 border-blue-500 text-blue-400 font-black'
+                                    : 'bg-[#000] border-[#222] text-white/40 hover:text-white'
+                                }`}
+                              >
+                                Telegram
+                              </button>
+                            </div>
+
                             <button
                               type="button"
                               onClick={() => handleDeleteEpisode(ep.episode_number)}
@@ -910,41 +976,45 @@ export default function Admin() {
                               {/* Video URL Input */}
                               <input
                                 type="text"
-                                placeholder="https://ia601904.us.archive.org/2/items/..."
+                                placeholder={isTelegramUrl ? "https://t.me/Animem_uz_bot?start=..." : "https://ia601904.us.archive.org/2/items/..."}
                                 value={ep.video_url || ''}
                                 onChange={(e) => handleLocalUrlChange(ep.episode_number, e.target.value)}
                                 className="flex-1 bg-black border border-[#222] rounded-sm px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-[#ff006a]/50 transition-colors"
                               />
 
-                              {/* Upload action hidden and button */}
-                              <input
-                                id={inputId}
-                                type="file"
-                                accept="video/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    // Set mock path but descriptive
-                                    const mockPath = `https://ia601904.us.archive.org/2/items/custom_anime/${encodeURIComponent(file.name)}`;
-                                    handleLocalUrlChange(ep.episode_number, mockPath);
-                                    setMessage({ type: 'success', text: `${file.name} qurilmadan muvaffaqiyatli yuklandi!` });
-                                  }
-                                }}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => document.getElementById(inputId)?.click()}
-                                className="px-3 py-2 bg-[#1a1a1a] hover:bg-[#2a2a2a] border border-[#222] hover:border-white/10 rounded-sm text-xs text-white font-bold transition-all shrink-0 flex items-center gap-1.5"
-                              >
-                                <Video size={13} className="text-[#ff006a]" />
-                                Qurilmadan
-                              </button>
+                              {/* Upload action hidden and button (Only for non-Telegram URLs) */}
+                              {!isTelegramUrl && (
+                                <>
+                                  <input
+                                    id={inputId}
+                                    type="file"
+                                    accept="video/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        // Set mock path but descriptive
+                                        const mockPath = `https://ia601904.us.archive.org/2/items/custom_anime/${encodeURIComponent(file.name)}`;
+                                        handleLocalUrlChange(ep.episode_number, mockPath);
+                                        setMessage({ type: 'success', text: `${file.name} qurilmadan muvaffaqiyatli yuklandi!` });
+                                      }
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => document.getElementById(inputId)?.click()}
+                                    className="px-3 py-2 bg-[#1a1a1a] hover:bg-[#2a2a2a] border border-[#222] hover:border-white/10 rounded-sm text-xs text-white font-bold transition-all shrink-0 flex items-center gap-1.5"
+                                  >
+                                    <Video size={13} className="text-[#ff006a]" />
+                                    Qurilmadan
+                                  </button>
+                                </>
+                              )}
                             </div>
 
                             {/* Subtext display */}
                             <p className="text-[10px] text-white/30 truncate select-none">
-                              {ep.video_url ? ep.video_url : "Video manbasini kiriting yoki qurilmadan yuklang"}
+                              {ep.video_url ? (isTelegramUrl ? "Telegram bot yoki kanal havolasi" : ep.video_url) : "Video manbasini kiriting yoki qurilmadan yuklang"}
                             </p>
 
                             {/* Save URL Action Button */}

@@ -13,6 +13,7 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background-attachment: fixed;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 @layer utilities {
@@ -30,4 +31,187 @@ body {
     background: rgba(255, 255, 255, 0.2);
   }
 }
+
+/* ==========================================
+   DAY AND NIGHT (LIGHT/DARK) MODE OVERRIDES
+   ========================================== */
+
+/* Scrollbar adjustment in light mode */
+html.light .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15) !important;
+}
+html.light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Core background and text colors */
+html.light, html.light body {
+  background-color: #f4f4f5 !important;
+  color: #0f172a !important;
+}
+
+/* Background class mappings */
+html.light .bg-\[\#030303\] {
+  background-color: #f4f4f5 !important;
+}
+html.light .bg-\[\#09090b\] {
+  background-color: #ffffff !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+}
+html.light .bg-\[\#0c0c0e\] {
+  background-color: #e4e4e7 !important;
+}
+html.light .bg-\[\#111113\] {
+  background-color: #ffffff !important;
+  border-color: #e4e4e7 !important;
+}
+html.light .bg-\[\#161619\] {
+  background-color: #f4f4f5 !important;
+}
+html.light .bg-\[\#111\] {
+  background-color: #f1f5f9 !important;
+}
+html.light .bg-\[\#1a1a1a\] {
+  background-color: #e4e4e7 !important;
+}
+
+/* Gradients and hero-specific overrides */
+html.light .from-\[\#09090b\] {
+  --tw-gradient-from: #ffffff !important;
+}
+html.light .via-\[\#09090b\]\/80 {
+  --tw-gradient-via: rgba(255, 255, 255, 0.8) !important;
+}
+html.light .via-\[\#09090b\]\/60 {
+  --tw-gradient-via: rgba(255, 255, 255, 0.6) !important;
+}
+html.light .bg-gradient-to-t.from-\[\#09090b\] {
+  background-image: linear-gradient(to top, #ffffff, rgba(255, 255, 255, 0.8), transparent) !important;
+}
+html.light .bg-gradient-to-r.from-\[\#09090b\] {
+  background-image: linear-gradient(to right, #ffffff, rgba(255, 255, 255, 0.6), transparent) !important;
+}
+
+/* Border color mappings */
+html.light .border-\[\#1a1a1a\] {
+  border-color: #e4e4e7 !important;
+}
+html.light .border-\[\#1a1a1c\] {
+  border-color: #e4e4e7 !important;
+}
+html.light .border-\[\#222\] {
+  border-color: #e4e4e7 !important;
+}
+html.light .border-white\/10 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+html.light .border-white\/5 {
+  border-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Text color mappings */
+html.light .text-white {
+  color: #0f172a !important;
+}
+html.light .text-white\/90 {
+  color: #1e293b !important;
+}
+html.light .text-white\/80 {
+  color: #334155 !important;
+}
+html.light .text-white\/70 {
+  color: #475569 !important;
+}
+html.light .text-white\/60 {
+  color: #475569 !important;
+}
+html.light .text-white\/50 {
+  color: #64748b !important;
+}
+html.light .text-white\/40 {
+  color: #64748b !important;
+}
+html.light .text-white\/30 {
+  color: #94a3b8 !important;
+}
+html.light .text-slate-400 {
+  color: #475569 !important;
+}
+html.light .text-gray-400 {
+  color: #475569 !important;
+}
+
+/* Inputs, Textareas and Selects in forms */
+html.light input, html.light select, html.light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+html.light input::placeholder, html.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+html.light input:focus, html.light select:focus, html.light textarea:focus {
+  border-color: #ff006a !important;
+}
+
+/* Interactive elements */
+html.light .hover\:bg-\[\#1a1a1a\]:hover {
+  background-color: #f1f5f9 !important;
+}
+html.light .hover\:bg-\[\#111\]:hover {
+  background-color: #f1f5f9 !important;
+}
+html.light .hover\:text-white:hover {
+  color: #0f172a !important;
+}
+html.light .bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+html.light .bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+html.light .bg-white\/\[0\.03\] {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Custom button states */
+html.light .bg-black\/40 {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+  border-color: #e4e4e7 !important;
+}
+html.light .bg-black\/60 {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+  border-color: #e4e4e7 !important;
+}
+
+/* Maintain brand color white text and specific overrides */
+html.light .bg-\[\#ff006a\] .text-white,
+html.light .bg-\[\#ff006a\] span,
+html.light .bg-\[\#ff006a\] {
+  color: #ffffff !important;
+}
+
+/* Banner specific styling */
+html.light .bg-gradient-to-r.from-\[\#070e17\] {
+  background-image: linear-gradient(to right, #f1f5f9, #ffffff, #f1f5f9) !important;
+  border-color: #38bdf8 !important;
+}
+
+/* Chat view adjustments */
+html.light .bg-\[\#121214\] {
+  background-color: #ffffff !important;
+}
+html.light .bg-\[\#1c1c1e\] {
+  background-color: #f1f5f9 !important;
+}
+html.light .bg-\[\#1e1e24\] {
+  background-color: #f1f5f9 !important;
+}
+html.light .bg-blue-600 {
+  background-color: #2563eb !important;
+}
+html.light .bg-blue-600 .text-white {
+  color: #ffffff !important;
+}
+
 
