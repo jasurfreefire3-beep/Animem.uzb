@@ -95,6 +95,22 @@ async function testDbConnection() {
       console.log("Added avatar_url column to users table.");
     }
 
+    // Check if telegram_id column exists in users
+    const [tgColumns]: any = await connection.query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_NAME = 'users' 
+        AND COLUMN_NAME = 'telegram_id' 
+        AND TABLE_SCHEMA = DATABASE()
+    `);
+
+    if (tgColumns.length === 0) {
+      await connection.query(`
+        ALTER TABLE users ADD COLUMN telegram_id VARCHAR(255) DEFAULT NULL
+      `);
+      console.log("Added telegram_id column to users table.");
+    }
+
     connection.release();
   } catch (err) {
     console.error("Database connection/migration failed on startup:", err);
@@ -1037,11 +1053,310 @@ app.delete("/api/chat/clear", authenticateToken, async (req: any, res) => {
 });
 
 
+// --- TELEGRAM LOGIN ENGINE & BOT POLLING ---
+const BOT_TOKEN = "8994654823:AAF639gjnOttH4p0mHtrNHVhRXwsiWeOYM8";
+const activeSessions = new Map<string, any>(); // sessionId -> sessionData
+const chatToSession = new Map<number, string>(); // chatId -> sessionId
+
+// Helper to send Telegram Bot API requests
+async function sendTelegramMessage(chatId: number, text: string, replyMarkup?: any) {
+  try {
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    const body: any = {
+      chat_id: chatId,
+      text: text,
+      parse_mode: "HTML"
+    };
+    if (replyMarkup) {
+      body.reply_markup = replyMarkup;
+    }
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      console.error(`Telegram Bot sendMessage failed with status ${response.status}`);
+    }
+  } catch (err) {
+    console.error("Failed to send telegram message:", err);
+  }
+}
+
+// Background Bot Long Polling
+async function runTelegramBot() {
+  console.log("Starting Telegram Bot (8994654823) long polling loop...");
+  let offset = 0;
+
+  // Cleanup old sessions (older than 30 mins) every 10 minutes
+  setInterval(() => {
+    const now = Date.now();
+    for (const [sid, sess] of activeSessions.entries()) {
+      if (now - sess.createdAt > 30 * 60 * 1000) {
+        activeSessions.delete(sid);
+      }
+    }
+  }, 10 * 60 * 1000);
+
+  const poll = async () => {
+    try {
+      const url = `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?offset=${offset}&timeout=10`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        // If unauthorized or error, retry after a bit
+        setTimeout(poll, 5000);
+        return;
+      }
+      const data: any = await response.json();
+      if (data.ok && data.result) {
+        for (const update of data.result) {
+          offset = update.update_id + 1;
+
+          if (update.message) {
+            const message = update.message;
+            const chat = message.chat;
+            const text = message.text || "";
+            const from = message.from || {};
+
+            // 1. Handle "/start auth_SESSION_ID"
+            if (text.startsWith("/start")) {
+              const parts = text.split(" ");
+              const startParam = parts[1] || "";
+
+              if (startParam && startParam.startsWith("auth_")) {
+                const sessionId = startParam;
+
+                activeSessions.set(sessionId, {
+                  status: "pending_phone",
+                  chatId: chat.id,
+                  tgUser: from,
+                  createdAt: Date.now()
+                });
+                chatToSession.set(chat.id, sessionId);
+
+                await sendTelegramMessage(chat.id,
+                  `<b>Assalomu alaykum, ${from.first_name || 'Foydalanuvchi'}! 👋</b>\n\n` +
+                  `Siz <b>ANIMEUZ</b> saytiga kirish jarayonini boshladingiz. Kirishni tasdiqlash uchun quyidagi <b>"📱 Telefon raqamni yuborish"</b> tugmasini bosing:`,
+                  {
+                    keyboard: [
+                      [
+                        {
+                          text: "📱 Telefon raqamni yuborish",
+                          request_contact: true
+                        }
+                      ]
+                    ],
+                    one_time_keyboard: true,
+                    resize_keyboard: true
+                  }
+                );
+              } else {
+                await sendTelegramMessage(chat.id,
+                  `<b>Assalomu alaykum! 👋</b>\n\n` +
+                  `ANIMEUZ rasmiy avtorizatsiya botiga xush kelibsiz.\n\n` +
+                  `Siz saytga xavfsiz va tezkor kirish uchun saytdagi <b>"Telegram bilan kirish"</b> tugmasini bosing va ushbu botga o'ting.`
+                );
+              }
+            }
+            // 2. Handle Contact (Phone sharing)
+            else if (message.contact) {
+              const contact = message.contact;
+              const sessionId = chatToSession.get(chat.id);
+
+              if (sessionId && activeSessions.has(sessionId)) {
+                const session = activeSessions.get(sessionId);
+
+                if (session.status === "pending_phone") {
+                  const phone = contact.phone_number;
+                  const tgUser = session.tgUser || {};
+                  const tgUserId = tgUser.id || contact.user_id;
+
+                  // Get Telegram Avatar URL if any
+                  let avatar_url = null;
+                  try {
+                    const photosRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUserProfilePhotos?user_id=${tgUserId}&limit=1`);
+                    const photosData: any = await photosRes.json();
+                    if (photosData.ok && photosData.result && photosData.result.total_count > 0) {
+                      const fileId = photosData.result.photos[0][0].file_id;
+                      const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
+                      const fileData: any = await fileRes.json();
+                      if (fileData.ok && fileData.result) {
+                        avatar_url = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
+                      }
+                    }
+                  } catch (e) {
+                    console.error("Error fetching user profile photos from Telegram:", e);
+                  }
+
+                  const email = `tg_${tgUserId}@telegram.uz`;
+                  const name = tgUser.first_name + (tgUser.last_name ? ` ${tgUser.last_name}` : "");
+
+                  // Sync to DB
+                  let [users]: any = await pool.query("SELECT * FROM users WHERE telegram_id = ? OR email = ?", [String(tgUserId), email]);
+                  let user = users[0];
+
+                  if (!user) {
+                    const randomPass = Math.random().toString(36).slice(-10);
+                    const hashedPassword = await bcrypt.hash(randomPass, 10);
+                    const role = email === "mosinjonovjasurbek28@gmail.com" ? "admin" : "user";
+
+                    const [insertRes]: any = await pool.query(
+                      "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
+                      [name, email, hashedPassword, role, avatar_url, String(tgUserId)]
+                    );
+
+                    user = {
+                      id: insertRes.insertId,
+                      name,
+                      email,
+                      role,
+                      avatar_url,
+                      telegram_id: String(tgUserId)
+                    };
+                  } else {
+                    await pool.query(
+                      "UPDATE users SET telegram_id = ?, avatar_url = COALESCE(avatar_url, ?) WHERE id = ?",
+                      [String(tgUserId), avatar_url, user.id]
+                    );
+                    user.telegram_id = String(tgUserId);
+                    if (!user.avatar_url && avatar_url) {
+                      user.avatar_url = avatar_url;
+                    }
+                  }
+
+                  // JWT
+                  const userPayload = {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role,
+                    avatar_url: user.avatar_url,
+                  };
+                  const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: "30d" });
+
+                  // Mark session authorized
+                  activeSessions.set(sessionId, {
+                    status: "authorized",
+                    token,
+                    user: userPayload,
+                    createdAt: session.createdAt
+                  });
+
+                  await sendTelegramMessage(chat.id,
+                    `<b>Siz ANIMEUZ saytiga muvaffaqiyatli kirdingiz! 🎉</b>\n\n` +
+                    `👤 <b>Ism:</b> ${name}\n` +
+                    `📞 <b>Telefon:</b> ${phone}\n\n` +
+                    `Saytda avtorizatsiya yakunlandi! Endi saytga qaytib tomoshani davom ettirishingiz mumkin.`,
+                    { remove_keyboard: true }
+                  );
+                }
+              } else {
+                await sendTelegramMessage(chat.id, "Sessiya topilmadi yoki muddati tugagan.");
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error in telegram polling loop:", err);
+    }
+
+    setTimeout(poll, 1500);
+  };
+
+  poll();
+}
+
+// 1. Create a session ID
+app.get("/api/auth/telegram/session", (req, res) => {
+  const sessionId = "auth_" + Math.random().toString(36).substring(2, 15);
+  activeSessions.set(sessionId, {
+    status: "pending",
+    createdAt: Date.now()
+  });
+  res.json({ sessionId });
+});
+
+// 2. Check session status
+app.get("/api/auth/telegram/status/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  const session = activeSessions.get(sessionId);
+  if (!session) {
+    return res.json({ status: "expired" });
+  }
+  res.json(session);
+});
+
+// 3. Simulate Telegram Bot interaction on-screen
+app.post("/api/auth/telegram/simulate", async (req, res) => {
+  try {
+    const { sessionId, phone, first_name, username, avatar_url } = req.body;
+    const session = activeSessions.get(sessionId);
+    if (!session) {
+      return res.status(400).json({ error: "Sessiya topilmadi yoki muddati tugagan!" });
+    }
+
+    const fakeTgUserId = Math.floor(100000000 + Math.random() * 900000000);
+    const email = `tg_${fakeTgUserId}@telegram.uz`;
+    const name = first_name || username || "Telegram User";
+
+    // DB sync
+    let [users]: any = await pool.query("SELECT * FROM users WHERE telegram_id = ? OR email = ?", [String(fakeTgUserId), email]);
+    let user = users[0];
+
+    if (!user) {
+      const randomPass = Math.random().toString(36).slice(-10);
+      const hashedPassword = await bcrypt.hash(randomPass, 10);
+      const role = email === "mosinjonovjasurbek28@gmail.com" ? "admin" : "user";
+
+      const [insertRes]: any = await pool.query(
+        "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
+        [name, email, hashedPassword, role, avatar_url || null, String(fakeTgUserId)]
+      );
+
+      user = {
+        id: insertRes.insertId,
+        name,
+        email,
+        role,
+        avatar_url: avatar_url || null,
+        telegram_id: String(fakeTgUserId)
+      };
+    }
+
+    const userPayload = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar_url: user.avatar_url,
+    };
+    const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: "30d" });
+
+    // Mark session authorized
+    activeSessions.set(sessionId, {
+      status: "authorized",
+      token,
+      user: userPayload,
+      createdAt: session.createdAt
+    });
+
+    res.json({ success: true, message: "Muvaffaqiyatli simulyatsiya qilindi!" });
+  } catch (err) {
+    console.error("Simulation error:", err);
+    res.status(500).json({ error: "Simulyatsiyada xatolik" });
+  }
+});
+
+
 // Vite Dev Server / Static Files Setup
 async function start() {
   const distPath = path.join(process.cwd(), "dist");
   const publicPath = path.join(process.cwd(), "public");
   const isProduction = process.env.NODE_ENV === "production" || fs.existsSync(distPath);
+
+  // Start Telegram Bot
+  runTelegramBot();
 
   // Serve public folder directly using express for faster video loading and range requests
   app.use(express.static(publicPath));

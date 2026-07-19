@@ -310,59 +310,59 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
 
   if (isTelegram) {
     return (
-      <div className="w-full relative rounded-2xl overflow-hidden aspect-video bg-gradient-to-br from-[#f4f7fa] to-[#e8edf4] dark:from-[#0a1120] dark:to-[#03060c] border border-gray-200 dark:border-white/5 shadow-2xl flex flex-col justify-center items-center text-center p-6 sm:p-12 group">
+      <div className="w-full relative rounded-2xl overflow-hidden min-h-[320px] sm:aspect-video bg-gradient-to-br from-[#f4f7fa] to-[#e8edf4] dark:from-[#0a1120] dark:to-[#03060c] border border-gray-200 dark:border-white/5 shadow-2xl flex flex-col justify-center items-center text-center p-4 sm:p-8 md:p-12 group transition-all duration-300">
         
         {/* Glow effect in background */}
         <div className="absolute inset-0 bg-radial-gradient from-blue-500/10 via-transparent to-transparent pointer-events-none transition-transform duration-1000 group-hover:scale-110" />
 
         {/* Floating background dots or icons */}
-        <div className="absolute top-10 left-10 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl pointer-events-none animate-pulse" />
-        <div className="absolute bottom-10 right-10 w-32 h-32 bg-pink-500/5 rounded-full blur-3xl pointer-events-none animate-pulse delay-700" />
+        <div className="absolute top-6 left-6 w-20 h-20 sm:w-32 sm:h-32 bg-blue-500/5 rounded-full blur-2xl sm:blur-3xl pointer-events-none animate-pulse" />
+        <div className="absolute bottom-6 right-6 w-20 h-20 sm:w-32 sm:h-32 bg-pink-500/5 rounded-full blur-2xl sm:blur-3xl pointer-events-none animate-pulse delay-700" />
 
-        <div className="max-w-md w-full relative z-10 flex flex-col items-center space-y-6">
+        <div className="max-w-md w-full relative z-10 flex flex-col items-center space-y-4 sm:space-y-6">
           {/* Circular Pulse Logo Container */}
           <div className="relative">
             {/* Pulsing ring 1 */}
             <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping duration-1000" />
             {/* Pulsing ring 2 */}
-            <div className="absolute -inset-3 rounded-full bg-blue-400/10 animate-pulse duration-2000" />
+            <div className="absolute -inset-2 sm:-inset-3 rounded-full bg-blue-400/10 animate-pulse duration-2000" />
             
             {/* Actual Icon Wrapper */}
-            <div className="relative w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-tr from-blue-500 to-sky-400 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 transform transition-transform duration-500 group-hover:scale-105">
-              <svg viewBox="0 0 24 24" className="w-8 h-8 sm:w-10 sm:h-10 text-white fill-current transform -translate-x-0.5 translate-y-0.5">
+            <div className="relative w-12 h-12 sm:w-16 md:w-20 sm:h-16 md:h-20 bg-gradient-to-tr from-blue-500 to-sky-400 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 transform transition-transform duration-500 group-hover:scale-105">
+              <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-8 md:w-10 text-white fill-current transform -translate-x-0.5 translate-y-0.5">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.24-5.54 3.65-.52.36-.97.53-1.34.52-.41-.01-1.21-.23-1.8-.42-.73-.24-1.32-.37-1.27-.78.02-.21.31-.43.87-.67 3.42-1.49 5.71-2.48 6.86-2.96 3.27-1.37 3.95-1.61 4.4-.1.01.03.02.05.02.08.01.12.01.25-.01.37z" />
               </svg>
             </div>
           </div>
 
           {/* Typography */}
-          <div className="space-y-3">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+          <div className="space-y-2 sm:space-y-3 px-2">
+            <span className="inline-flex items-center px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
               TELEGRAM BOT
             </span>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
+            <h2 className="text-base sm:text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase leading-snug">
               {animeTitle || 'Anime'} Telegram Botda!
             </h2>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-white/60 leading-relaxed max-w-sm mx-auto">
+            <p className="text-[11px] sm:text-xs md:text-sm text-slate-600 dark:text-white/60 leading-relaxed max-w-[280px] sm:max-w-sm mx-auto">
               Ushbu qismni telegram botimiz orqali bepul, yuqori tezlikda va HD sifatda tomosha qiling!
             </p>
           </div>
 
           {/* CTA Action */}
-          <div className="w-full pt-2">
+          <div className="w-full pt-1 sm:pt-2 px-4">
             <a
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-blue-500 to-sky-400 hover:from-blue-600 hover:to-sky-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300 transform hover:-translate-y-0.5 hover:scale-105 cursor-pointer uppercase tracking-wider"
+              className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-6 py-2.5 sm:px-8 sm:py-3.5 bg-gradient-to-r from-blue-500 to-sky-400 hover:from-blue-600 hover:to-sky-500 text-white font-bold text-[11px] sm:text-xs md:text-sm rounded-lg sm:rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300 transform hover:-translate-y-0.5 hover:scale-105 cursor-pointer uppercase tracking-wider w-full sm:w-auto"
             >
-              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current">
                 <path d="M1.101,21.757L23.899,12L1.101,2.243C0.373,1.932-0.347,2.584-0.12,3.313L3,12L-0.12,20.687C-0.347,21.416,0.373,22.068,1.101,21.757z" />
               </svg>
               Telegram Botga Kirish
             </a>
             
-            <p className="text-[10px] text-slate-400 dark:text-white/30 mt-3 select-none">
+            <p className="text-[9px] sm:text-[10px] text-slate-400 dark:text-white/30 mt-2 sm:mt-3 select-none">
               Botga o'tgandan so'ng pastdagi <strong className="text-blue-500 dark:text-blue-400 font-bold">"Start" (Boshlash)</strong> tugmasini bosing.
             </p>
           </div>
