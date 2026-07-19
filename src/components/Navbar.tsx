@@ -83,7 +83,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
   };
 
   return (
-    <header className="fixed top-0 right-0 left-0 md:left-64 h-20 md:h-16 bg-[#09090b]/95 backdrop-blur-md border-b border-[#1a1a1a] z-30 px-4 md:px-8 flex items-center justify-between text-white select-none">
+    <header className="fixed top-0 right-0 left-0 md:left-64 h-16 md:h-16 bg-[#09090b]/95 backdrop-blur-md border-b border-[#1a1a1c] z-30 px-2 min-[400px]:px-4 md:px-8 flex items-center justify-between text-white select-none">
       
       {/* Mobile Search Overlay */}
       <AnimatePresence>
@@ -119,13 +119,13 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
       </AnimatePresence>
 
       {/* Left side: Hamburger (Mobile) + Logo/Search (Desktop) */}
-      <div className="flex items-center space-x-4 flex-1 min-w-0">
+      <div className="flex items-center space-x-1.5 min-[400px]:space-x-3 md:space-x-4 flex-1 min-w-0">
         {/* Hamburger Trigger for Mobile Sidebar */}
         <button
           onClick={onToggleSidebar}
-          className="p-2 -ml-2 text-white/70 hover:text-white hover:bg-[#1a1a1a] rounded-sm transition-colors md:hidden"
+          className="p-1.5 -ml-1 text-white/70 hover:text-white hover:bg-[#1a1a1a] rounded-sm transition-colors md:hidden shrink-0"
         >
-          <Menu size={20} />
+          <Menu size={18} />
         </button>
 
         {/* Mobile Brand Name */}
@@ -133,7 +133,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           <img 
             src={logoImg} 
             alt="AnimeUz" 
-            className="h-[56px] w-auto object-contain" 
+            className="h-[40px] min-[400px]:h-[48px] w-auto object-contain" 
           />
         </Link>
 
@@ -153,14 +153,14 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
       </div>
 
       {/* Right side: Actions & Profile */}
-      <div className="flex items-center space-x-4 shrink-0">
+      <div className="flex items-center space-x-1 min-[400px]:space-x-2 md:space-x-4 shrink-0">
         
         {/* Mobile Search Icon */}
         <button 
           onClick={() => setShowMobileSearch(true)} 
-          className="p-2 text-white/60 hover:text-white transition-colors sm:hidden"
+          className="p-1.5 text-white/60 hover:text-white transition-colors sm:hidden"
         >
-          <Search size={18} />
+          <Search size={16} />
         </button>
 
         {/* Upload/Add Anime Quick-link (Admins or generic) */}
@@ -186,9 +186,9 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
                 localStorage.setItem('last_read_notif_id', String(highestId));
               }
             }}
-            className="p-2 text-white/60 hover:text-white hover:bg-[#111] rounded-sm transition-all relative"
+            className="p-1.5 sm:p-2 text-white/60 hover:text-white hover:bg-[#111] rounded-sm transition-all relative"
           >
-            <Bell size={18} />
+            <Bell size={16} />
             {notifCount > 0 && (
               <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-[#ff006a] rounded-full text-[9px] flex items-center justify-center font-bold text-white ring-2 ring-[#09090b]">
                 {notifCount}
@@ -202,7 +202,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                className="absolute right-[-40px] sm:right-0 mt-3 w-[calc(100vw-32px)] sm:w-80 bg-[#111113] border border-[#1a1a1c] rounded-sm shadow-2xl overflow-hidden text-sm z-50"
+                className="fixed sm:absolute top-16 sm:top-auto right-2 sm:right-0 left-2 sm:left-auto mt-1 sm:mt-3 w-auto sm:w-80 bg-[#111113] border border-[#1a1a1c] rounded-sm shadow-2xl overflow-hidden text-sm z-50"
               >
                 <div className="p-3 border-b border-[#222] bg-[#0c0c0e] flex items-center justify-between">
                   <span className="font-bold text-xs uppercase tracking-wider text-white/50">Bildirishnomalar</span>
@@ -308,16 +308,16 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
             </AnimatePresence>
           </div>
         ) : (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1 min-[400px]:space-x-2">
             <Link 
               to="/login" 
-              className="text-white/70 hover:text-white text-xs font-bold px-3 py-2 transition-colors uppercase tracking-wider"
+              className="text-white/70 hover:text-white text-[11px] sm:text-xs font-bold px-2 sm:px-3 py-1.5 sm:py-2 transition-colors uppercase tracking-wider whitespace-nowrap"
             >
               Kirish
             </Link>
             <Link 
               to="/register" 
-              className="bg-[#ff006a] text-white px-4 py-2 rounded-sm text-xs font-bold hover:bg-[#d40058] transition-colors uppercase tracking-wider"
+              className="hidden min-[450px]:inline-flex bg-[#ff006a] text-white px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-sm text-[11px] sm:text-xs font-bold hover:bg-[#d40058] transition-colors uppercase tracking-wider whitespace-nowrap shrink-0"
             >
               Ro'yxatdan o'tish
             </Link>
