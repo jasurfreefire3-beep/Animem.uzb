@@ -3,14 +3,18 @@ import cors from "cors";
 import path from "path";
 import fs from "fs";
 import http from "http";
+import https from "https";
 import { Server } from "socket.io";
 import mysql from "mysql2/promise";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
+import multer from "multer";
 
 dotenv.config();
+
+const upload = multer({ dest: "/tmp/" });
 
 const app = express();
 app.use(cors());
@@ -368,6 +372,134 @@ app.get("/api/archive-config", authenticateToken, (req: any, res) => {
   } catch (err) {
     console.error("Get archive config error:", err);
     res.status(500).json({ error: "Serverda xatolik" });
+  }
+});
+
+// Proxy upload endpoint to Archive.org (Admin only)
+app.post("/api/upload-archive-proxy", authenticateToken, upload.single("file"), async (req: any, res: any) => {
+  const tempFilePath = req.file?.path;
+  try {
+    if (req.user.role !== "admin") {
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
+      return res.status(403).json({ error: "Sizda ushbu amalni bajarishga ruxsat yo'q!" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: "Fayl yuklanmadi" });
+    }
+
+    const { selectedAnimeId, episodeNumber, title } = req.body;
+    if (!selectedAnimeId || !episodeNumber) {
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
+      return res.status(400).json({ error: "Anime ID va Epizod raqami kiritilishi shart" });
+    }
+
+    const accessKey = process.env.ARCHIVE_ORG_ACCESS_KEY;
+    const secretKey = process.env.ARCHIVE_ORG_SECRET_KEY;
+
+    if (!accessKey || !secretKey) {
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
+      return res.status(400).json({ error: "Archive.org kalitlari (ARCHIVE_ORG_ACCESS_KEY, ARCHIVE_ORG_SECRET_KEY) server sozlamalarida kiritilmagan!" });
+    }
+
+    const sanitizeHeaderValue = (val: string): string => {
+      if (!val) return "";
+      return val.replace(/[^\x20-\x7E]/g, "").trim();
+    };
+
+    const sanitizedFileName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const identifier = `animem-uz-ep-${selectedAnimeId}-${episodeNumber}-${Date.now()}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    
+    const uploadUrl = `https://s3.us.archive.org/${identifier}/${sanitizedFileName}`;
+    const directLink = `https://archive.org/download/${identifier}/${sanitizedFileName}`;
+
+    console.log(`Starting proxy upload of ${sanitizedFileName} to Archive.org identifier ${identifier}`);
+
+    const parsedUrl = new URL(uploadUrl);
+    const options = {
+      method: "PUT",
+      hostname: parsedUrl.hostname,
+      path: parsedUrl.pathname,
+      headers: {
+        "Authorization": `LOW ${accessKey}:${secretKey}`,
+        "x-amz-auto-make-bucket": "1",
+        "x-archive-meta-mediatype": "movies",
+        "x-archive-meta-collection": "opensource_movies",
+        "x-archive-meta-title": sanitizeHeaderValue(title || `Anime Episode ${episodeNumber}`),
+        "Content-Type": req.file.mimetype || "video/mp4",
+        "Content-Length": fs.statSync(tempFilePath).size,
+      }
+    };
+
+    const archiveReq = https.request(options, (archiveRes) => {
+      let responseBody = "";
+      archiveRes.on("data", (chunk) => {
+        responseBody += chunk;
+      });
+      archiveRes.on("end", () => {
+        // Clean up temp file
+        if (tempFilePath && fs.existsSync(tempFilePath)) {
+          try {
+            fs.unlinkSync(tempFilePath);
+          } catch (e) {}
+        }
+
+        if (archiveRes.statusCode === 200 || archiveRes.statusCode === 201) {
+          console.log(`Proxy upload to Archive.org complete! URL: ${directLink}`);
+          if (!res.headersSent) {
+            res.json({ success: true, url: directLink });
+          }
+        } else {
+          console.error(`Archive.org upload failed with status ${archiveRes.statusCode}: ${responseBody}`);
+          if (!res.headersSent) {
+            res.status(500).json({ error: `Archive.org xatosi (${archiveRes.statusCode}): ${responseBody || 'Noma\'lum xatolik'}` });
+          }
+        }
+      });
+    });
+
+    archiveReq.on("error", (err) => {
+      console.error("Proxy upload stream error:", err);
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        try {
+          fs.unlinkSync(tempFilePath);
+        } catch (e) {}
+      }
+      if (!res.headersSent) {
+        res.status(500).json({ error: `Server translyatsiya jarayonida xatolik: ${err.message}` });
+      }
+    });
+
+    const fileStream = fs.createReadStream(tempFilePath);
+    fileStream.on("error", (err) => {
+      console.error("File read stream error:", err);
+      archiveReq.destroy();
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        try {
+          fs.unlinkSync(tempFilePath);
+        } catch (e) {}
+      }
+      if (!res.headersSent) {
+        res.status(500).json({ error: `Faylni o'qishda xatolik: ${err.message}` });
+      }
+    });
+
+    fileStream.pipe(archiveReq);
+
+  } catch (err: any) {
+    console.error("Upload proxy main error:", err);
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch (e) {}
+    }
+    res.status(500).json({ error: `Tizimda xatolik yuz berdi: ${err.message}` });
   }
 });
 

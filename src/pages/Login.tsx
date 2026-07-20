@@ -136,7 +136,13 @@ export default function Login() {
       navigate('/');
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Google orqali kirishda xatolik');
+      if (err.code === 'auth/unauthorized-domain') {
+        setError(
+          `Google tizimiga kirish xatosi (unauthorized domain): Ushbu domen Firebase ruxsat etilgan domenlar ro'yxatida yo'q. Uni faollashtirish uchun: \n1. Firebase Konsoliga kiring -> Authentication -> Settings -> Authorized Domains bo'limiga o'ting. \n2. Quyidagi domenni ruxsat etilganlar ro'yxatiga qo'shing: \n👉 ${window.location.hostname}`
+        );
+      } else {
+        setError(err.message || 'Google orqali kirishda xatolik');
+      }
     }
   };
 
