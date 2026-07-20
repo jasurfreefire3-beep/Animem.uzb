@@ -21,6 +21,7 @@ import Sevimlilar from './pages/Sevimlilar';
 import Tarix from './pages/Tarix';
 import Sozlamalar from './pages/Sozlamalar';
 import Profil from './pages/Profil';
+import NotFound from './pages/NotFound';
 
 export default function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -155,6 +156,7 @@ export default function App() {
             <Route path="/tarix" element={<Tarix />} />
             <Route path="/sozlamalar" element={<Sozlamalar />} />
             <Route path="/profil" element={<Profil />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
 
