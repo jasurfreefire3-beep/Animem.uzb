@@ -355,6 +355,22 @@ app.post("/api/notifications", authenticateToken, async (req: any, res) => {
   }
 });
 
+// Get Archive.org configuration keys (Admin only)
+app.get("/api/archive-config", authenticateToken, (req: any, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Sizda ushbu amalni bajarishga ruxsat yo'q!" });
+    }
+    res.json({
+      accessKey: process.env.ARCHIVE_ORG_ACCESS_KEY || "",
+      secretKey: process.env.ARCHIVE_ORG_SECRET_KEY || "",
+    });
+  } catch (err) {
+    console.error("Get archive config error:", err);
+    res.status(500).json({ error: "Serverda xatolik" });
+  }
+});
+
 // Update user profile photo (Avatar) as base64 string in MySQL
 app.post("/api/user/avatar", authenticateToken, async (req: any, res) => {
   try {

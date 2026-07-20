@@ -239,6 +239,149 @@ export default function Admin() {
 
   // Dynamic Episodes state and handlers
   const [episodesList, setEpisodesList] = useState<any[]>([]);
+  const [archiveConfig, setArchiveConfig] = useState<{ accessKey: string; secretKey: string } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{[key: number]: { percent: number; status: string; filename?: string }}>({});
+
+  useEffect(() => {
+    if (user?.role === 'admin' && token) {
+      fetch('/api/archive-config', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data && !data.error) {
+          setArchiveConfig(data);
+        }
+      })
+      .catch(err => console.error("Error fetching archive.org config", err));
+    }
+  }, [user, token]);
+
+  const handleUploadFileToArchive = async (episodeNumber: number, file: File) => {
+    const anime = animes.find(a => String(a.id) === String(selectedAnimeId));
+    const animeTitle = anime ? anime.title : 'Anime';
+    
+    // Set initial status
+    setUploadProgress(prev => ({
+      ...prev,
+      [episodeNumber]: { percent: 0, status: 'starting', filename: file.name }
+    }));
+
+    const accessKey = archiveConfig?.accessKey;
+    const secretKey = archiveConfig?.secretKey;
+
+    if (!accessKey || !secretKey) {
+      // Show warning/simulation
+      console.log("Archive.org credentials not set. Simulating upload...");
+      setUploadProgress(prev => ({
+        ...prev,
+        [episodeNumber]: { percent: 0, status: 'simulating', filename: file.name }
+      }));
+
+      let currentPercent = 0;
+      const interval = setInterval(() => {
+        currentPercent += 5;
+        if (currentPercent >= 100) {
+          clearInterval(interval);
+          
+          const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const identifier = `animem-uz-ep-${selectedAnimeId}-${episodeNumber}-${Date.now()}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+          const finalUrl = `https://archive.org/download/${identifier}/${sanitizedFileName}`;
+          
+          handleLocalUrlChange(episodeNumber, finalUrl);
+          
+          setUploadProgress(prev => ({
+            ...prev,
+            [episodeNumber]: { percent: 100, status: 'completed', filename: file.name }
+          }));
+
+          setMessage({ 
+            type: 'success', 
+            text: `[SINOV REJIM] ${file.name} simulyatsiya orqali yuklandi va saqlandi! Haqiqiy yuklash uchun settings/.env orqali ARCHIVE_ORG_ACCESS_KEY va ARCHIVE_ORG_SECRET_KEY larni kiritishingiz lozim.` 
+          });
+
+          // Auto save
+          handleSaveEpisode(episodeNumber, finalUrl);
+        } else {
+          setUploadProgress(prev => ({
+            ...prev,
+            [episodeNumber]: { ...prev[episodeNumber], percent: currentPercent, status: 'simulating' }
+          }));
+        }
+      }, 150);
+
+      return;
+    }
+
+    const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const identifier = `animem-uz-ep-${selectedAnimeId}-${episodeNumber}-${Date.now()}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    
+    const uploadUrl = `https://s3.us.archive.org/${identifier}/${sanitizedFileName}`;
+    const directLink = `https://archive.org/download/${identifier}/${sanitizedFileName}`;
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', uploadUrl, true);
+    
+    xhr.setRequestHeader('Authorization', `LOW ${accessKey}:${secretKey}`);
+    xhr.setRequestHeader('x-amz-auto-make-bucket', '1');
+    xhr.setRequestHeader('x-archive-meta-mediatype', 'movies');
+    xhr.setRequestHeader('x-archive-meta-collection', 'opensource_movies');
+    xhr.setRequestHeader('x-archive-meta-title', `${animeTitle} - ${episodeNumber}-qism`);
+    xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = Math.round((event.loaded / event.total) * 100);
+        setUploadProgress(prev => ({
+          ...prev,
+          [episodeNumber]: { ...prev[episodeNumber], percent: percentComplete, status: 'uploading' }
+        }));
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 200 || xhr.status === 201) {
+        handleLocalUrlChange(episodeNumber, directLink);
+
+        setUploadProgress(prev => ({
+          ...prev,
+          [episodeNumber]: { percent: 100, status: 'completed', filename: file.name }
+        }));
+
+        setMessage({
+          type: 'success',
+          text: `${file.name} muvaffaqiyatli archive.org saytiga yuklandi va avtomatik saqlandi!`
+        });
+
+        handleSaveEpisode(episodeNumber, directLink);
+      } else {
+        console.error('Upload failed:', xhr.statusText, xhr.responseText);
+        setUploadProgress(prev => ({
+          ...prev,
+          [episodeNumber]: { ...prev[episodeNumber], status: 'failed' }
+        }));
+        setMessage({
+          type: 'error',
+          text: `Faylni archive.org ga yuklashda xatolik yuz berdi (${xhr.status}): ${xhr.statusText}`
+        });
+      }
+    };
+
+    xhr.onerror = () => {
+      setUploadProgress(prev => ({
+        ...prev,
+        [episodeNumber]: { ...prev[episodeNumber], status: 'failed' }
+      }));
+      setMessage({
+        type: 'error',
+        text: 'Tarmoq xatoligi tufayli archive.org saytiga yuklash amalga oshmadi.'
+      });
+    };
+
+    xhr.send(file);
+  };
 
   useEffect(() => {
     if (selectedAnimeId) {
@@ -993,17 +1136,15 @@ export default function Admin() {
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];
                                       if (file) {
-                                        // Set mock path but descriptive
-                                        const mockPath = `https://ia601904.us.archive.org/2/items/custom_anime/${encodeURIComponent(file.name)}`;
-                                        handleLocalUrlChange(ep.episode_number, mockPath);
-                                        setMessage({ type: 'success', text: `${file.name} qurilmadan muvaffaqiyatli yuklandi!` });
+                                        handleUploadFileToArchive(ep.episode_number, file);
                                       }
                                     }}
                                   />
                                   <button
                                     type="button"
+                                    disabled={uploadProgress[ep.episode_number]?.status === 'uploading' || uploadProgress[ep.episode_number]?.status === 'simulating'}
                                     onClick={() => document.getElementById(inputId)?.click()}
-                                    className="px-3 py-2 bg-[#1a1a1a] hover:bg-[#2a2a2a] border border-[#222] hover:border-white/10 rounded-sm text-xs text-white font-bold transition-all shrink-0 flex items-center gap-1.5"
+                                    className="px-3 py-2 bg-[#1a1a1a] hover:bg-[#2a2a2a] disabled:opacity-40 disabled:cursor-not-allowed border border-[#222] hover:border-white/10 rounded-sm text-xs text-white font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer"
                                   >
                                     <Video size={13} className="text-[#ff006a]" />
                                     Qurilmadan
@@ -1011,6 +1152,31 @@ export default function Admin() {
                                 </>
                               )}
                             </div>
+
+                            {/* Upload Progress Bar */}
+                            {uploadProgress[ep.episode_number] && (
+                              <div className="space-y-1.5 p-2 bg-black/60 border border-white/5 rounded-sm">
+                                <div className="flex items-center justify-between text-[11px] font-bold">
+                                  <span className="text-white/60 truncate max-w-[150px]">
+                                    {uploadProgress[ep.episode_number].status === 'completed' ? 'Muvaffaqiyatli yuklandi' : 
+                                     uploadProgress[ep.episode_number].status === 'simulating' ? 'Simulyatsiya qilinmoqda...' : 
+                                     uploadProgress[ep.episode_number].status === 'failed' ? 'Yuklashda xatolik!' : 'Archive.org ga yuklanmoqda...'}
+                                  </span>
+                                  <span className="text-[#ff006a]">
+                                    {uploadProgress[ep.episode_number].percent}%
+                                  </span>
+                                </div>
+                                <div className="w-full bg-[#1c1c1e] h-1.5 rounded-full overflow-hidden">
+                                  <div 
+                                    className={`h-full transition-all duration-300 ${uploadProgress[ep.episode_number].status === 'failed' ? 'bg-red-500' : uploadProgress[ep.episode_number].status === 'completed' ? 'bg-green-500' : 'bg-[#ff006a]'}`}
+                                    style={{ width: `${uploadProgress[ep.episode_number].percent}%` }}
+                                  />
+                                </div>
+                                <p className="text-[9px] text-white/30 truncate">
+                                  {uploadProgress[ep.episode_number].filename}
+                                </p>
+                              </div>
+                            )}
 
                             {/* Subtext display */}
                             <p className="text-[10px] text-white/30 truncate select-none">
