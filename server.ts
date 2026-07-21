@@ -674,6 +674,10 @@ app.get("/api/animes/:id", async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: "Anime topilmadi" });
     }
+    // Increment views count in DB
+    await pool.query("UPDATE animes SET korishlar = korishlar + 1 WHERE id = ?", [id]);
+    rows[0].korishlar = (rows[0].korishlar || 0) + 1;
+
     const merged = await mergeRatingsWithAnimes(rows);
     res.json(merged[0]);
   } catch (err) {
@@ -700,6 +704,10 @@ app.get("/api/animes/by-slug/:slug", async (req, res) => {
     if (!anime) {
       return res.status(404).json({ error: "Anime topilmadi" });
     }
+    // Increment views count in DB
+    await pool.query("UPDATE animes SET korishlar = korishlar + 1 WHERE id = ?", [anime.id]);
+    anime.korishlar = (anime.korishlar || 0) + 1;
+
     const merged = await mergeRatingsWithAnimes([anime]);
     res.json(merged[0]);
   } catch (err) {

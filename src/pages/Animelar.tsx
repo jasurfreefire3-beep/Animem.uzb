@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Anime, translateGenre, getEnglishGenre, toSlug } from '../types';
-import { Star, Play, Grid, List, Film, Calendar } from 'lucide-react';
+import { Star, Play, Grid, List, Film, Calendar, Eye } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function Animelar() {
@@ -178,7 +178,9 @@ export default function Animelar() {
                   {anime.title}
                 </h3>
                 <div className="flex justify-between items-center text-[10px] text-white/40 mt-0.5 font-mono">
-                  <span>TV Series</span>
+                  <span className="flex items-center gap-1">
+                    <Eye className="w-3.5 h-3.5 text-[#ff006a]/85" /> {anime.korishlar || 0}
+                  </span>
                   <span>{anime.yil || 'Noma\'lum'}</span>
                 </div>
               </Link>
@@ -224,6 +226,8 @@ export default function Animelar() {
                   <span>YIL: <span className="text-white/60">{anime.yil || 'Noma\'lum'}</span></span>
                   <span>|</span>
                   <span>QISMLAR: <span className="text-white/60">{anime.qismlar_soni || 1} ta</span></span>
+                  <span>|</span>
+                  <span className="flex items-center gap-1">KO'RISHLAR: <span className="text-white/60 flex items-center gap-0.5"><Eye className="w-3.5 h-3.5 text-[#ff006a]" /> {anime.korishlar || 0} ta</span></span>
                 </div>
               </div>
               <div className="flex items-center shrink-0 pr-2">

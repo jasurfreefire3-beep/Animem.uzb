@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Anime, toSlug } from '../types';
-import { Star, PlayCircle, Calendar, Play, Clock, Grid, MessageSquare, ChevronLeft, ChevronRight, TrendingUp, Info } from 'lucide-react';
+import { Star, PlayCircle, Calendar, Play, Clock, Grid, MessageSquare, ChevronLeft, ChevronRight, TrendingUp, Info, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Home() {
@@ -269,7 +269,12 @@ export default function Home() {
                     <h3 className="text-white font-medium text-sm line-clamp-1 group-hover:text-[#ff006a] transition-colors">
                       {anime.title}
                     </h3>
-                    <p className="text-white/40 text-[11px] truncate">TV Series • {anime.yil || '2026'}</p>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <p className="text-white/40 text-[11px] truncate">TV Series • {anime.yil || '2026'}</p>
+                      <span className="text-white/40 text-[10px] flex items-center gap-0.5 font-mono shrink-0">
+                        <Eye className="w-3 h-3 text-[#ff006a]/80" /> {anime.korishlar || 0}
+                      </span>
+                    </div>
                   </Link>
                 </motion.div>
               ))}

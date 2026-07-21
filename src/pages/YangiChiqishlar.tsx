@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Anime, toSlug } from '../types';
-import { Clock, Star, Play, PlayCircle, Calendar } from 'lucide-react';
+import { Clock, Star, Play, PlayCircle, Calendar, Eye } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function YangiChiqishlar() {
@@ -94,7 +94,9 @@ export default function YangiChiqishlar() {
                 {anime.title}
               </h3>
               <div className="flex justify-between items-center text-[10px] text-white/40 mt-1 font-mono">
-                <span>TV Series</span>
+                <span className="flex items-center gap-1">
+                  <Eye className="w-3.5 h-3.5 text-[#ff006a]/85" /> {anime.korishlar || 0}
+                </span>
                 <span>{anime.yil || '2026'}</span>
               </div>
             </Link>
