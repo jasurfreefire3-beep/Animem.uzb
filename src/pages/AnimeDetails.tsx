@@ -27,6 +27,7 @@ export default function AnimeDetails() {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [ratingStatus, setRatingStatus] = useState<string | null>(null);
   const [ratingSummary, setRatingSummary] = useState<{ average: number; total: number; distribution: Record<number, number> } | null>(null);
+  const [similarAnimes, setSimilarAnimes] = useState<Anime[]>([]);
 
   const fetchRatingSummary = async (animeId: number) => {
     try {
@@ -107,6 +108,15 @@ export default function AnimeDetails() {
           const coms = await commRes.json();
           setComments(coms);
         }
+
+        // Fetch similar animelar for sidebar
+        const listRes = await fetch(`${API_BASE}/api/animes`);
+        const listType = listRes.headers.get("content-type");
+        if (listRes.ok && listType && listType.includes("application/json")) {
+          const listData = await listRes.json();
+          const filtered = listData.filter((item: Anime) => String(item.id) !== String(data.id));
+          setSimilarAnimes(filtered.slice(0, 5));
+        }
       } catch (err) {
         console.error(err);
       }
@@ -115,6 +125,14 @@ export default function AnimeDetails() {
     fetchAllDetails();
     window.scrollTo(0, 0);
   }, [slug, user]);
+
+  useEffect(() => {
+    if (anime) {
+      document.title = `${anime.title} - O'zbek tilida ko'rish`;
+    } else {
+      document.title = "Animem Uz - Animelarni o'zbek tilida sifatli ko'rish";
+    }
+  }, [anime]);
 
   // Handle saving history when activeEpisode changes
   useEffect(() => {
@@ -812,24 +830,36 @@ export default function AnimeDetails() {
          {/* Right Sidebar */}
          <div className="hidden lg:block w-[300px] shrink-0">
            <div className="sticky top-20 space-y-6">
-              <div className="bg-[#111] border border-[#222] rounded-sm p-4">
-                 <h3 className="text-xs font-bold text-white mb-4 uppercase tracking-wide flex items-center gap-2">
-                   <Star className="w-4 h-4 text-yellow-400" /> Similar Anime
-                 </h3>
-                 <div className="space-y-3">
-                   {[1,2,3,4].map(i => (
-                     <div key={i} className="flex gap-3 items-center group cursor-pointer p-1.5 rounded-sm hover:bg-[#222] transition-colors">
-                       <div className="w-10 h-14 bg-[#222] rounded-sm overflow-hidden shrink-0">
-                         <img src={anime.image_url} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                       </div>
-                       <div>
-                         <div className="text-white/90 text-xs font-medium line-clamp-1 group-hover:text-[#ff006a] transition-colors">Related Show {i}</div>
-                         <div className="text-white/40 text-[10px] mt-0.5">TV Series • 2026</div>
-                       </div>
-                     </div>
-                   ))}
-                 </div>
-              </div>
+              {similarAnimes.length > 0 && (
+                <div className="bg-[#111] border border-[#222] rounded-sm p-4">
+                   <h3 className="text-xs font-bold text-white mb-4 uppercase tracking-wide flex items-center gap-2">
+                     <Star className="w-4 h-4 text-[#ff006a]" /> O'xshash Animelar
+                   </h3>
+                   <div className="space-y-3">
+                     {similarAnimes.map(sim => (
+                       <Link 
+                         key={sim.id} 
+                         to={`/anime/${toSlug(sim.title)}`} 
+                         title={`${sim.title} - O'zbek tilida ko'rish`}
+                         className="flex gap-3 items-center group cursor-pointer p-1.5 rounded-sm hover:bg-[#222] transition-colors"
+                       >
+                         <div className="w-10 h-14 bg-[#222] rounded-sm overflow-hidden shrink-0">
+                           <img 
+                             src={sim.image_url} 
+                             alt={`${sim.title} - O'zbek tilida ko'rish`} 
+                             title={`${sim.title} - O'zbek tilida ko'rish`}
+                             className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" 
+                           />
+                         </div>
+                         <div className="min-w-0 flex-1">
+                           <div className="text-white/90 text-xs font-medium line-clamp-1 group-hover:text-[#ff006a] transition-colors">{sim.title}</div>
+                           <div className="text-white/40 text-[10px] mt-0.5">TV Series • {sim.yil || "2026"}</div>
+                         </div>
+                       </Link>
+                     ))}
+                   </div>
+                </div>
+              )}
            </div>
          </div>
       </div>

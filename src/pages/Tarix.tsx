@@ -120,9 +120,14 @@ export default function Tarix() {
             >
               <div className="flex items-center space-x-4 min-w-0 flex-1">
                 {/* Thumbnail */}
-                <div className="w-12 h-16 bg-[#000] rounded-sm overflow-hidden border border-[#222] shrink-0">
-                  <img src={item.image_url} alt="" className="w-full h-full object-cover" />
-                </div>
+                <Link to={`/anime/${toSlug(item.title)}`} title={`${item.title} - O'zbek tilida ko'rish`} className="w-12 h-16 bg-[#000] rounded-sm overflow-hidden border border-[#222] shrink-0 block">
+                  <img 
+                    src={item.image_url} 
+                    alt={`${item.title} - O'zbek tilida ko'rish`} 
+                    title={`${item.title} - O'zbek tilida ko'rish`} 
+                    className="w-full h-full object-cover" 
+                  />
+                </Link>
 
                 {/* Info */}
                 <div className="min-w-0 flex-1">

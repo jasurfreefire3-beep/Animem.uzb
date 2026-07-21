@@ -149,11 +149,12 @@ export default function Animelar() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.03 }}
             >
-              <Link to={`/anime/${toSlug(anime.title)}`} className="group block relative">
+              <Link to={`/anime/${toSlug(anime.title)}`} title={`${anime.title} - O'zbek tilida ko'rish`} className="group block relative">
                 <div className="relative aspect-[3/4] overflow-hidden mb-2 rounded-sm bg-[#111] border border-[#222]">
                   <img
                     src={anime.image_url}
-                    alt={anime.title}
+                    alt={`${anime.title} - O'zbek tilida ko'rish`}
+                    title={`${anime.title} - O'zbek tilida ko'rish`}
                     className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300"
                   />
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
@@ -195,9 +196,14 @@ export default function Animelar() {
               transition={{ delay: idx * 0.03 }}
               className="bg-[#111] border border-[#222] p-3 rounded-sm flex gap-4 hover:border-[#ff006a]/30 transition-colors group"
             >
-              <div className="w-16 h-20 rounded-sm overflow-hidden bg-[#000] shrink-0 border border-[#222] relative">
-                <img src={anime.image_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-              </div>
+              <Link to={`/anime/${toSlug(anime.title)}`} title={`${anime.title} - O'zbek tilida ko'rish`} className="w-16 h-20 rounded-sm overflow-hidden bg-[#000] shrink-0 border border-[#222] relative block">
+                <img 
+                  src={anime.image_url} 
+                  alt={`${anime.title} - O'zbek tilida ko'rish`} 
+                  title={`${anime.title} - O'zbek tilida ko'rish`}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                />
+              </Link>
               <div className="flex-1 min-w-0 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center gap-2">

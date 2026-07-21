@@ -57,11 +57,12 @@ export default function YangiChiqishlar() {
             transition={{ delay: idx * 0.02 }}
             className="group relative"
           >
-            <Link to={`/anime/${toSlug(anime.title)}`} className="block">
+            <Link to={`/anime/${toSlug(anime.title)}`} title={`${anime.title} - O'zbek tilida ko'rish`} className="block">
               <div className="relative aspect-[3/4] overflow-hidden mb-2 rounded-sm bg-[#111] border border-[#222]">
                 <img
                   src={anime.image_url}
-                  alt={anime.title}
+                  alt={`${anime.title} - O'zbek tilida ko'rish`}
+                  title={`${anime.title} - O'zbek tilida ko'rish`}
                   className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300"
                 />
                 

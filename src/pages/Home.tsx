@@ -124,7 +124,8 @@ export default function Home() {
             <div className="absolute inset-0 w-full h-full overflow-hidden">
               <img 
                 src={featuredAnime.banner_url || featuredAnime.image_url} 
-                alt={featuredAnime.title} 
+                alt={`${featuredAnime.title} - O'zbek tilida ko'rish`} 
+                title={`${featuredAnime.title} - O'zbek tilida ko'rish`}
                 className="w-full h-full object-cover scale-105 blur-[3px] opacity-40 md:opacity-30 transition-all duration-700" 
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/80 to-transparent" />
@@ -209,7 +210,8 @@ export default function Home() {
               >
                 <img 
                   src={featuredAnime.image_url} 
-                  alt={featuredAnime.title} 
+                  alt={`${featuredAnime.title} - O'zbek tilida ko'rish`} 
+                  title={`${featuredAnime.title} - O'zbek tilida ko'rish`}
                   className="w-full h-full object-cover" 
                 />
               </motion.div>
@@ -243,11 +245,12 @@ export default function Home() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
                 >
-                  <Link to={`/anime/${toSlug(anime.title)}`} className="group block relative">
+                  <Link to={`/anime/${toSlug(anime.title)}`} title={`${anime.title} - O'zbek tilida ko'rish`} className="group block relative">
                     <div className="relative aspect-[3/4] overflow-hidden mb-2 rounded-sm bg-[#111]">
                       <img 
                         src={anime.image_url} 
-                        alt={anime.title} 
+                        alt={`${anime.title} - O'zbek tilida ko'rish`} 
+                        title={`${anime.title} - O'zbek tilida ko'rish`}
                         className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300" 
                       />
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
@@ -286,11 +289,17 @@ export default function Home() {
                 {updateList.map((anime, idx) => (
                   <Link 
                     to={`/anime/${toSlug(anime.title)}`} 
+                    title={`${anime.title} - O'zbek tilida ko'rish`}
                     key={anime.id} 
                     className="flex items-center gap-3 p-2 rounded hover:bg-[#222] transition-colors group"
                   >
                     <div className="w-12 h-16 rounded-sm overflow-hidden shrink-0 bg-[#000]">
-                      <img src={anime.image_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      <img 
+                        src={anime.image_url} 
+                        alt={`${anime.title} - O'zbek tilida ko'rish`} 
+                        title={`${anime.title} - O'zbek tilida ko'rish`}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="text-white font-medium text-sm truncate group-hover:text-[#ff006a] transition-colors">

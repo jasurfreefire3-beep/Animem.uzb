@@ -146,9 +146,14 @@ export default function Jadval() {
                 </div>
 
                 {/* Cover Thumbnail */}
-                <div className="w-10 h-14 bg-[#000] rounded-sm overflow-hidden border border-[#222] shrink-0">
-                  <img src={item.image_url} alt="" className="w-full h-full object-cover" />
-                </div>
+                <Link to={`/anime/${toSlug(item.title)}`} title={`${item.title} - O'zbek tilida ko'rish`} className="w-10 h-14 bg-[#000] rounded-sm overflow-hidden border border-[#222] shrink-0 block">
+                  <img 
+                    src={item.image_url} 
+                    alt={`${item.title} - O'zbek tilida ko'rish`} 
+                    title={`${item.title} - O'zbek tilida ko'rish`} 
+                    className="w-full h-full object-cover" 
+                  />
+                </Link>
 
                 {/* Title & Episode No */}
                 <div className="min-w-0 flex-1">
