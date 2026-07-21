@@ -1509,6 +1509,110 @@ async function start() {
   // Serve public folder directly using express for faster video loading and range requests
   app.use(express.static(publicPath));
 
+  // Dynamic SEO handler for individual anime pages (runs on both dev and production)
+  app.get("/anime/:slug", async (req, res) => {
+    try {
+      const slug = req.params.slug;
+      
+      // 1. Fetch anime details
+      const [rows]: any = await pool.query("SELECT * FROM animes");
+      const toSlugLocal = (text: string): string => {
+        if (!text) return "";
+        return text
+          .toLowerCase()
+          .replace(/o['’`‘]/g, "o")
+          .replace(/g['’`‘]/g, "g")
+          .replace(/[^a-z0-9\u0400-\u04FF]+/gi, "-")
+          .replace(/^-+|-+$/g, "");
+      };
+      const animeRaw = rows.find((r: any) => toSlugLocal(r.title) === slug);
+      
+      const defaultIndexPath = fs.existsSync(path.join(distPath, "index.html"))
+        ? path.join(distPath, "index.html")
+        : path.join(process.cwd(), "index.html");
+
+      if (!animeRaw) {
+        return res.sendFile(defaultIndexPath);
+      }
+      
+      const merged = await mergeRatingsWithAnimes([animeRaw]);
+      const anime = merged[0];
+      
+      // 2. Load index.html
+      let html = fs.readFileSync(defaultIndexPath, "utf8");
+      
+      // 3. Prepare metadata values
+      const titleText = `${anime.title} - O'zbek tilida ko'rish`;
+      const descText = `${anime.title} o'zbek tilida onlayn tomosha qilish. ${anime.description ? anime.description.substring(0, 180).trim() : ""}...`;
+      const shareUrl = `https://www.animem.uz/anime/${slug}`;
+      const imageUrl = anime.image_url || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSF45hYamscf6EOEVfza62xM3PmDvOBibTRYEmsaMscyw&s=10";
+      
+      // 4. Generate JSON-LD schema matching AnimeDetails client code but rendering server-side
+      const genres = anime.janrlar ? anime.janrlar.split(",").map((g: string) => g.trim()) : [];
+      const ratingValue = anime.rating || 9.2;
+      const reviewCount = anime.rating_count || 32;
+      const releaseYear = anime.yil || 2026;
+      
+      const jsonLd = {
+        "@context": "https://schema.org",
+        "@type": "Movie",
+        "name": `${anime.title} - O'zbek tilida ko'rish - Animem.uz`,
+        "alternateName": anime.title,
+        "image": imageUrl,
+        "description": anime.description || "",
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": ratingValue,
+          "bestRating": "10",
+          "worstRating": "1",
+          "reviewCount": reviewCount
+        },
+        "genre": genres,
+        "dateCreated": releaseYear,
+        "provider": {
+          "@type": "Organization",
+          "name": "Animem Uz",
+          "url": "https://animem.uz"
+        }
+      };
+      
+      const jsonLdScript = `\n    <script type="application/ld+json">\n    ${JSON.stringify(jsonLd, null, 2)}\n    </script>`;
+      
+      // 5. Replace tags in index.html
+      // Replace <title>
+      html = html.replace(/<title>.*?<\/title>/gi, `<title>${titleText}</title>`);
+      
+      // Replace Meta Description
+      html = html.replace(/<meta\s+name="description"\s+content=".*?"\s*\/?>/gi, `<meta name="description" content="${descText.replace(/"/g, '&quot;')}" />`);
+      
+      // Replace OpenGraph meta tags
+      html = html.replace(/<meta\s+property="og:url"\s+content=".*?"\s*\/?>/gi, `<meta property="og:url" content="${shareUrl}" />`);
+      html = html.replace(/<meta\s+property="og:title"\s+content=".*?"\s*\/?>/gi, `<meta property="og:title" content="${titleText.replace(/"/g, '&quot;')}" />`);
+      html = html.replace(/<meta\s+property="og:description"\s+content=".*?"\s*\/?>/gi, `<meta property="og:description" content="${descText.replace(/"/g, '&quot;')}" />`);
+      html = html.replace(/<meta\s+property="og:image"\s+content=".*?"\s*\/?>/gi, `<meta property="og:image" content="${imageUrl}" />`);
+      
+      // Replace Twitter meta tags
+      html = html.replace(/<meta\s+property="twitter:url"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:url" content="${shareUrl}" />`);
+      html = html.replace(/<meta\s+property="twitter:title"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:title" content="${titleText.replace(/"/g, '&quot;')}" />`);
+      html = html.replace(/<meta\s+property="twitter:description"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:description" content="${descText.replace(/"/g, '&quot;')}" />`);
+      html = html.replace(/<meta\s+property="twitter:image"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:image" content="${imageUrl}" />`);
+      
+      // Inject JSON-LD script before </head>
+      html = html.replace("</head>", `${jsonLdScript}\n  </head>`);
+      
+      // 6. Serve the customized HTML!
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      return res.status(200).send(html);
+      
+    } catch (err) {
+      console.error("SEO server-side injection failed:", err);
+      const defaultIndexPath = fs.existsSync(path.join(distPath, "index.html"))
+        ? path.join(distPath, "index.html")
+        : path.join(process.cwd(), "index.html");
+      return res.sendFile(defaultIndexPath);
+    }
+  });
+
   if (!isProduction) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
