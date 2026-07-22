@@ -26,23 +26,34 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const [showMobileSearch, setShowMobileSearch] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
     const fetchNotifications = async () => {
       try {
         const API_BASE = '';
-        const res = await fetch(`${API_BASE}/api/notifications`);
+        const res = await fetch(`${API_BASE}/api/notifications`, { signal: controller.signal });
         const contentType = res.headers.get("content-type");
-        if (res.ok && contentType && contentType.includes("application/json")) {
+        if (res.ok && contentType && contentType.includes("application/json") && isMounted) {
           const data = await res.json();
-          setNotifications(data);
+          if (Array.isArray(data)) {
+            setNotifications(data);
+          }
         }
-      } catch (err) {
-        console.error("Error fetching notifications:", err);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          // Ignore transient fetch errors in silent background polling
+        }
       }
     };
 
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 15000);
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      controller.abort();
+      clearInterval(interval);
+    };
   }, []);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
