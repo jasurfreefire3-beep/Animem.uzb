@@ -18,6 +18,36 @@ const upload = multer({ dest: "/tmp/" });
 
 const app = express();
 app.use(cors());
+
+// Proxy Firebase Auth helper routes (/__/*) to Firebase's default auth handler
+app.use("/__", (req, res) => {
+  const targetPath = "/__" + req.url;
+  const options = {
+    hostname: "gen-lang-client-0918187443.firebaseapp.com",
+    port: 443,
+    path: targetPath,
+    method: req.method,
+    headers: {
+      ...req.headers,
+      host: "gen-lang-client-0918187443.firebaseapp.com",
+    },
+  };
+
+  const proxyReq = https.request(options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
+    proxyRes.pipe(res, { end: true });
+  });
+
+  proxyReq.on("error", (err) => {
+    console.error("Firebase Auth Proxy Error:", err);
+    if (!res.headersSent) {
+      res.status(500).send("Auth Proxy Error");
+    }
+  });
+
+  req.pipe(proxyReq, { end: true });
+});
+
 app.use(express.json());
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
