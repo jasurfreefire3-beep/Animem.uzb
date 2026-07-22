@@ -341,7 +341,13 @@ app.post("/api/auth/register", async (req, res) => {
       avatar_url: null,
     };
 
-    const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: "30d" });
+    const tokenPayload = {
+      id: result.insertId,
+      email,
+      role,
+    };
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "30d" });
 
     res.status(201).json({
       token,
@@ -381,7 +387,13 @@ app.post("/api/auth/login", async (req, res) => {
       avatar_url: user.avatar_url,
     };
 
-    const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: "30d" });
+    const tokenPayload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "30d" });
 
     res.json({
       token,
@@ -437,7 +449,13 @@ app.post("/api/auth/google", async (req, res) => {
       avatar_url: user.avatar_url,
     };
 
-    const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: "30d" });
+    const tokenPayload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "30d" });
 
     res.json({
       token,
@@ -684,7 +702,12 @@ app.put("/api/user/profile", authenticateToken, async (req: any, res) => {
     const updatedUser = rows[0];
 
     // Generate new token with updated user details
-    const token = jwt.sign(updatedUser, JWT_SECRET, { expiresIn: "30d" });
+    const tokenPayload = {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      role: updatedUser.role,
+    };
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "30d" });
 
     res.json({ message: "Profil yangilandi", user: updatedUser, token });
   } catch (err) {
@@ -890,7 +913,7 @@ app.get("/api/animes/:id/episodes", async (req, res) => {
       "SELECT * FROM episodes WHERE anime_id = ? ORDER BY episode_number ASC",
       [id]
     );
-    if (Array.isArray(rows)) {
+    if (Array.isArray(rows) && rows.length > 0) {
       return res.json(rows);
     }
   } catch (err) {
@@ -1705,7 +1728,12 @@ async function runTelegramBot() {
                     role: user.role,
                     avatar_url: user.avatar_url,
                   };
-                  const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: "30d" });
+                  const tokenPayload = {
+                    id: user.id,
+                    email: user.email,
+                    role: user.role,
+                  };
+                  const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "30d" });
 
                   // Mark session authorized
                   activeSessions.set(sessionId, {
@@ -1804,7 +1832,12 @@ app.post("/api/auth/telegram/simulate", async (req, res) => {
       role: user.role,
       avatar_url: user.avatar_url,
     };
-    const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: "30d" });
+    const tokenPayload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "30d" });
 
     // Mark session authorized
     activeSessions.set(sessionId, {
