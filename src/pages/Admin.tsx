@@ -50,6 +50,18 @@ export default function Admin() {
 
   const API_BASE = '';
 
+  const safeJson = async (res: Response) => {
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      return await res.json();
+    }
+    const text = await res.text();
+    if (!res.ok) {
+      throw new Error(`Server xatosi (${res.status}): ${text.substring(0, 100)}`);
+    }
+    throw new Error("Xato javob formati keldi");
+  };
+
   // Fetch all animes on component mount
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -57,7 +69,7 @@ export default function Admin() {
         try {
           const res = await fetch(`${API_BASE}/api/animes`);
           if (res.ok) {
-            const data = await res.json();
+            const data = await safeJson(res);
             setAnimes(data);
           }
         } catch (err) {
@@ -129,7 +141,7 @@ export default function Admin() {
         });
       }
 
-      const resData = await res.json();
+      const resData = await safeJson(res);
       if (!res.ok) {
         throw new Error(resData.error || 'Operation failed');
       }
@@ -160,7 +172,7 @@ export default function Admin() {
       // Refresh animes list
       const freshRes = await fetch(`${API_BASE}/api/animes`);
       if (freshRes.ok) {
-        const data = await freshRes.json();
+        const data = await safeJson(freshRes);
         setAnimes(data);
       }
     } catch (err: any) {
@@ -223,7 +235,7 @@ export default function Admin() {
           'Authorization': `Bearer ${token}`
         }
       });
-      const resData = await res.json();
+      const resData = await safeJson(res);
       if (!res.ok) {
         throw new Error(resData.error || 'Delete failed');
       }
@@ -375,7 +387,7 @@ export default function Admin() {
         try {
           const res = await fetch(`${API_BASE}/api/animes/${selectedAnimeId}/episodes`);
           if (res.ok) {
-            const data = await res.json();
+            const data = await safeJson(res);
             setEpisodesList(data);
           }
         } catch (err) {
@@ -401,7 +413,7 @@ export default function Admin() {
         },
         body: JSON.stringify({ episode_number: epNum, video_url: urlVal })
       });
-      const resData = await res.json();
+      const resData = await safeJson(res);
       if (!res.ok) {
         throw new Error(resData.error || 'Failed to save episode');
       }
@@ -411,7 +423,7 @@ export default function Admin() {
       // Refresh list
       const epsRes = await fetch(`${API_BASE}/api/animes/${selectedAnimeId}/episodes`);
       if (epsRes.ok) {
-        const data = await epsRes.json();
+        const data = await safeJson(epsRes);
         setEpisodesList(data);
       }
     } catch (err: any) {
@@ -430,7 +442,7 @@ export default function Admin() {
           'Authorization': `Bearer ${token}`
         }
       });
-      const resData = await res.json();
+      const resData = await safeJson(res);
       if (!res.ok) {
         throw new Error(resData.error || 'Failed to delete episode');
       }

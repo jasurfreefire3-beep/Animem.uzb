@@ -472,16 +472,28 @@ app.post("/api/notifications", authenticateToken, async (req: any, res) => {
       return res.status(400).json({ error: "Xabar matni bo'sh bo'lishi mumkin emas!" });
     }
 
-    const [result]: any = await dbQuery(
-      "INSERT INTO notifications (message) VALUES (?)",
-      [message.trim()]
-    );
+    let insertId = Date.now();
+    try {
+      const [result]: any = await dbQuery(
+        "INSERT INTO notifications (message) VALUES (?)",
+        [message.trim()]
+      );
+      if (result && result.insertId) insertId = result.insertId;
+    } catch (e) {
+      console.warn("DB notification insert failed, relying on local store:", (e as any)?.message);
+    }
 
-    res.status(201).json({
-      id: result.insertId,
+    const store = loadLocalStore();
+    const newNotif = {
+      id: insertId,
       message: message.trim(),
-      created_at: new Date()
-    });
+      created_at: new Date().toISOString()
+    };
+    store.notifications = store.notifications || [];
+    store.notifications.unshift(newNotif);
+    saveLocalStore(store);
+
+    res.status(201).json(newNotif);
   } catch (err) {
     console.error("Create notification error:", err);
     res.status(500).json({ error: "Bildirishnoma yaratishda xatolik" });
@@ -1337,7 +1349,7 @@ app.delete("/api/animes/:id", authenticateToken, async (req: any, res) => {
     } catch (e) {}
 
     const store = loadLocalStore();
-    store.animes = (store.animes || []).filter((a: any) => String(a.id) === String(id));
+    store.animes = (store.animes || []).filter((a: any) => String(a.id) !== String(id));
     saveLocalStore(store);
 
     res.json({ message: "Anime o'chirildi" });
@@ -1354,26 +1366,51 @@ app.post("/api/animes/:animeId/episodes", authenticateToken, async (req: any, re
 
     const anime_id = parseInt(req.params.animeId);
     const { episode_number, video_url } = req.body;
+    const epNum = parseInt(episode_number);
 
-    // Check if episode already exists
-    const [existing]: any = await dbQuery(
-      "SELECT id FROM episodes WHERE anime_id = ? AND episode_number = ?",
-      [anime_id, parseInt(episode_number)]
+    let epId = Date.now();
+    try {
+      const [existing]: any = await dbQuery(
+        "SELECT id FROM episodes WHERE anime_id = ? AND episode_number = ?",
+        [anime_id, epNum]
+      );
+
+      if (existing && existing.length > 0) {
+        epId = existing[0].id;
+        await dbQuery(
+          "UPDATE episodes SET video_url = ? WHERE anime_id = ? AND episode_number = ?",
+          [video_url, anime_id, epNum]
+        );
+      } else {
+        const [result]: any = await dbQuery(
+          "INSERT INTO episodes (anime_id, episode_number, video_url) VALUES (?, ?, ?)",
+          [anime_id, epNum, video_url]
+        );
+        if (result && result.insertId) epId = result.insertId;
+      }
+    } catch (dbErr) {
+      console.warn("DB save episode failed, relying on local store:", (dbErr as any)?.message);
+    }
+
+    const store = loadLocalStore();
+    store.episodes = store.episodes || [];
+    const idx = store.episodes.findIndex(
+      (e: any) => String(e.anime_id) === String(anime_id) && Number(e.episode_number) === epNum
     );
 
-    if (existing.length > 0) {
-      await dbQuery(
-        "UPDATE episodes SET video_url = ? WHERE anime_id = ? AND episode_number = ?",
-        [video_url, anime_id, parseInt(episode_number)]
-      );
-      res.json({ message: "Qism yangilandi", id: existing[0].id });
+    if (idx >= 0) {
+      store.episodes[idx] = { ...store.episodes[idx], video_url };
     } else {
-      const [result]: any = await dbQuery(
-        "INSERT INTO episodes (anime_id, episode_number, video_url) VALUES (?, ?, ?)",
-        [anime_id, parseInt(episode_number), video_url]
-      );
-      res.status(201).json({ message: "Qism yaratildi", id: result.insertId });
+      store.episodes.push({
+        id: epId,
+        anime_id,
+        episode_number: epNum,
+        video_url
+      });
     }
+    saveLocalStore(store);
+
+    res.json({ message: "Qism saqlandi", id: epId });
   } catch (err) {
     console.error("Save episode error:", err);
     res.status(500).json({ error: "Failed to save episode" });
@@ -1386,10 +1423,19 @@ app.delete("/api/animes/:animeId/episodes/:episodeNumber", authenticateToken, as
     if (req.user.role !== "admin") return res.sendStatus(403);
     const { animeId, episodeNumber } = req.params;
 
-    await dbQuery(
-      "DELETE FROM episodes WHERE anime_id = ? AND episode_number = ?",
-      [animeId, episodeNumber]
+    try {
+      await dbQuery(
+        "DELETE FROM episodes WHERE anime_id = ? AND episode_number = ?",
+        [animeId, episodeNumber]
+      );
+    } catch (e) {}
+
+    const store = loadLocalStore();
+    store.episodes = (store.episodes || []).filter(
+      (e: any) => !(String(e.anime_id) === String(animeId) && String(e.episode_number) === String(episodeNumber))
     );
+    saveLocalStore(store);
+
     res.json({ message: "Qism o'chirildi" });
   } catch (err) {
     console.error("Delete episode error:", err);
@@ -1890,6 +1936,11 @@ async function start() {
         : path.join(process.cwd(), "index.html");
       return res.sendFile(defaultIndexPath);
     }
+  });
+
+  // API 404 Fallback Handler - Ensures unhandled /api/* routes return JSON, never index.html
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ error: `API endpoint topilmadi (${req.path})` });
   });
 
   if (!isProduction) {
