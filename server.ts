@@ -44,6 +44,132 @@ const pool = mysql.createPool({
 });
 
 // Create Server
+
+(pool as any).on("error", (err: any) => {
+  console.error("[DB Pool Error]", err?.message || err);
+});
+
+// Resilient query wrapper with automatic retry on connection drops
+async function dbQuery<T = any>(sql: string, params?: any[], retries = 3): Promise<T> {
+  try {
+    const res = await pool.query(sql, params);
+    return res as unknown as T;
+  } catch (err: any) {
+    const isConnErr =
+      err?.code === "PROTOCOL_CONNECTION_LOST" ||
+      err?.code === "ECONNRESET" ||
+      err?.code === "EPIPE" ||
+      err?.code === "PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR" ||
+      err?.code === "ETIMEDOUT" ||
+      (err?.message && (
+        err.message.includes("Connection lost") ||
+        err.message.includes("closed the connection") ||
+        err.message.includes("is closed")
+      ));
+
+    if (isConnErr && retries > 0) {
+      console.warn(`[DB] Connection lost (${err.message}), retrying query in 300ms... (${retries} attempts remaining)`);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return dbQuery<T>(sql, params, retries - 1);
+    }
+    throw err;
+  }
+}
+
+const LOCAL_STORE_PATH = path.join(process.cwd(), "local_store.json");
+
+function loadLocalStore() {
+  try {
+    if (!fs.existsSync(LOCAL_STORE_PATH)) {
+      const defaultData = {
+        animes: [
+          {
+            id: 1,
+            title: "Solo Leveling 2-Mavsum",
+            description: "Sung Jin-Woo eng kuchsiz ovchidan dunyoning eng kuchli soyalar hukmdorigacha bo'lgan yo'lini davom ettiradi.",
+            image_url: "https://m.media-amazon.com/images/M/MV5BODlhWOE5NjMtN2I0OC00NjA3LTkyM2YtM2I5Njg3MTBhYTY1XkEyXkFqcGc@._V1_.jpg",
+            banner_url: "https://m.media-amazon.com/images/M/MV5BODlhWOE5NjMtN2I0OC00NjA3LTkyM2YtM2I5Njg3MTBhYTY1XkEyXkFqcGc@._V1_.jpg",
+            rating: 9.8,
+            rating_count: 150,
+            holati: "Davom etmoqda",
+            yil: 2025,
+            studiyasi: "A-1 Pictures",
+            qismlar_soni: 12,
+            korishlar: 1240,
+            janrlar: "Jangari, Sarguzasht, Fantastika",
+            video_url: "https://www.w3schools.com/html/mov_bbb.mp4",
+            tavsiya: true,
+            is_banner: true
+          },
+          {
+            id: 2,
+            title: "Jujutsu Kaisen 2-Mavsum",
+            description: "Gojo Satoru va Suguru Getoning o'tmishi hamda Shibuya voqealari tasvirlangan unutilmas mavsum.",
+            image_url: "https://m.media-amazon.com/images/M/MV5BNGY4MTg3NjgtMmFkYi00ZTNmLTgwAVtLTExNmI0MDI0U3M4XkEyXkFqcGc@._V1_.jpg",
+            banner_url: "https://m.media-amazon.com/images/M/MV5BNGY4MTg3NjgtMmFkYi00ZTNmLTgwAVtLTExNmI0MDI0U3M4XkEyXkFqcGc@._V1_.jpg",
+            rating: 9.5,
+            rating_count: 120,
+            holati: "Tugallangan",
+            yil: 2023,
+            studiyasi: "MAPPA",
+            qismlar_soni: 23,
+            korishlar: 980,
+            janrlar: "Jangari, Mistika, Mifyologiya",
+            video_url: "https://www.w3schools.com/html/mov_bbb.mp4",
+            tavsiya: true,
+            is_banner: true
+          },
+          {
+            id: 3,
+            title: "Demon Slayer: Hashira Training Arc",
+            description: "Tanjiro va uning do'stlari Yuqori Darajali iblislar bilan bo'ladigan hal qiluvchi jang oldidan Hashiralar bilan mashg'ulot o'tkazishadi.",
+            image_url: "https://m.media-amazon.com/images/M/MV5BZjgwNzRhM2EtNWY2OC00M2I2LThmYWYtMDlkY2VmZWM4Y2FlXkEyXkFqcGc@._V1_.jpg",
+            banner_url: "https://m.media-amazon.com/images/M/MV5BZjgwNzRhM2EtNWY2OC00M2I2LThmYWYtMDlkY2VmZWM4Y2FlXkEyXkFqcGc@._V1_.jpg",
+            rating: 9.2,
+            rating_count: 95,
+            holati: "Tugallangan",
+            yil: 2024,
+            studiyasi: "ufotable",
+            qismlar_soni: 8,
+            korishlar: 850,
+            janrlar: "Jangari, Mifyologiya, Tarixiy",
+            video_url: "https://www.w3schools.com/html/mov_bbb.mp4",
+            tavsiya: true,
+            is_banner: true
+          }
+        ],
+        notifications: [
+          {
+            id: 1,
+            message: "Xush kelibsiz! Animem.uz platformasiga yangi animelar va epizodlar yuklanmoqda.",
+            created_at: new Date().toISOString()
+          }
+        ],
+        comments: [],
+        episodes: [],
+        users: [],
+        ratings: [],
+        messages: []
+      };
+      fs.writeFileSync(LOCAL_STORE_PATH, JSON.stringify(defaultData, null, 2), "utf-8");
+      return defaultData;
+    }
+    const raw = fs.readFileSync(LOCAL_STORE_PATH, "utf-8");
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error("Error loading local_store.json:", e);
+    return { animes: [], notifications: [], comments: [], episodes: [], users: [], ratings: [], messages: [] };
+  }
+}
+
+function saveLocalStore(data: any) {
+  try {
+    fs.writeFileSync(LOCAL_STORE_PATH, JSON.stringify(data, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Error saving local_store.json:", e);
+  }
+}
+
 const server = http.createServer(app);
 
 // Socket.io Server Setup
@@ -128,7 +254,7 @@ io.on("connection", async (socket) => {
 
   try {
     // Send previous 50 messages to the newly connected user
-    const [rows]: any = await pool.query(
+    const [rows]: any = await dbQuery(
       "SELECT * FROM messages ORDER BY id DESC LIMIT 50"
     );
     // Reverse rows so they are in chronological order
@@ -145,7 +271,7 @@ io.on("connection", async (socket) => {
       const { user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content } = data;
 
       
-      const [result]: any = await pool.query(
+      const [result]: any = await dbQuery(
         "INSERT INTO messages (user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content) VALUES (?, ?, ?, ?, ?, ?)",
         [
           user_id || null,
@@ -191,7 +317,7 @@ app.post("/api/auth/register", async (req, res) => {
     }
 
     // Check if email already exists
-    const [existing]: any = await pool.query("SELECT id FROM users WHERE email = ?", [email]);
+    const [existing]: any = await dbQuery("SELECT id FROM users WHERE email = ?", [email]);
     if (existing.length > 0) {
       return res.status(400).json({ error: "Ushbu email bilan allaqachon ro'yxatdan o'tilgan!" });
     }
@@ -202,7 +328,7 @@ app.post("/api/auth/register", async (req, res) => {
     // Auto-assign admin for matching email or default user
     const role = email === "mosinjonovjasurbek28@gmail.com" ? "admin" : "user";
 
-    const [result]: any = await pool.query(
+    const [result]: any = await dbQuery(
       "INSERT INTO users (name, email, password, role, avatar_url) VALUES (?, ?, ?, ?, NULL)",
       [name, email, hashedPassword, role]
     );
@@ -235,7 +361,7 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ error: "Email va parolni kiriting!" });
     }
 
-    const [users]: any = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
+    const [users]: any = await dbQuery("SELECT * FROM users WHERE email = ?", [email]);
     const user = users[0];
 
     if (!user) {
@@ -274,7 +400,7 @@ app.post("/api/auth/google", async (req, res) => {
       return res.status(400).json({ error: "Kerakli ma'lumotlar yo'q" });
     }
 
-    let [users]: any = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
+    let [users]: any = await dbQuery("SELECT * FROM users WHERE email = ?", [email]);
     let user = users[0];
 
     if (!user) {
@@ -283,7 +409,7 @@ app.post("/api/auth/google", async (req, res) => {
       const randomPass = Math.random().toString(36).slice(-8);
       const hashedPassword = await bcrypt.hash(randomPass, 10);
       
-      const [result]: any = await pool.query(
+      const [result]: any = await dbQuery(
         "INSERT INTO users (name, email, password, role, avatar_url) VALUES (?, ?, ?, ?, ?)",
         [name, email, hashedPassword, role, avatar_url || null]
       );
@@ -298,7 +424,7 @@ app.post("/api/auth/google", async (req, res) => {
     } else {
       // If user exists but doesn't have an avatar, or if google avatar is newer, we can save it
       if (avatar_url && !user.avatar_url) {
-        await pool.query("UPDATE users SET avatar_url = ? WHERE id = ?", [avatar_url, user.id]);
+        await dbQuery("UPDATE users SET avatar_url = ? WHERE id = ?", [avatar_url, user.id]);
         user.avatar_url = avatar_url;
       }
     }
@@ -323,15 +449,18 @@ app.post("/api/auth/google", async (req, res) => {
   }
 });
 
-// Get all notifications from MySQL
+// Get all notifications from MySQL with local store fallback
 app.get("/api/notifications", async (req, res) => {
   try {
-    const [rows]: any = await pool.query("SELECT * FROM notifications ORDER BY id DESC LIMIT 50");
-    res.json(rows);
+    const [rows]: any = await dbQuery("SELECT * FROM notifications ORDER BY id DESC LIMIT 50");
+    if (Array.isArray(rows) && rows.length > 0) {
+      return res.json(rows);
+    }
   } catch (err) {
-    console.error("Notifications fetch error:", err);
-    res.status(500).json({ error: "Bildirishnomalarni yuklashda xatolik" });
+    console.warn("Notifications fetch falling back to local store:", (err as any)?.message);
   }
+  const store = loadLocalStore();
+  res.json(store.notifications || []);
 });
 
 // Post a new notification (Admin only)
@@ -343,7 +472,7 @@ app.post("/api/notifications", authenticateToken, async (req: any, res) => {
       return res.status(400).json({ error: "Xabar matni bo'sh bo'lishi mumkin emas!" });
     }
 
-    const [result]: any = await pool.query(
+    const [result]: any = await dbQuery(
       "INSERT INTO notifications (message) VALUES (?)",
       [message.trim()]
     );
@@ -513,10 +642,10 @@ app.post("/api/user/avatar", authenticateToken, async (req: any, res) => {
       return res.status(400).json({ error: "Rasm topilmadi" });
     }
 
-    await pool.query("UPDATE users SET avatar_url = ? WHERE id = ?", [avatar_url, userId]);
+    await dbQuery("UPDATE users SET avatar_url = ? WHERE id = ?", [avatar_url, userId]);
 
     // Get updated user details
-    const [rows]: any = await pool.query("SELECT id, name, email, role, avatar_url FROM users WHERE id = ?", [userId]);
+    const [rows]: any = await dbQuery("SELECT id, name, email, role, avatar_url FROM users WHERE id = ?", [userId]);
     const updatedUser = rows[0];
 
     res.json({ message: "Profil rasmi muvaffaqiyatli yangilandi", user: updatedUser });
@@ -536,10 +665,10 @@ app.put("/api/user/profile", authenticateToken, async (req: any, res) => {
       return res.status(400).json({ error: "Ism bo'sh bo'lishi mumkin emas" });
     }
 
-    await pool.query("UPDATE users SET name = ? WHERE id = ?", [name.trim(), userId]);
+    await dbQuery("UPDATE users SET name = ? WHERE id = ?", [name.trim(), userId]);
 
     // Get updated user details
-    const [rows]: any = await pool.query("SELECT id, name, email, role, avatar_url FROM users WHERE id = ?", [userId]);
+    const [rows]: any = await dbQuery("SELECT id, name, email, role, avatar_url FROM users WHERE id = ?", [userId]);
     const updatedUser = rows[0];
 
     // Generate new token with updated user details
@@ -555,7 +684,7 @@ app.put("/api/user/profile", authenticateToken, async (req: any, res) => {
 // Get recent comments
 app.get("/api/comments/recent", async (req, res) => {
   try {
-    const [rows]: any = await pool.query(`
+    const [rows]: any = await dbQuery(`
       SELECT c.*, u.name AS user_name, a.title AS anime_title 
       FROM comments c 
       JOIN users u ON c.user_id = u.id 
@@ -563,11 +692,14 @@ app.get("/api/comments/recent", async (req, res) => {
       ORDER BY c.id DESC 
       LIMIT 10
     `);
-    res.json(rows);
+    if (Array.isArray(rows)) {
+      return res.json(rows);
+    }
   } catch (err) {
-    console.error("Recent comments fetch error:", err);
-    res.status(500).json({ error: "Failed to fetch recent comments" });
+    console.warn("Recent comments fetch falling back to local store:", (err as any)?.message);
   }
+  const store = loadLocalStore();
+  res.json(store.comments || []);
 });
 
 // Helper functions for file-backed rating database (data.json)
@@ -586,7 +718,7 @@ async function getRatingsFromFile(): Promise<RatingRecord[]> {
     if (!fs.existsSync(DATA_FILE_PATH)) {
       let initialRatings: RatingRecord[] = [];
       try {
-        const [rows]: any = await pool.query("SELECT * FROM ratings");
+        const [rows]: any = await dbQuery("SELECT * FROM ratings");
         initialRatings = rows.map((r: any) => ({
           id: r.id,
           user_id: r.user_id,
@@ -657,85 +789,111 @@ app.get("/api/health", (req, res) => {
 
 app.get("/api/animes", async (req, res) => {
   try {
-    const [rows]: any = await pool.query("SELECT * FROM animes ORDER BY id DESC");
-    const merged = await mergeRatingsWithAnimes(rows);
-    res.json(merged);
+    const [rows]: any = await dbQuery("SELECT * FROM animes ORDER BY id DESC");
+    if (Array.isArray(rows) && rows.length > 0) {
+      const store = loadLocalStore();
+      store.animes = rows;
+      saveLocalStore(store);
+      const merged = await mergeRatingsWithAnimes(rows);
+      return res.json(merged);
+    }
   } catch (err) {
-    console.error("Animes fetch error:", err);
-    res.status(500).json({ error: "Failed to fetch animes" });
+    console.warn("Animes fetch falling back to local store:", (err as any)?.message);
   }
+  const store = loadLocalStore();
+  const merged = await mergeRatingsWithAnimes(store.animes || []);
+  res.json(merged);
 });
 
 // Get single anime
 app.get("/api/animes/:id", async (req, res) => {
+  const id = req.params.id;
   try {
-    const id = req.params.id;
-    const [rows]: any = await pool.query("SELECT * FROM animes WHERE id = ?", [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Anime topilmadi" });
+    const [rows]: any = await dbQuery("SELECT * FROM animes WHERE id = ?", [id]);
+    if (rows && rows.length > 0) {
+      dbQuery("UPDATE animes SET korishlar = korishlar + 1 WHERE id = ?", [id]).catch(() => {});
+      rows[0].korishlar = (rows[0].korishlar || 0) + 1;
+      const merged = await mergeRatingsWithAnimes(rows);
+      return res.json(merged[0]);
     }
-    // Increment views count in DB
-    await pool.query("UPDATE animes SET korishlar = korishlar + 1 WHERE id = ?", [id]);
-    rows[0].korishlar = (rows[0].korishlar || 0) + 1;
-
-    const merged = await mergeRatingsWithAnimes(rows);
-    res.json(merged[0]);
   } catch (err) {
-    console.error("Anime details fetch error:", err);
-    res.status(500).json({ error: "Failed to fetch anime details" });
+    console.warn("Single anime fetch falling back to local store:", (err as any)?.message);
   }
+
+  const store = loadLocalStore();
+  const anime = (store.animes || []).find((a: any) => String(a.id) === String(id));
+  if (!anime) {
+    return res.status(404).json({ error: "Anime topilmadi" });
+  }
+  anime.korishlar = (anime.korishlar || 0) + 1;
+  saveLocalStore(store);
+  const merged = await mergeRatingsWithAnimes([anime]);
+  res.json(merged[0]);
 });
 
 // Get single anime by slug
 app.get("/api/animes/by-slug/:slug", async (req, res) => {
-  try {
-    const slug = req.params.slug;
-    const [rows]: any = await pool.query("SELECT * FROM animes");
-    const toSlugLocal = (text: string): string => {
-      if (!text) return "";
-      return text
-        .toLowerCase()
-        .replace(/o['’`‘]/g, "o")
-        .replace(/g['’`‘]/g, "g")
-        .replace(/[^a-z0-9\u0400-\u04FF]+/gi, "-")
-        .replace(/^-+|-+$/g, "");
-    };
-    const anime = rows.find((r: any) => toSlugLocal(r.title) === slug);
-    if (!anime) {
-      return res.status(404).json({ error: "Anime topilmadi" });
-    }
-    // Increment views count in DB
-    await pool.query("UPDATE animes SET korishlar = korishlar + 1 WHERE id = ?", [anime.id]);
-    anime.korishlar = (anime.korishlar || 0) + 1;
+  const slug = req.params.slug;
+  const toSlugLocal = (text: string): string => {
+    if (!text) return "";
+    return text
+      .toLowerCase()
+      .replace(/o['’`‘]/g, "o")
+      .replace(/g['’`‘]/g, "g")
+      .replace(/[^a-z0-9\u0400-\u04FF]+/gi, "-")
+      .replace(/^-+|-+$/g, "");
+  };
 
-    const merged = await mergeRatingsWithAnimes([anime]);
-    res.json(merged[0]);
+  try {
+    const [rows]: any = await dbQuery("SELECT * FROM animes");
+    if (Array.isArray(rows) && rows.length > 0) {
+      const anime = rows.find((r: any) => toSlugLocal(r.title) === slug);
+      if (anime) {
+        dbQuery("UPDATE animes SET korishlar = korishlar + 1 WHERE id = ?", [anime.id]).catch(() => {});
+        anime.korishlar = (anime.korishlar || 0) + 1;
+        const merged = await mergeRatingsWithAnimes([anime]);
+        return res.json(merged[0]);
+      }
+    }
   } catch (err) {
-    console.error("Anime details by slug fetch error:", err);
-    res.status(500).json({ error: "Failed to fetch anime details" });
+    console.warn("Anime by slug fetch falling back to local store:", (err as any)?.message);
   }
+
+  const store = loadLocalStore();
+  const anime = (store.animes || []).find((a: any) => toSlugLocal(a.title) === slug);
+  if (!anime) {
+    return res.status(404).json({ error: "Anime topilmadi" });
+  }
+  anime.korishlar = (anime.korishlar || 0) + 1;
+  saveLocalStore(store);
+  const merged = await mergeRatingsWithAnimes([anime]);
+  res.json(merged[0]);
 });
 
 // Get episodes of an anime
 app.get("/api/animes/:id/episodes", async (req, res) => {
+  const id = req.params.id;
   try {
-    const id = req.params.id;
-    const [rows]: any = await pool.query(
+    const [rows]: any = await dbQuery(
       "SELECT * FROM episodes WHERE anime_id = ? ORDER BY episode_number ASC",
       [id]
     );
-    res.json(rows);
+    if (Array.isArray(rows)) {
+      return res.json(rows);
+    }
   } catch (err) {
-    console.error("Episodes fetch error:", err);
-    res.status(500).json({ error: "Failed to fetch episodes" });
+    console.warn("Episodes fetch falling back to local store:", (err as any)?.message);
   }
+  const store = loadLocalStore();
+  const eps = (store.episodes || []).filter((e: any) => String(e.anime_id) === String(id));
+  res.json(eps);
 });
 
 // Get comments of an anime
 app.get("/api/animes/:id/comments", async (req, res) => {
+  const id = req.params.id;
   try {
-    const id = req.params.id;
-    const [rows]: any = await pool.query(
+    const [rows]: any = await dbQuery(
       `SELECT c.*, u.name AS user_name 
        FROM comments c 
        JOIN users u ON c.user_id = u.id 
@@ -743,11 +901,15 @@ app.get("/api/animes/:id/comments", async (req, res) => {
        ORDER BY c.id DESC`,
       [id]
     );
-    res.json(rows);
+    if (Array.isArray(rows)) {
+      return res.json(rows);
+    }
   } catch (err) {
-    console.error("Comments fetch error:", err);
-    res.status(500).json({ error: "Failed to fetch comments" });
+    console.warn("Comments fetch falling back to local store:", (err as any)?.message);
   }
+  const store = loadLocalStore();
+  const comms = (store.comments || []).filter((c: any) => String(c.anime_id) === String(id));
+  res.json(comms);
 });
 
 // Create comment on an anime
@@ -761,7 +923,7 @@ app.post("/api/animes/:id/comments", authenticateToken, async (req: any, res) =>
       return res.status(400).json({ error: "Izoh matni bo'sh bo'lishi mumkin emas" });
     }
 
-    const [result]: any = await pool.query(
+    const [result]: any = await dbQuery(
       "INSERT INTO comments (anime_id, user_id, content) VALUES (?, ?, ?)",
       [animeId, userId, content]
     );
@@ -788,7 +950,7 @@ app.delete("/api/comments/:commentId", authenticateToken, async (req: any, res) 
     const role = req.user.role;
 
     // Check ownership or admin
-    const [commentRows]: any = await pool.query("SELECT user_id FROM comments WHERE id = ?", [commentId]);
+    const [commentRows]: any = await dbQuery("SELECT user_id FROM comments WHERE id = ?", [commentId]);
     if (commentRows.length === 0) {
       return res.status(404).json({ error: "Izoh topilmadi" });
     }
@@ -797,7 +959,7 @@ app.delete("/api/comments/:commentId", authenticateToken, async (req: any, res) 
       return res.status(403).json({ error: "Ruxsat etilmadi" });
     }
 
-    await pool.query("DELETE FROM comments WHERE id = ?", [commentId]);
+    await dbQuery("DELETE FROM comments WHERE id = ?", [commentId]);
     res.json({ message: "Izoh o'chirildi" });
   } catch (err) {
     console.error("Delete comment error:", err);
@@ -854,11 +1016,11 @@ app.post("/api/animes/:animeId/rate", authenticateToken, async (req: any, res) =
 
     // Gracefully attempt to sync to MySQL database in background
     try {
-      await pool.query(
+      await dbQuery(
         "INSERT INTO ratings (user_id, anime_id, rating) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE rating = ?",
         [userId, animeId, rating, rating]
       );
-      await pool.query(
+      await dbQuery(
         "UPDATE animes SET rating = ?, rating_count = ? WHERE id = ?",
         [avg_rating, count, animeId]
       );
@@ -893,7 +1055,7 @@ app.get("/api/animes/:animeId/ratings-summary", async (req, res) => {
     // Database fallback if no file-backed rating exists yet
     if (totalCount === 0) {
       try {
-        const [rows]: any = await pool.query("SELECT rating, rating_count FROM animes WHERE id = ?", [animeId]);
+        const [rows]: any = await dbQuery("SELECT rating, rating_count FROM animes WHERE id = ?", [animeId]);
         if (rows.length > 0) {
           avgRating = Number(rows[0].rating) || 0;
           totalCount = Number(rows[0].rating_count) || 0;
@@ -976,30 +1138,61 @@ app.post("/api/animes", authenticateToken, async (req: any, res) => {
       is_banner,
     } = req.body;
 
-    const [result]: any = await pool.query(
-      `INSERT INTO animes 
-      (title, description, image_url, banner_url, rating, rating_count, holati, yil, studiyasi, qismlar_soni, korishlar, janrlar, video_url, tavsiya, is_banner) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        title || "",
-        description || "",
-        image_url || "",
-        banner_url || "",
-        rating || 0.0,
-        rating_count || 0,
-        holati || "Faol",
-        yil || null,
-        studiyasi || "",
-        qismlar_soni || 0,
-        korishlar || 0,
-        janrlar || "",
-        video_url || "",
-        tavsiya ? 1 : 0,
-        is_banner ? 1 : 0,
-      ]
-    );
+    let insertId = Date.now();
+    try {
+      const [result]: any = await dbQuery(
+        `INSERT INTO animes 
+        (title, description, image_url, banner_url, rating, rating_count, holati, yil, studiyasi, qismlar_soni, korishlar, janrlar, video_url, tavsiya, is_banner) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          title || "",
+          description || "",
+          image_url || "",
+          banner_url || "",
+          rating || 0.0,
+          rating_count || 0,
+          holati || "Faol",
+          yil || null,
+          studiyasi || "",
+          qismlar_soni || 0,
+          korishlar || 0,
+          janrlar || "",
+          video_url || "",
+          tavsiya ? 1 : 0,
+          is_banner ? 1 : 0,
+        ]
+      );
+      if (result && result.insertId) {
+        insertId = result.insertId;
+      }
+    } catch (dbErr) {
+      console.warn("DB insert anime failed, using local store:", (dbErr as any)?.message);
+    }
 
-    res.status(201).json({ id: result.insertId });
+    const store = loadLocalStore();
+    const newObj = {
+      id: insertId,
+      title: title || "",
+      description: description || "",
+      image_url: image_url || "",
+      banner_url: banner_url || "",
+      rating: rating || 0.0,
+      rating_count: rating_count || 0,
+      holati: holati || "Faol",
+      yil: yil ? Number(yil) : null,
+      studiyasi: studiyasi || "",
+      qismlar_soni: qismlar_soni ? Number(qismlar_soni) : 0,
+      korishlar: korishlar ? Number(korishlar) : 0,
+      janrlar: janrlar || "",
+      video_url: video_url || "",
+      tavsiya: Boolean(tavsiya),
+      is_banner: Boolean(is_banner)
+    };
+    store.animes = store.animes || [];
+    store.animes.unshift(newObj);
+    saveLocalStore(store);
+
+    res.status(201).json({ id: insertId });
   } catch (err) {
     console.error("Add anime error:", err);
     res.status(500).json({ error: "Failed to create anime" });
@@ -1030,30 +1223,101 @@ app.put("/api/animes/:id", authenticateToken, async (req: any, res) => {
       is_banner,
     } = req.body;
 
-    await pool.query(
-      `UPDATE animes SET 
-      title = ?, description = ?, image_url = ?, banner_url = ?, rating = ?, rating_count = ?, 
-      holati = ?, yil = ?, studiyasi = ?, qismlar_soni = ?, korishlar = ?, janrlar = ?, video_url = ?, tavsiya = ?, is_banner = ? 
-      WHERE id = ?`,
-      [
-        title || "",
-        description || "",
-        image_url || "",
-        banner_url || "",
-        rating || 0.0,
-        rating_count || 0,
-        holati || "Faol",
-        yil || null,
-        studiyasi || "",
-        qismlar_soni || 0,
-        korishlar || 0,
-        janrlar || "",
-        video_url || "",
-        tavsiya ? 1 : 0,
-        is_banner ? 1 : 0,
-        id,
-      ]
-    );
+    // Fetch existing record to prevent overwriting missing values like korishlar or rating
+    let existing: any = null;
+    try {
+      const [rows]: any = await dbQuery("SELECT * FROM animes WHERE id = ?", [id]);
+      if (rows && rows.length > 0) existing = rows[0];
+    } catch (e) {}
+
+    if (!existing) {
+      const store = loadLocalStore();
+      existing = (store.animes || []).find((a: any) => String(a.id) === String(id));
+    }
+
+    const finalKorishlar = (korishlar !== undefined && korishlar !== null) 
+      ? Number(korishlar) 
+      : (existing ? Number(existing.korishlar || 0) : 0);
+
+    const finalRating = (rating !== undefined && rating !== null) 
+      ? Number(rating) 
+      : (existing ? Number(existing.rating || 0) : 0.0);
+
+    const finalRatingCount = (rating_count !== undefined && rating_count !== null) 
+      ? Number(rating_count) 
+      : (existing ? Number(existing.rating_count || 0) : 0);
+
+    const finalTitle = title !== undefined ? title : (existing?.title || "");
+    const finalDescription = description !== undefined ? description : (existing?.description || "");
+    const finalImageUrl = image_url !== undefined ? image_url : (existing?.image_url || "");
+    const finalBannerUrl = banner_url !== undefined ? banner_url : (existing?.banner_url || "");
+    const finalHolati = holati !== undefined ? holati : (existing?.holati || "Faol");
+    const finalYil = yil !== undefined ? (yil ? Number(yil) : null) : (existing?.yil || null);
+    const finalStudiyasi = studiyasi !== undefined ? studiyasi : (existing?.studiyasi || "");
+    const finalQismlarSoni = qismlar_soni !== undefined ? Number(qismlar_soni) : (existing?.qismlar_soni || 0);
+    const finalJanrlar = janrlar !== undefined ? janrlar : (existing?.janrlar || "");
+    const finalVideoUrl = video_url !== undefined ? video_url : (existing?.video_url || "");
+    const finalTavsiya = tavsiya !== undefined ? (tavsiya ? 1 : 0) : (existing?.tavsiya ? 1 : 0);
+    const finalIsBanner = is_banner !== undefined ? (is_banner ? 1 : 0) : (existing?.is_banner ? 1 : 0);
+
+    try {
+      await dbQuery(
+        `UPDATE animes SET 
+        title = ?, description = ?, image_url = ?, banner_url = ?, rating = ?, rating_count = ?, 
+        holati = ?, yil = ?, studiyasi = ?, qismlar_soni = ?, korishlar = ?, janrlar = ?, video_url = ?, tavsiya = ?, is_banner = ? 
+        WHERE id = ?`,
+        [
+          finalTitle,
+          finalDescription,
+          finalImageUrl,
+          finalBannerUrl,
+          finalRating,
+          finalRatingCount,
+          finalHolati,
+          finalYil,
+          finalStudiyasi,
+          finalQismlarSoni,
+          finalKorishlar,
+          finalJanrlar,
+          finalVideoUrl,
+          finalTavsiya,
+          finalIsBanner,
+          id,
+        ]
+      );
+    } catch (dbErr) {
+      console.warn("DB update anime failed, relying on local store:", (dbErr as any)?.message);
+    }
+
+    // Always update local_store.json
+    const store = loadLocalStore();
+    const idx = (store.animes || []).findIndex((a: any) => String(a.id) === String(id));
+    const updatedObj = {
+      id: Number(id),
+      title: finalTitle,
+      description: finalDescription,
+      image_url: finalImageUrl,
+      banner_url: finalBannerUrl,
+      rating: finalRating,
+      rating_count: finalRatingCount,
+      holati: finalHolati,
+      yil: finalYil,
+      studiyasi: finalStudiyasi,
+      qismlar_soni: finalQismlarSoni,
+      korishlar: finalKorishlar,
+      janrlar: finalJanrlar,
+      video_url: finalVideoUrl,
+      tavsiya: Boolean(finalTavsiya),
+      is_banner: Boolean(finalIsBanner)
+    };
+
+    if (idx >= 0) {
+      store.animes[idx] = { ...store.animes[idx], ...updatedObj };
+    } else {
+      store.animes = store.animes || [];
+      store.animes.push(updatedObj);
+    }
+    saveLocalStore(store);
 
     res.json({ message: "Anime tahrirlandi" });
   } catch (err) {
@@ -1068,7 +1332,14 @@ app.delete("/api/animes/:id", authenticateToken, async (req: any, res) => {
     if (req.user.role !== "admin") return res.sendStatus(403);
     const id = req.params.id;
 
-    await pool.query("DELETE FROM animes WHERE id = ?", [id]);
+    try {
+      await dbQuery("DELETE FROM animes WHERE id = ?", [id]);
+    } catch (e) {}
+
+    const store = loadLocalStore();
+    store.animes = (store.animes || []).filter((a: any) => String(a.id) === String(id));
+    saveLocalStore(store);
+
     res.json({ message: "Anime o'chirildi" });
   } catch (err) {
     console.error("Delete anime error:", err);
@@ -1085,19 +1356,19 @@ app.post("/api/animes/:animeId/episodes", authenticateToken, async (req: any, re
     const { episode_number, video_url } = req.body;
 
     // Check if episode already exists
-    const [existing]: any = await pool.query(
+    const [existing]: any = await dbQuery(
       "SELECT id FROM episodes WHERE anime_id = ? AND episode_number = ?",
       [anime_id, parseInt(episode_number)]
     );
 
     if (existing.length > 0) {
-      await pool.query(
+      await dbQuery(
         "UPDATE episodes SET video_url = ? WHERE anime_id = ? AND episode_number = ?",
         [video_url, anime_id, parseInt(episode_number)]
       );
       res.json({ message: "Qism yangilandi", id: existing[0].id });
     } else {
-      const [result]: any = await pool.query(
+      const [result]: any = await dbQuery(
         "INSERT INTO episodes (anime_id, episode_number, video_url) VALUES (?, ?, ?)",
         [anime_id, parseInt(episode_number), video_url]
       );
@@ -1115,7 +1386,7 @@ app.delete("/api/animes/:animeId/episodes/:episodeNumber", authenticateToken, as
     if (req.user.role !== "admin") return res.sendStatus(403);
     const { animeId, episodeNumber } = req.params;
 
-    await pool.query(
+    await dbQuery(
       "DELETE FROM episodes WHERE anime_id = ? AND episode_number = ?",
       [animeId, episodeNumber]
     );
@@ -1141,7 +1412,7 @@ app.post("/api/chat/messages", authenticateToken, async (req: any, res: any) => 
       return res.status(400).json({ error: "Xabar bo'sh bo'lishi mumkin emas" });
     }
     
-    const [result]: any = await pool.query(
+    const [result]: any = await dbQuery(
       "INSERT INTO messages (user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content) VALUES (?, ?, ?, ?, ?, ?)",
       [
         user_id || req.user.id,
@@ -1153,7 +1424,7 @@ app.post("/api/chat/messages", authenticateToken, async (req: any, res: any) => 
       ]
     );
 
-    const [rows]: any = await pool.query("SELECT * FROM messages WHERE id = ?", [result.insertId]);
+    const [rows]: any = await dbQuery("SELECT * FROM messages WHERE id = ?", [result.insertId]);
     const insertedMessage = rows[0];
 
     // Broadcast new message to everyone
@@ -1171,7 +1442,7 @@ app.delete("/api/chat/messages/:id", authenticateToken, async (req: any, res) =>
     const id = req.params.id;
 
     // Admin can delete any message, users can delete their own
-    const [msgRows]: any = await pool.query("SELECT user_id FROM messages WHERE id = ?", [id]);
+    const [msgRows]: any = await dbQuery("SELECT user_id FROM messages WHERE id = ?", [id]);
     if (msgRows.length === 0) {
       return res.status(404).json({ error: "Xabar topilmadi" });
     }
@@ -1180,7 +1451,7 @@ app.delete("/api/chat/messages/:id", authenticateToken, async (req: any, res) =>
       return res.status(403).json({ error: "Ruxsat etilmadi" });
     }
 
-    await pool.query("DELETE FROM messages WHERE id = ?", [id]);
+    await dbQuery("DELETE FROM messages WHERE id = ?", [id]);
     
     // Broadcast messageDeleted to active socket.io clients
     io.emit("messageDeleted", id);
@@ -1196,7 +1467,7 @@ app.delete("/api/chat/clear", authenticateToken, async (req: any, res) => {
   try {
     if (req.user.role !== "admin") return res.sendStatus(403);
 
-    await pool.query("DELETE FROM messages");
+    await dbQuery("DELETE FROM messages");
     
     // Broadcast chatCleared
     io.emit("chatCleared");
@@ -1348,7 +1619,7 @@ async function runTelegramBot() {
                   const name = tgUser.first_name + (tgUser.last_name ? ` ${tgUser.last_name}` : "");
 
                   // Sync to DB
-                  let [users]: any = await pool.query("SELECT * FROM users WHERE telegram_id = ? OR email = ?", [String(tgUserId), email]);
+                  let [users]: any = await dbQuery("SELECT * FROM users WHERE telegram_id = ? OR email = ?", [String(tgUserId), email]);
                   let user = users[0];
 
                   if (!user) {
@@ -1356,7 +1627,7 @@ async function runTelegramBot() {
                     const hashedPassword = await bcrypt.hash(randomPass, 10);
                     const role = email === "mosinjonovjasurbek28@gmail.com" ? "admin" : "user";
 
-                    const [insertRes]: any = await pool.query(
+                    const [insertRes]: any = await dbQuery(
                       "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
                       [name, email, hashedPassword, role, avatar_url, String(tgUserId)]
                     );
@@ -1370,7 +1641,7 @@ async function runTelegramBot() {
                       telegram_id: String(tgUserId)
                     };
                   } else {
-                    await pool.query(
+                    await dbQuery(
                       "UPDATE users SET telegram_id = ?, avatar_url = COALESCE(avatar_url, ?) WHERE id = ?",
                       [String(tgUserId), avatar_url, user.id]
                     );
@@ -1457,7 +1728,7 @@ app.post("/api/auth/telegram/simulate", async (req, res) => {
     const name = first_name || username || "Telegram User";
 
     // DB sync
-    let [users]: any = await pool.query("SELECT * FROM users WHERE telegram_id = ? OR email = ?", [String(fakeTgUserId), email]);
+    let [users]: any = await dbQuery("SELECT * FROM users WHERE telegram_id = ? OR email = ?", [String(fakeTgUserId), email]);
     let user = users[0];
 
     if (!user) {
@@ -1465,7 +1736,7 @@ app.post("/api/auth/telegram/simulate", async (req, res) => {
       const hashedPassword = await bcrypt.hash(randomPass, 10);
       const role = email === "mosinjonovjasurbek28@gmail.com" ? "admin" : "user";
 
-      const [insertRes]: any = await pool.query(
+      const [insertRes]: any = await dbQuery(
         "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
         [name, email, hashedPassword, role, avatar_url || null, String(fakeTgUserId)]
       );
@@ -1523,7 +1794,7 @@ async function start() {
       const slug = req.params.slug;
       
       // 1. Fetch anime details
-      const [rows]: any = await pool.query("SELECT * FROM animes");
+      const [rows]: any = await dbQuery("SELECT * FROM animes");
       const toSlugLocal = (text: string): string => {
         if (!text) return "";
         return text

@@ -104,7 +104,8 @@ export default function Admin() {
         janrlar: selectedGenres.join(', '),
         video_url: videoUrl,
         tavsiya: tavsiya ? 1 : 0,
-        is_banner: isBanner ? 1 : 0
+        is_banner: isBanner ? 1 : 0,
+        ...(editingAnime && editingAnime.korishlar !== undefined ? { korishlar: editingAnime.korishlar } : {})
       };
 
       let res;
