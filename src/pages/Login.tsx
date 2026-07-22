@@ -155,38 +155,43 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     try {
       googleProvider.setCustomParameters({ prompt: 'select_account' });
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      
-      const API_BASE = '';
-      const res = await fetch(`${API_BASE}/api/auth/google`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          email: user.email, 
-          name: user.displayName || 'Google User', 
-          uid: user.uid,
-          avatar_url: user.photoURL
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Google login failed');
-      }
-
-      login(data.token, data.user);
-      navigate('/');
+      await signInWithRedirect(auth, googleProvider);
     } catch (err: any) {
-      console.error(err);
-      if (err.code === 'auth/unauthorized-domain') {
-        setError(
-          `Google tizimiga kirish xatosi (unauthorized domain): Ushbu domen Firebase ruxsat etilgan domenlar ro'yxatida yo'q. Uni faollashtirish uchun: \n1. Firebase Konsoliga kiring -> Authentication -> Settings -> Authorized Domains bo'limiga o'ting. \n2. Quyidagi domenni ruxsat etilganlar ro'yxatiga qo'shing: \n👉 ${window.location.hostname}`
-        );
-      } else if (err.code !== 'auth/popup-closed-by-user') {
-        setError(err.message || 'Google orqali kirishda xatolik');
+      console.error("signInWithRedirect failed, trying popup fallback:", err);
+      try {
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+        
+        const API_BASE = '';
+        const res = await fetch(`${API_BASE}/api/auth/google`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            email: user.email, 
+            name: user.displayName || 'Google User', 
+            uid: user.uid,
+            avatar_url: user.photoURL
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Google login failed');
+        }
+
+        login(data.token, data.user);
+        navigate('/');
+      } catch (popupErr: any) {
+        console.error(popupErr);
+        if (popupErr.code === 'auth/unauthorized-domain') {
+          setError(
+            `Google tizimiga kirish xatosi (unauthorized domain): Ushbu domen Firebase ruxsat etilgan domenlar ro'yxatida yo'q. Uni faollashtirish uchun: \n1. Firebase Konsoliga kiring -> Authentication -> Settings -> Authorized Domains bo'limiga o'ting. \n2. Quyidagi domenni ruxsat etilganlar ro'yxatiga qo'shing: \n👉 ${window.location.hostname}`
+          );
+        } else if (popupErr.code !== 'auth/popup-closed-by-user') {
+          setError(popupErr.message || 'Google orqali kirishda xatolik');
+        }
       }
     }
   };
