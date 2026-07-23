@@ -17,6 +17,7 @@ dotenv.config();
 const upload = multer({ dest: "/tmp/" });
 
 const app = express();
+app.set("trust proxy", true);
 app.use(cors());
 
 // Proxy Firebase Auth helper routes (/__/*) to Firebase's default auth handler
@@ -1687,15 +1688,26 @@ async function runTelegramBot() {
             // 2. Handle Contact (Phone sharing)
             else if (message.contact) {
               const contact = message.contact;
-              const sessionId = chatToSession.get(chat.id);
+              let sessionId = chatToSession.get(chat.id);
+
+              if (!sessionId || !activeSessions.has(sessionId)) {
+                // Find if there's an existing session for this chat or any pending session
+                for (const [sid, sess] of activeSessions.entries()) {
+                  if (sess.chatId === chat.id || sess.status === "pending" || sess.status === "pending_phone") {
+                    sessionId = sid;
+                    chatToSession.set(chat.id, sid);
+                    break;
+                  }
+                }
+              }
 
               if (sessionId && activeSessions.has(sessionId)) {
                 const session = activeSessions.get(sessionId);
 
-                if (session.status === "pending_phone") {
-                  const phone = contact.phone_number;
-                  const tgUser = session.tgUser || {};
-                  const tgUserId = tgUser.id || contact.user_id;
+                try {
+                  const phone = contact.phone_number || "";
+                  const tgUser = session.tgUser || message.from || {};
+                  const tgUserId = tgUser.id || contact.user_id || message.from?.id || chat.id;
 
                   // Get Telegram Avatar URL if any
                   let avatar_url = null;
@@ -1715,7 +1727,9 @@ async function runTelegramBot() {
                   }
 
                   const email = `tg_${tgUserId}@telegram.uz`;
-                  const name = tgUser.first_name + (tgUser.last_name ? ` ${tgUser.last_name}` : "");
+                  const firstName = tgUser.first_name || message.from?.first_name || contact.first_name || "Foydalanuvchi";
+                  const lastName = tgUser.last_name || message.from?.last_name || contact.last_name || "";
+                  const name = `${firstName} ${lastName}`.trim();
 
                   // Sync to DB
                   let [users]: any = await dbQuery("SELECT * FROM users WHERE telegram_id = ? OR email = ?", [String(tgUserId), email]);
@@ -1728,7 +1742,7 @@ async function runTelegramBot() {
 
                     const [insertRes]: any = await dbQuery(
                       "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
-                      [name, email, hashedPassword, role, avatar_url, String(tgUserId)]
+                      [name, email, hashedPassword, role, avatar_url || null, String(tgUserId)]
                     );
 
                     user = {
@@ -1736,13 +1750,13 @@ async function runTelegramBot() {
                       name,
                       email,
                       role,
-                      avatar_url,
+                      avatar_url: avatar_url || null,
                       telegram_id: String(tgUserId)
                     };
                   } else {
                     await dbQuery(
                       "UPDATE users SET telegram_id = ?, avatar_url = COALESCE(avatar_url, ?) WHERE id = ?",
-                      [String(tgUserId), avatar_url, user.id]
+                      [String(tgUserId), avatar_url || null, user.id]
                     );
                     user.telegram_id = String(tgUserId);
                     if (!user.avatar_url && avatar_url) {
@@ -1770,19 +1784,22 @@ async function runTelegramBot() {
                     status: "authorized",
                     token,
                     user: userPayload,
-                    createdAt: session.createdAt
+                    createdAt: session.createdAt || Date.now()
                   });
 
                   await sendTelegramMessage(chat.id,
                     `<b>Siz ANIMEUZ saytiga muvaffaqiyatli kirdingiz! 🎉</b>\n\n` +
                     `👤 <b>Ism:</b> ${name}\n` +
-                    `📞 <b>Telefon:</b> ${phone}\n\n` +
+                    (phone ? `📞 <b>Telefon:</b> ${phone}\n\n` : '\n') +
                     `Saytda avtorizatsiya yakunlandi! Endi saytga qaytib tomoshani davom ettirishingiz mumkin.`,
                     { remove_keyboard: true }
                   );
+                } catch (contactErr) {
+                  console.error("Error processing Telegram contact auth:", contactErr);
+                  await sendTelegramMessage(chat.id, "Tizimga kirishda xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.");
                 }
               } else {
-                await sendTelegramMessage(chat.id, "Sessiya topilmadi yoki muddati tugagan.");
+                await sendTelegramMessage(chat.id, "Sessiya topilmadi yoki muddati tugagan. Iltimos saytdan qayta urining.");
               }
             }
           }
