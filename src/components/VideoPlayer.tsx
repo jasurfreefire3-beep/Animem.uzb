@@ -105,6 +105,8 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
   const [currentAdUrl, setCurrentAdUrl] = useState('');
   const [adTimeLeft, setAdTimeLeft] = useState(15);
   const [canSkipAd, setCanSkipAd] = useState(false);
+  const [isAdMuted, setIsAdMuted] = useState(false);
+  const [adErrorIndex, setAdErrorIndex] = useState(0);
   const adVideoRef = useRef<HTMLVideoElement>(null);
 
   // Initialize random ad when URL changes
@@ -115,14 +117,32 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
     setShowAd(true);
     setAdTimeLeft(15);
     setCanSkipAd(false);
+    setAdErrorIndex(0);
   }, [url]);
 
-  // Handle ad time update synchronized with video playback seconds
+  // Guaranteed 1-second interval timer for 15s countdown
+  useEffect(() => {
+    if (!showAd) return;
+
+    const timer = setInterval(() => {
+      setAdTimeLeft((prev) => {
+        if (prev <= 1) {
+          setCanSkipAd(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [showAd]);
+
+  // Handle ad time update synchronized with video playback
   const handleAdTimeUpdate = () => {
-    if (adVideoRef.current) {
+    if (adVideoRef.current && adVideoRef.current.duration > 0) {
       const current = adVideoRef.current.currentTime;
       const remaining = Math.max(0, Math.ceil(15 - current));
-      setAdTimeLeft(remaining);
+      setAdTimeLeft((prev) => (remaining < prev ? remaining : prev));
       if (current >= 15 || remaining === 0) {
         setCanSkipAd(true);
       }
@@ -131,10 +151,11 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
 
   // Try to play ad video automatically
   useEffect(() => {
-    if (showAd && adVideoRef.current) {
+    if (showAd && currentAdUrl && adVideoRef.current) {
       adVideoRef.current.play().catch(() => {
         if (adVideoRef.current) {
           adVideoRef.current.muted = true;
+          setIsAdMuted(true);
           adVideoRef.current.play().catch(() => {});
         }
       });
@@ -163,11 +184,27 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
   };
 
   const handleAdEnded = () => {
-    setShowAd(false);
+    if (adTimeLeft > 0 && adVideoRef.current) {
+      adVideoRef.current.currentTime = 0;
+      adVideoRef.current.play().catch(() => {});
+    } else {
+      setCanSkipAd(true);
+    }
   };
 
   const handleAdError = () => {
-    setShowAd(false);
+    console.warn("Ad video load error, switching fallback ad...");
+    setAdErrorIndex((prev) => {
+      const nextIdx = prev + 1;
+      if (nextIdx < PUBLIC_ADS.length) {
+        const nextAd = PUBLIC_ADS[(PUBLIC_ADS.indexOf(currentAdUrl) + 1) % PUBLIC_ADS.length];
+        setCurrentAdUrl(nextAd);
+      } else {
+        // Fallback to static banner ad mode so ad overlay stays active for full 15s
+        setCurrentAdUrl('');
+      }
+      return nextIdx;
+    });
   };
 
   // Player States
@@ -1128,27 +1165,51 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
         )}
 
         {/* Video Pre-roll Ad Overlay */}
-        {showAd && currentAdUrl && (
+        {showAd && (
           <div 
             className="absolute inset-0 z-50 bg-black flex items-center justify-center overflow-hidden cursor-pointer select-none"
             onClick={handleAdClick}
           >
-            <video
-              ref={adVideoRef}
-              src={currentAdUrl}
-              autoPlay
-              playsInline
-              className="w-full h-full object-contain pointer-events-none"
-              onEnded={handleAdEnded}
-              onError={handleAdError}
-              onTimeUpdate={handleAdTimeUpdate}
-            />
+            {currentAdUrl ? (
+              <video
+                ref={adVideoRef}
+                src={currentAdUrl}
+                autoPlay
+                muted={isAdMuted}
+                playsInline
+                className="w-full h-full object-contain pointer-events-none"
+                onEnded={handleAdEnded}
+                onError={handleAdError}
+                onTimeUpdate={handleAdTimeUpdate}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-purple-900/40 via-black to-blue-900/40 w-full h-full pointer-events-none">
+                <img src="/logo.png" alt="Animem Uz" className="w-24 h-24 mb-4 object-contain animate-pulse" />
+                <p className="text-white font-bold text-lg mb-2">Animem.uz Homiylik Reklamasi</p>
+                <p className="text-gray-300 text-sm max-w-md">Eng yaxshi animelar va so'nggi chiqishlarni biz bilan tomosha qiling!</p>
+              </div>
+            )}
 
             {/* Top Left Reklama Badge */}
             <div className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-black/70 text-white text-[11px] sm:text-xs px-2.5 py-1 rounded backdrop-blur border border-white/10 flex items-center gap-1.5 pointer-events-none z-10">
               <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
               <span className="font-semibold tracking-wider">REKLAMA</span>
             </div>
+
+            {/* Top Right Mute / Unmute Button */}
+            {currentAdUrl && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAdMuted((prev) => !prev);
+                }}
+                className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-black/70 hover:bg-black/90 text-white p-2 rounded-full backdrop-blur border border-white/10 z-20 cursor-pointer pointer-events-auto transition-all"
+                title={isAdMuted ? "Ovozni yoqish" : "Ovozni o'chirish"}
+              >
+                {isAdMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-green-400" />}
+              </button>
+            )}
 
             {/* Skip / Timer Button */}
             <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20">
