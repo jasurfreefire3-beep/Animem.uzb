@@ -367,7 +367,7 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setIsBuffering(false);
         const isAutoplay = localStorage.getItem('anime_settings_autoplay') !== 'false';
-        if (isAutoplay) {
+        if (isAutoplay && !showAd) {
           video.play()
             .then(() => setIsPlaying(true))
             .catch((err) => {
@@ -403,7 +403,7 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
       video.src = streamUrl;
       video.load();
       const isAutoplay = localStorage.getItem('anime_settings_autoplay') !== 'false';
-      if (isAutoplay) {
+      if (isAutoplay && !showAd) {
         video.play()
           .then(() => setIsPlaying(true))
           .catch((err) => {
@@ -416,7 +416,7 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
       video.src = streamUrl;
       video.load();
       const isAutoplay = localStorage.getItem('anime_settings_autoplay') !== 'false';
-      if (isAutoplay) {
+      if (isAutoplay && !showAd) {
         video.play()
           .then(() => setIsPlaying(true))
           .catch((err) => {
@@ -548,7 +548,7 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
 
   // Play Pause controls
   const togglePlay = () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || showAd) return;
     if (videoRef.current.paused) {
       videoRef.current.play()
         .then(() => setIsPlaying(true))
@@ -1149,7 +1149,14 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
                 setIsPlaying(true);
               }}
               onPause={() => setIsPlaying(false)}
-              onPlay={() => setIsPlaying(true)}
+              onPlay={() => {
+                if (showAd && videoRef.current) {
+                  videoRef.current.pause();
+                  setIsPlaying(false);
+                } else {
+                  setIsPlaying(true);
+                }
+              }}
               onError={(e) => {
                 console.error("Video element error:", e);
                 setIsBuffering(false);

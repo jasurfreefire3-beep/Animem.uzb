@@ -9,6 +9,7 @@ import AnimeDetails from './pages/AnimeDetails';
 import Admin from './pages/Admin';
 import Chat from './pages/Chat';
 import ChatWidget from './components/ChatWidget';
+import SpinBetterAdModal from './components/SpinBetterAdModal';
 import { Send, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -173,8 +174,9 @@ export default function App() {
         </footer>
       </div>
 
-      {/* 4. Overlay Chat widgets */}
+      {/* 4. Overlay Chat widgets & Ad Modal */}
       <ChatWidget />
+      <SpinBetterAdModal />
     </div>
   );
 }
