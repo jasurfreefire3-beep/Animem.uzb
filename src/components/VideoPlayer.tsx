@@ -80,6 +80,18 @@ function getEmbedUrl(url: string): { isEmbed: boolean; embedUrl: string } {
   return { isEmbed: false, embedUrl: '' };
 }
 
+const PUBLIC_ADS = [
+  '/ANIMEM_UZ_UZS_CASINO_103.mp4',
+  '/ANIMEM_UZ_UZS_CASINO_105.mp4',
+  '/ANIMEM_UZ_UZS_SPORT_137.mp4',
+  '/ANIMEM_UZ_UZS_SPORT_54.mp4',
+  '/ANIMEM_UZ_UZS_SPORT_61.mp4',
+  '/ANIMEM_UZ_UZS_SPORT_67.mp4',
+  '/ANIMEM_UZ_UZS_SPORT_82.mp4',
+  '/ANIMEM_UZ_UZS_UNIVERSAL_15.mp4',
+];
+const AD_TARGET_URL = 'https://velzom.com/323v?p=%2Fregistration%2F';
+
 export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -87,6 +99,76 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
   const hlsRef = useRef<Hls | null>(null);
 
   const { isEmbed, embedUrl } = getEmbedUrl(url);
+
+  // Ad states
+  const [showAd, setShowAd] = useState(true);
+  const [currentAdUrl, setCurrentAdUrl] = useState('');
+  const [adTimeLeft, setAdTimeLeft] = useState(15);
+  const [canSkipAd, setCanSkipAd] = useState(false);
+  const adVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Initialize random ad when URL changes
+  useEffect(() => {
+    if (!url) return;
+    const randomAd = PUBLIC_ADS[Math.floor(Math.random() * PUBLIC_ADS.length)];
+    setCurrentAdUrl(randomAd);
+    setShowAd(true);
+    setAdTimeLeft(15);
+    setCanSkipAd(false);
+  }, [url]);
+
+  // Handle ad time update synchronized with video playback seconds
+  const handleAdTimeUpdate = () => {
+    if (adVideoRef.current) {
+      const current = adVideoRef.current.currentTime;
+      const remaining = Math.max(0, Math.ceil(15 - current));
+      setAdTimeLeft(remaining);
+      if (current >= 15 || remaining === 0) {
+        setCanSkipAd(true);
+      }
+    }
+  };
+
+  // Try to play ad video automatically
+  useEffect(() => {
+    if (showAd && adVideoRef.current) {
+      adVideoRef.current.play().catch(() => {
+        if (adVideoRef.current) {
+          adVideoRef.current.muted = true;
+          adVideoRef.current.play().catch(() => {});
+        }
+      });
+    }
+  }, [showAd, currentAdUrl]);
+
+  // When ad finishes or gets skipped, start main video
+  useEffect(() => {
+    if (!showAd && !isEmbed && videoRef.current) {
+      const isAutoplay = localStorage.getItem('anime_settings_autoplay') !== 'false';
+      if (isAutoplay) {
+        videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      }
+    }
+  }, [showAd, isEmbed]);
+
+  const handleAdClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.open(AD_TARGET_URL, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleSkipAd = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canSkipAd) return;
+    setShowAd(false);
+  };
+
+  const handleAdEnded = () => {
+    setShowAd(false);
+  };
+
+  const handleAdError = () => {
+    setShowAd(false);
+  };
 
   // Player States
   const [isPlaying, setIsPlaying] = useState(false);
@@ -903,146 +985,195 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
       `}</style>
 
 
-      {isEmbed ? (
-        <div className="w-full h-full min-h-[300px] md:min-h-[450px] lg:min-h-[500px] rounded-2xl overflow-hidden shadow-2xl bg-black border border-white/10 relative">
-          <iframe
-            src={embedUrl}
-            title="Video Player"
-            className="w-full h-full absolute inset-0"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            referrerPolicy="no-referrer"
-          />
-        </div>
-      ) : (
-        <div 
-          ref={containerRef}
-          className={`container ${showControls ? 'show-controls' : ''} ${isFullscreen ? 'fullscreen' : ''}`}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={() => isPlaying && setShowControls(false)}
-        >
-          <div className="wrapper">
-            {/* Timeline */}
-            <div 
-              ref={timelineRef}
-              className="video-timeline"
-              onMouseMove={handleTimelineMouseMove}
-              onMouseLeave={() => setShowHoverTime(false)}
-              onMouseDown={handleTimelineMouseDown}
-            >
-              <div className="progress-area">
-                <span style={{ left: hoverLeft, display: showHoverTime ? 'block' : 'none' }}>
-                  {hoverTime}
-                </span>
-                <div 
-                  className="progress-bar" 
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Controls list */}
-            <ul className="video-controls">
-              <li className="options left">
-                <button className="volume" onClick={toggleMute}>
-                  {isMuted || volume === 0 ? (
-                    <VolumeX />
-                  ) : volume < 0.5 ? (
-                    <Volume1 />
-                  ) : (
-                    <Volume2 />
-                  )}
-                </button>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="1" 
-                  step="any"
-                  value={isMuted ? 0 : volume}
-                  onChange={handleVolumeChange}
-                />
-                <div className="video-timer">
-                  <p className="current-time">{formatTime(currentTime)}</p>
-                  <p className="separator"> / </p>
-                  <p className="video-duration">{formatTime(duration)}</p>
-                </div>
-              </li>
-
-              <li className="options center">
-                <button className="skip-backward" onClick={skipBackward}>
-                  <RotateCcw />
-                </button>
-                <button className="play-pause" onClick={togglePlay}>
-                  {isPlaying ? <Pause /> : <Play className="translate-x-0.5" />}
-                </button>
-                <button className="skip-forward" onClick={skipForward}>
-                  <RotateCw />
-                </button>
-              </li>
-
-              <li className="options right">
-                <div className="playback-content">
-                  <button 
-                    className="playback-speed"
-                    onClick={() => setShowSpeedOptions(!showSpeedOptions)}
-                  >
-                    <Gauge />
-                  </button>
-                  <ul className={`speed-options ${showSpeedOptions ? 'show' : ''}`}>
-                    {[2, 1.5, 1, 0.75, 0.5].map((rate) => (
-                      <li 
-                        key={rate}
-                        data-speed={rate}
-                        className={playbackRate === rate ? 'active' : ''}
-                        onClick={() => changePlaybackRate(rate)}
-                      >
-                        {rate === 1 ? 'Normal' : `${rate}x`}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <button className="pic-in-pic" onClick={togglePip}>
-                  <PictureInPicture />
-                </button>
-                <button className="fullscreen" onClick={toggleFullscreen}>
-                  {isFullscreen ? <Minimize /> : <Maximize />}
-                </button>
-              </li>
-            </ul>
+      <div className="relative w-full aspect-video rounded-2xl overflow-hidden shadow-2xl bg-black border border-white/10 group">
+        {isEmbed ? (
+          <div className="w-full h-full min-h-[300px] md:min-h-[450px] lg:min-h-[500px] relative">
+            <iframe
+              src={embedUrl}
+              title="Video Player"
+              className="w-full h-full absolute inset-0"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              referrerPolicy="no-referrer"
+            />
           </div>
+        ) : (
+          <div 
+            ref={containerRef}
+            className={`container ${showControls ? 'show-controls' : ''} ${isFullscreen ? 'fullscreen' : ''}`}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => isPlaying && setShowControls(false)}
+          >
+            <div className="wrapper">
+              {/* Timeline */}
+              <div 
+                ref={timelineRef}
+                className="video-timeline"
+                onMouseMove={handleTimelineMouseMove}
+                onMouseLeave={() => setShowHoverTime(false)}
+                onMouseDown={handleTimelineMouseDown}
+              >
+                <div className="progress-area">
+                  <span style={{ left: hoverLeft, display: showHoverTime ? 'block' : 'none' }}>
+                    {hoverTime}
+                  </span>
+                  <div 
+                    className="progress-bar" 
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
 
-          {/* Video Tag */}
-          <video 
-            ref={videoRef}
-            poster={poster}
-            className="w-full h-full object-contain cursor-pointer"
-            playsInline
-            onClick={handleVideoClick}
-            onDoubleClick={handleVideoDoubleClick}
-            onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
-            onWaiting={() => setIsBuffering(true)}
-            onPlaying={() => {
-              setIsBuffering(false);
-              setIsPlaying(true);
-            }}
-            onPause={() => setIsPlaying(false)}
-            onPlay={() => setIsPlaying(true)}
-            onError={(e) => {
-              console.error("Video element error:", e);
-              setIsBuffering(false);
-            }}
-          />
+              {/* Controls list */}
+              <ul className="video-controls">
+                <li className="options left">
+                  <button className="volume" onClick={toggleMute}>
+                    {isMuted || volume === 0 ? (
+                      <VolumeX />
+                    ) : volume < 0.5 ? (
+                      <Volume1 />
+                    ) : (
+                      <Volume2 />
+                    )}
+                  </button>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="1" 
+                    step="any"
+                    value={isMuted ? 0 : volume}
+                    onChange={handleVolumeChange}
+                  />
+                  <div className="video-timer">
+                    <p className="current-time">{formatTime(currentTime)}</p>
+                    <p className="separator"> / </p>
+                    <p className="video-duration">{formatTime(duration)}</p>
+                  </div>
+                </li>
 
-          {/* Loading/Buffering feedback */}
-          {isBuffering && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-20 pointer-events-none">
-              <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+                <li className="options center">
+                  <button className="skip-backward" onClick={skipBackward}>
+                    <RotateCcw />
+                  </button>
+                  <button className="play-pause" onClick={togglePlay}>
+                    {isPlaying ? <Pause /> : <Play className="translate-x-0.5" />}
+                  </button>
+                  <button className="skip-forward" onClick={skipForward}>
+                    <RotateCw />
+                  </button>
+                </li>
+
+                <li className="options right">
+                  <div className="playback-content">
+                    <button 
+                      className="playback-speed"
+                      onClick={() => setShowSpeedOptions(!showSpeedOptions)}
+                    >
+                      <Gauge />
+                    </button>
+                    <ul className={`speed-options ${showSpeedOptions ? 'show' : ''}`}>
+                      {[2, 1.5, 1, 0.75, 0.5].map((rate) => (
+                        <li 
+                          key={rate}
+                          data-speed={rate}
+                          className={playbackRate === rate ? 'active' : ''}
+                          onClick={() => changePlaybackRate(rate)}
+                        >
+                          {rate === 1 ? 'Normal' : `${rate}x`}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <button className="pic-in-pic" onClick={togglePip}>
+                    <PictureInPicture />
+                  </button>
+                  <button className="fullscreen" onClick={toggleFullscreen}>
+                    {isFullscreen ? <Minimize /> : <Maximize />}
+                  </button>
+                </li>
+              </ul>
             </div>
-          )}
-        </div>
-      )}
+
+            {/* Video Tag */}
+            <video 
+              ref={videoRef}
+              poster={poster}
+              className="w-full h-full object-contain cursor-pointer"
+              playsInline
+              onClick={handleVideoClick}
+              onDoubleClick={handleVideoDoubleClick}
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+              onWaiting={() => setIsBuffering(true)}
+              onPlaying={() => {
+                setIsBuffering(false);
+                setIsPlaying(true);
+              }}
+              onPause={() => setIsPlaying(false)}
+              onPlay={() => setIsPlaying(true)}
+              onError={(e) => {
+                console.error("Video element error:", e);
+                setIsBuffering(false);
+              }}
+            />
+
+            {/* Loading/Buffering feedback */}
+            {isBuffering && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-20 pointer-events-none">
+                <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Video Pre-roll Ad Overlay */}
+        {showAd && currentAdUrl && (
+          <div 
+            className="absolute inset-0 z-50 bg-black flex items-center justify-center overflow-hidden cursor-pointer select-none"
+            onClick={handleAdClick}
+          >
+            <video
+              ref={adVideoRef}
+              src={currentAdUrl}
+              autoPlay
+              playsInline
+              className="w-full h-full object-contain pointer-events-none"
+              onEnded={handleAdEnded}
+              onError={handleAdError}
+              onTimeUpdate={handleAdTimeUpdate}
+            />
+
+            {/* Top Left Reklama Badge */}
+            <div className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-black/70 text-white text-[11px] sm:text-xs px-2.5 py-1 rounded backdrop-blur border border-white/10 flex items-center gap-1.5 pointer-events-none z-10">
+              <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+              <span className="font-semibold tracking-wider">REKLAMA</span>
+            </div>
+
+            {/* Skip / Timer Button */}
+            <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20">
+              {canSkipAd ? (
+                <button
+                  type="button"
+                  onClick={handleSkipAd}
+                  className="opacity-100 scale-100 bg-[#ff006a] hover:bg-[#e0005d] active:scale-95 text-white font-bold text-xs sm:text-sm px-4 py-2 rounded-lg shadow-2xl border border-white/20 transition-all flex items-center gap-2 cursor-pointer pointer-events-auto"
+                >
+                  <span>O'tkazib yuborish</span>
+                  <span className="text-base">→</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="opacity-50 scale-90 bg-black/60 text-gray-300 text-xs px-3 py-1.5 rounded-md border border-white/10 backdrop-blur cursor-not-allowed flex items-center gap-1.5 transition-all pointer-events-none"
+                >
+                  <span>O'tkazib yuborish ({adTimeLeft}s)</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
