@@ -31,7 +31,9 @@ function getEmbedUrl(url: string): { isEmbed: boolean; embedUrl: string } {
   if (lowerUrl.includes('<iframe')) {
     const srcMatch = trimmed.match(/src=["']([^"']+)["']/i);
     if (srcMatch) {
-      return { isEmbed: true, embedUrl: srcMatch[1] };
+      let finalUrl = srcMatch[1];
+      if (finalUrl.startsWith('//')) finalUrl = 'https:' + finalUrl;
+      return { isEmbed: true, embedUrl: finalUrl };
     }
   }
 
@@ -73,7 +75,9 @@ function getEmbedUrl(url: string): { isEmbed: boolean; embedUrl: string } {
                            !lowerUrl.endsWith('.webm');
 
   if (hasEmbedPattern) {
-    return { isEmbed: true, embedUrl: trimmed };
+    let finalUrl = trimmed;
+    if (finalUrl.startsWith('//')) finalUrl = 'https:' + finalUrl;
+    return { isEmbed: true, embedUrl: finalUrl };
   }
 
   // Treat all other web links as direct video/stream URLs in our custom player
@@ -1024,17 +1028,14 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
 
       <div className="relative w-full aspect-video rounded-2xl overflow-hidden shadow-2xl bg-black border border-white/10 group">
         {isEmbed ? (
-          <div className="w-full h-full min-h-[300px] md:min-h-[450px] lg:min-h-[500px] relative">
-            <iframe
-              src={embedUrl}
-              title="Video Player"
-              className="w-full h-full absolute inset-0"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              referrerPolicy="no-referrer"
-            />
-          </div>
+          <iframe
+            src={embedUrl}
+            title="Video Player"
+            className="w-full h-full absolute inset-0 border-0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            referrerPolicy="no-referrer"
+          />
         ) : (
           <div 
             ref={containerRef}
