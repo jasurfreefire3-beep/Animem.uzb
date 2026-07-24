@@ -6,8 +6,12 @@ import { Download, X } from 'lucide-react';
 const AFFILIATE_URL = "https://spin-b.com/mwGY27?tag=d_221320m_722889c_cz_AufBZvd8JsHCVwcFAHWmcL";
 const TEN_MINUTES_MS = 10 * 60 * 1000; // 10 minutes
 
+// Base64 fallback so the logo ALWAYS displays even if static image file fails on Render.com or CDNs
+const SPINBETTER_LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCADyAMgBAREA/8QAFgABAQEAAAAAAAAAAAAAAAAAAAEC/9oACAEBAAAAACa0oAAAAAAAAAAAAAAAAGGl0AABOebpIAtAABMNyylq4y0oAJqM3YAAAC133AAACa/8QAGAEBAQEBAQAAAAAAAAAAAAAAAAEEAwX/2gAIAQIAAAAA53eS25i9xAM5o11yqI1eRrnEa4s03g1yS9ZfUf/EABgBAQEBAQEAAAAAAAAAAAAAAAABAgME/9oACAEAEAAAAAAtACpYAAAAAE0AAAAD/8QAIhAAAQEJAQACAwAAAAAAAAAAAAECEBECAxAgMEBQEjFh/9oACAEBAAE/AP3QxM8X0zL8I4IWWvWvWvWvd2U452aIoj3b6a9a9a9f24I4/v9aI/NfB32f22j6107x9m3f/Z";
+
 export default function SpinBetterAdModal() {
   const [isOpen, setIsOpen] = useState(false);
+  const [imgSrc, setImgSrc] = useState("/spinbetter_logo.jpg");
   const location = useLocation();
 
   useEffect(() => {
@@ -86,7 +90,8 @@ export default function SpinBetterAdModal() {
             >
               <div className="relative shrink-0">
                 <img
-                  src="/spinbetter_logo.jpg"
+                  src={imgSrc}
+                  onError={() => setImgSrc(SPINBETTER_LOGO_BASE64)}
                   alt="SpinBetter Logo"
                   className="w-16 h-16 md:w-20 md:h-20 rounded-2xl object-cover shadow-md border border-gray-100 group-hover:scale-105 transition-transform"
                 />
