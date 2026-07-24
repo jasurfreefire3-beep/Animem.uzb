@@ -1911,112 +1911,240 @@ async function start() {
   // Start Telegram Bot
   runTelegramBot();
 
-  // Serve public folder directly using express for faster video loading and range requests
+  // Serve public folder directly using express for favicon, videos, images, logos
   app.use(express.static(publicPath));
 
-  // Dynamic SEO handler for individual anime pages (runs on both dev and production)
-  app.get("/anime/:slug", async (req, res) => {
-    try {
-      const slug = req.params.slug;
-      
-      // 1. Fetch anime details
-      const [rows]: any = await dbQuery("SELECT * FROM animes");
-      const toSlugLocal = (text: string): string => {
-        if (!text) return "";
-        return text
-          .toLowerCase()
-          .replace(/o['’`‘]/g, "o")
-          .replace(/g['’`‘]/g, "g")
-          .replace(/[^a-z0-9\u0400-\u04FF]+/gi, "-")
-          .replace(/^-+|-+$/g, "");
-      };
-      const animeRaw = rows.find((r: any) => toSlugLocal(r.title) === slug);
-      
-      const defaultIndexPath = fs.existsSync(path.join(distPath, "index.html"))
-        ? path.join(distPath, "index.html")
-        : path.join(process.cwd(), "index.html");
+  // Favicon handler ensuring /favicon.ico is served
+  app.get("/favicon.ico", (req, res) => {
+    const icoPath = path.join(publicPath, "favicon.ico");
+    if (fs.existsSync(icoPath)) {
+      return res.sendFile(icoPath);
+    }
+    return res.sendFile(path.join(publicPath, "logo.png"));
+  });
 
-      if (!animeRaw) {
-        return res.sendFile(defaultIndexPath);
+  const toSlugLocal = (text: string): string => {
+    if (!text) return "";
+    return text
+      .toLowerCase()
+      .replace(/o['’`‘]/g, "o")
+      .replace(/g['’`‘]/g, "g")
+      .replace(/[^a-z0-9\u0400-\u04FF]+/gi, "-")
+      .replace(/^-+|-+$/g, "");
+  };
+
+  // Dynamic Sitemap XML generator
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const [rows]: any = await dbQuery("SELECT * FROM animes");
+      const domain = "https://animem.uz";
+      
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
+      
+      const staticPages = [
+        { url: "/", priority: "1.0", freq: "daily" },
+        { url: "/animelar", priority: "0.9", freq: "daily" },
+        { url: "/manga", priority: "0.8", freq: "daily" },
+        { url: "/top100", priority: "0.8", freq: "daily" },
+        { url: "/jadval", priority: "0.8", freq: "daily" },
+        { url: "/yangi-chiqishlar", priority: "0.8", freq: "daily" },
+        { url: "/chat", priority: "0.7", freq: "daily" },
+      ];
+      
+      for (const page of staticPages) {
+        xml += `  <url>\n    <loc>${domain}${page.url}</loc>\n    <changefreq>${page.freq}</changefreq>\n    <priority>${page.priority}</priority>\n  </url>\n`;
       }
       
-      const merged = await mergeRatingsWithAnimes([animeRaw]);
-      const anime = merged[0];
+      const genres = ["isekai", "sarguzasht", "fantasy", "jangari", "komediya", "dramatiya", "mecha", "romantika", "kriminal", "dahshat", "sport"];
+      for (const g of genres) {
+        xml += `  <url>\n    <loc>${domain}/${g}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
+      }
       
-      // 2. Load index.html
-      let html = fs.readFileSync(defaultIndexPath, "utf8");
-      
-      // 3. Prepare metadata values
-      const titleText = `${anime.title} - O'zbek tilida ko'rish`;
-      const descText = `${anime.title} o'zbek tilida onlayn tomosha qilish. ${anime.description ? anime.description.substring(0, 180).trim() : ""}...`;
-      const shareUrl = `https://www.animem.uz/anime/${slug}`;
-      const imageUrl = anime.image_url || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSF45hYamscf6EOEVfza62xM3PmDvOBibTRYEmsaMscyw&s=10";
-      
-      // 4. Generate JSON-LD schema matching AnimeDetails client code but rendering server-side
-      const genres = anime.janrlar ? anime.janrlar.split(",").map((g: string) => g.trim()) : [];
-      const ratingValue = anime.rating || 9.2;
-      const reviewCount = anime.rating_count || 32;
-      const releaseYear = anime.yil || 2026;
-      
-      const jsonLd = {
-        "@context": "https://schema.org",
-        "@type": "Movie",
-        "name": `${anime.title} - O'zbek tilida ko'rish - Animem.uz`,
-        "alternateName": anime.title,
-        "image": imageUrl,
-        "description": anime.description || "",
-        "aggregateRating": {
-          "@type": "AggregateRating",
-          "ratingValue": ratingValue,
-          "bestRating": "10",
-          "worstRating": "1",
-          "reviewCount": reviewCount
-        },
-        "genre": genres,
-        "dateCreated": releaseYear,
-        "provider": {
-          "@type": "Organization",
-          "name": "Animem Uz",
-          "url": "https://animem.uz"
+      if (Array.isArray(rows)) {
+        for (const a of rows) {
+          const slug = toSlugLocal(a.title);
+          if (slug) {
+            const imgUrl = (a.image_url || `${domain}/logo.png`).replace(/&/g, "&amp;");
+            const titleClean = (a.title || "Anime").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            xml += `  <url>\n`;
+            xml += `    <loc>${domain}/anime/${slug}</loc>\n`;
+            xml += `    <image:image>\n`;
+            xml += `      <image:loc>${imgUrl}</image:loc>\n`;
+            xml += `      <image:title>${titleClean}</image:title>\n`;
+            xml += `    </image:image>\n`;
+            xml += `    <changefreq>daily</changefreq>\n`;
+            xml += `    <priority>0.9</priority>\n`;
+            xml += `  </url>\n`;
+          }
         }
-      };
+      }
       
-      const jsonLdScript = `\n    <script type="application/ld+json">\n    ${JSON.stringify(jsonLd, null, 2)}\n    </script>`;
-      
-      // 5. Replace tags in index.html
-      // Replace <title>
+      xml += `</urlset>`;
+      res.setHeader("Content-Type", "text/xml; charset=utf-8");
+      return res.status(200).send(xml);
+    } catch (err) {
+      console.error("Sitemap generation error:", err);
+      return res.sendFile(path.join(publicPath, "sitemap.xml"));
+    }
+  });
+
+  // Helper function to serve custom SEO injected HTML
+  const handleDynamicSEO = async (req: express.Request, res: express.Response) => {
+    const defaultIndexPath = fs.existsSync(path.join(distPath, "index.html"))
+      ? path.join(distPath, "index.html")
+      : path.join(process.cwd(), "index.html");
+
+    try {
+      let html = fs.readFileSync(defaultIndexPath, "utf8");
+      const reqPath = (req.path || "/").toLowerCase();
+
+      let titleText = "Animem Uz - O'zbekistondagi eng yirik anime portali";
+      let descText = "Animem Uz - O'zbekistondagi eng yirik onlayn anime portali! Bu yerda eng mashhur va eng so'nggi animelarni o'zbek tilida, yuqori sifatda (HD) va mutlaqo bepul tomosha qilishingiz mumkin.";
+      let imageUrl = "https://animem.uz/logo.png";
+      let shareUrl = `https://animem.uz${req.path}`;
+      let jsonLdScript = "";
+
+      // 1. Anime detail page: /anime/:slug or /anime/:id
+      if (reqPath.startsWith("/anime/") && reqPath.length > 7) {
+        const rawParam = req.path.replace(/^\/anime\//, "").split("?")[0].split("/")[0];
+        
+        let animeRaw: any = null;
+        try {
+          const [rows]: any = await dbQuery("SELECT * FROM animes");
+          if (Array.isArray(rows) && rows.length > 0) {
+            animeRaw = rows.find((r: any) => 
+              toSlugLocal(r.title) === rawParam ||
+              String(r.id) === rawParam ||
+              rawParam.startsWith(r.id + "-") ||
+              rawParam.endsWith("-" + r.id)
+            );
+          }
+        } catch (e) {
+          console.warn("DB query failed in handleDynamicSEO:", e);
+        }
+
+        if (!animeRaw) {
+          const store = loadLocalStore();
+          animeRaw = (store.animes || []).find((a: any) => 
+            toSlugLocal(a.title) === rawParam ||
+            String(a.id) === rawParam
+          );
+        }
+
+        if (animeRaw) {
+          const merged = await mergeRatingsWithAnimes([animeRaw]);
+          const anime = merged[0] || animeRaw;
+
+          titleText = `${anime.title} - O'zbek tilida ko'rish | Animem.uz`;
+          descText = `${anime.title} o'zbek tilida HD formatda onlayn tomosha qilish. ${anime.description ? anime.description.substring(0, 180).trim() : 'Barcha qismlari bepul va yuqori sifatda!'}`;
+          imageUrl = anime.image_url || "https://animem.uz/logo.png";
+          shareUrl = `https://animem.uz/anime/${toSlugLocal(anime.title)}`;
+
+          const genres = anime.janrlar ? anime.janrlar.split(",").map((g: string) => g.trim()) : [];
+          const jsonLd = {
+            "@context": "https://schema.org",
+            "@type": "Movie",
+            "name": `${anime.title} - O'zbek tilida ko'rish - Animem.uz`,
+            "alternateName": anime.title,
+            "image": imageUrl,
+            "description": anime.description || "",
+            "aggregateRating": {
+              "@type": "AggregateRating",
+              "ratingValue": anime.rating || 9.2,
+              "bestRating": "10",
+              "worstRating": "1",
+              "reviewCount": anime.rating_count || 32
+            },
+            "genre": genres,
+            "dateCreated": anime.yil || 2026,
+            "provider": {
+              "@type": "Organization",
+              "name": "Animem Uz",
+              "url": "https://animem.uz"
+            }
+          };
+          jsonLdScript = `\n    <script type="application/ld+json">\n    ${JSON.stringify(jsonLd, null, 2)}\n    </script>`;
+        }
+      } 
+      // 2. Specific main pages
+      else if (reqPath === "/animelar" || reqPath === "/anime") {
+        titleText = "Barcha Animelar - O'zbek tilida tomosha qilish | Animem.uz";
+        descText = "Animem.uz portalidagi barcha o'zbekcha tarjima animelar katalogi. Sevimli animelaringizni HD sifatda bepul tomosha qiling.";
+      } else if (reqPath === "/chat") {
+        titleText = "Anime Chat va Muloqot | Animem.uz";
+        descText = "Animem.uz saytining anime ixlosmandlari uchun jonli chat va muhokama bo'limi. Do'stlar ortiring va do'stona suhbatlashing.";
+      } else if (reqPath === "/manga") {
+        titleText = "O'zbekcha Mangalar va Komikslar | Animem.uz";
+        descText = "O'zbek tiliga tarjima qilingan eng mashhur va eng so'nggi mangalarni onlayn o'qing.";
+      } else if (reqPath === "/top100") {
+        titleText = "Top 100 Eng Yaxshi Animelar | Animem.uz";
+        descText = "Tomoshabinlar va reyting bo'yicha saralangan eng sara Top 100 o'zbekcha tarjima animelar.";
+      } else if (reqPath === "/jadval") {
+        titleText = "Anime Qismlari Chiqish Jadvali | Animem.uz";
+        descText = "Hafta kunlari bo'yicha yangi o'zbekcha anime epizodlarining qulay chiqish jadvali.";
+      } else if (reqPath === "/yangi-chiqishlar") {
+        titleText = "Eng Yangi Chiqqan Qismlar | Animem.uz";
+        descText = "So'nggi soatlar va kunlarda chiqarilgan eng yangi o'zbekcha tarjima anime epizodlari.";
+      } else if (reqPath === "/sevimlilar") {
+        titleText = "Sevimli Animelarim | Animem.uz";
+        descText = "Siz saqlagan va yoqtirgan o'zbekcha animelar to'plami.";
+      } else if (reqPath === "/tarix") {
+        titleText = "Ko'rishlar Tarixi | Animem.uz";
+        descText = "Siz oxirgi marta tomosha qilgan anime va qismlar tarixi.";
+      } else {
+        // Genre check (e.g., /isekai, /fantasy, /jangari, /komediya, /mecha, /sarguzasht, /romantika)
+        const knownGenres: Record<string, string> = {
+          "isekai": "Isekai",
+          "fantasy": "Fentezi",
+          "sarguzasht": "Sarguzasht",
+          "jangari": "Jangari",
+          "komediya": "Komediya",
+          "dramatiya": "Drama",
+          "drama": "Drama",
+          "mecha": "Mеха (Mecha)",
+          "romantika": "Romantika",
+          "kriminal": "Kriminal",
+          "dahshat": "Dahshat",
+          "sport": "Sport",
+          "maktab": "Maktab"
+        };
+        const cleanPath = reqPath.replace(/^\//, "");
+        if (knownGenres[cleanPath]) {
+          const gName = knownGenres[cleanPath];
+          titleText = `${gName} animelar - O'zbek tilida ko'rish | Animem.uz`;
+          descText = `Eng sara ${gName} janridagi o'zbekcha tarjima animelar to'plami. Animem.uz saytida HD formatda bepul tomosha qiling.`;
+        }
+      }
+
+      // Replace metadata in HTML template
       html = html.replace(/<title>.*?<\/title>/gi, `<title>${titleText}</title>`);
-      
-      // Replace Meta Description
       html = html.replace(/<meta\s+name="description"\s+content=".*?"\s*\/?>/gi, `<meta name="description" content="${descText.replace(/"/g, '&quot;')}" />`);
       
-      // Replace OpenGraph meta tags
       html = html.replace(/<meta\s+property="og:url"\s+content=".*?"\s*\/?>/gi, `<meta property="og:url" content="${shareUrl}" />`);
       html = html.replace(/<meta\s+property="og:title"\s+content=".*?"\s*\/?>/gi, `<meta property="og:title" content="${titleText.replace(/"/g, '&quot;')}" />`);
       html = html.replace(/<meta\s+property="og:description"\s+content=".*?"\s*\/?>/gi, `<meta property="og:description" content="${descText.replace(/"/g, '&quot;')}" />`);
       html = html.replace(/<meta\s+property="og:image"\s+content=".*?"\s*\/?>/gi, `<meta property="og:image" content="${imageUrl}" />`);
       
-      // Replace Twitter meta tags
       html = html.replace(/<meta\s+property="twitter:url"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:url" content="${shareUrl}" />`);
       html = html.replace(/<meta\s+property="twitter:title"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:title" content="${titleText.replace(/"/g, '&quot;')}" />`);
       html = html.replace(/<meta\s+property="twitter:description"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:description" content="${descText.replace(/"/g, '&quot;')}" />`);
       html = html.replace(/<meta\s+property="twitter:image"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:image" content="${imageUrl}" />`);
-      
-      // Inject JSON-LD script before </head>
-      html = html.replace("</head>", `${jsonLdScript}\n  </head>`);
-      
-      // 6. Serve the customized HTML!
+
+      if (jsonLdScript) {
+        html = html.replace("</head>", `${jsonLdScript}\n  </head>`);
+      }
+
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       return res.status(200).send(html);
-      
     } catch (err) {
-      console.error("SEO server-side injection failed:", err);
-      const defaultIndexPath = fs.existsSync(path.join(distPath, "index.html"))
-        ? path.join(distPath, "index.html")
-        : path.join(process.cwd(), "index.html");
+      console.error("SEO server-side injection error:", err);
       return res.sendFile(defaultIndexPath);
     }
-  });
+  };
+
+  // Route for anime detail pages
+  app.get("/anime/:slug", handleDynamicSEO);
 
   // API 404 Fallback Handler - Ensures unhandled /api/* routes return JSON, never index.html
   app.all("/api/*", (req, res) => {
@@ -2032,7 +2160,7 @@ async function start() {
   } else {
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+      handleDynamicSEO(req, res);
     });
   }
 

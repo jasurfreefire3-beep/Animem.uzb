@@ -128,9 +128,21 @@ export default function AnimeDetails() {
 
   useEffect(() => {
     if (anime) {
-      document.title = `${anime.title} - O'zbek tilida ko'rish`;
+      document.title = `${anime.title} - O'zbek tilida ko'rish | Animem.uz`;
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) {
+        metaDesc.setAttribute('content', `${anime.title} o'zbek tilida HD formatda onlayn tomosha qilish. ${anime.description ? anime.description.substring(0, 180).trim() : ''}`);
+      }
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      if (ogTitle) {
+        ogTitle.setAttribute('content', `${anime.title} - O'zbek tilida ko'rish | Animem.uz`);
+      }
+      const ogImage = document.querySelector('meta[property="og:image"]');
+      if (ogImage && anime.image_url) {
+        ogImage.setAttribute('content', anime.image_url);
+      }
     } else {
-      document.title = "Animem Uz - Animelarni o'zbek tilida sifatli ko'rish";
+      document.title = "Animem Uz - O'zbekistondagi eng yirik anime portali";
     }
   }, [anime]);
 

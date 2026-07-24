@@ -25,13 +25,20 @@ function getEmbedUrl(url: string): { isEmbed: boolean; embedUrl: string } {
   if (!url) return { isEmbed: false, embedUrl: '' };
 
   const trimmed = url.trim();
+  const lowerUrl = trimmed.toLowerCase();
 
   // If it is an HTML iframe tag, extract the src URL
-  if (trimmed.toLowerCase().includes('<iframe')) {
+  if (lowerUrl.includes('<iframe')) {
     const srcMatch = trimmed.match(/src=["']([^"']+)["']/i);
     if (srcMatch) {
       return { isEmbed: true, embedUrl: srcMatch[1] };
     }
+  }
+
+  // If it's an .m3u8 stream, treat it as direct HLS stream for custom player (not iframe embed)
+  const isM3U8 = lowerUrl.includes('.m3u8') || lowerUrl.includes('format=m3u8') || lowerUrl.includes('/m3u8');
+  if (isM3U8) {
+    return { isEmbed: false, embedUrl: '' };
   }
 
   // YouTube checks
@@ -54,21 +61,22 @@ function getEmbedUrl(url: string): { isEmbed: boolean; embedUrl: string } {
   }
 
   // Check if it's already an embed link or a known third-party host
-  const lowerUrl = trimmed.toLowerCase();
-  const hasEmbedPattern = lowerUrl.includes('embed') || 
+  const hasEmbedPattern = (lowerUrl.includes('embed') || 
                            lowerUrl.includes('iframe') || 
                            lowerUrl.includes('player.vimeo.com') ||
                            lowerUrl.includes('sibnet.ru') || 
                            lowerUrl.includes('myvi.tv') ||
                            lowerUrl.includes('yandex.ru/video/preview') ||
                            lowerUrl.includes('rutube.ru/play/embed') ||
-                           lowerUrl.includes('mover.uz/video');
+                           lowerUrl.includes('mover.uz/video')) &&
+                           !lowerUrl.endsWith('.mp4') &&
+                           !lowerUrl.endsWith('.webm');
 
   if (hasEmbedPattern) {
     return { isEmbed: true, embedUrl: trimmed };
   }
 
-  // Treat all other web links (not matching embed patterns) as direct video/stream URLs in our custom player
+  // Treat all other web links as direct video/stream URLs in our custom player
   return { isEmbed: false, embedUrl: '' };
 }
 
@@ -210,20 +218,31 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
       hlsRef.current = null;
     }
 
-    const lowerUrl = url.toLowerCase();
+    // Always clear src attribute first so React/browser doesn't interfere with HLS media attachment
+    video.removeAttribute('src');
+
+    let streamUrl = (url || '').trim();
+    if (window.location.protocol === 'https:' && streamUrl.startsWith('http://')) {
+      streamUrl = streamUrl.replace('http://', 'https://');
+    }
+
+    const lowerUrl = streamUrl.toLowerCase();
     const isM3U8 = lowerUrl.includes('.m3u8') || lowerUrl.includes('format=m3u8') || lowerUrl.includes('/m3u8');
 
     if (isM3U8 && Hls.isSupported()) {
       const hls = new Hls({
-        maxMaxBufferLength: 30,
+        maxMaxBufferLength: 60,
         enableWorker: true,
-        lowLatencyMode: true,
+        lowLatencyMode: false,
+        backBufferLength: 90,
       });
       hlsRef.current = hls;
-      hls.loadSource(url);
+
+      hls.loadSource(streamUrl);
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setIsBuffering(false);
         const isAutoplay = localStorage.getItem('anime_settings_autoplay') !== 'false';
         if (isAutoplay) {
           video.play()
@@ -235,7 +254,7 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
         }
       });
 
-      hls.on(Hls.Events.ERROR, (event, data) => {
+      hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
@@ -247,15 +266,31 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
               hls.recoverMediaError();
               break;
             default:
-              console.error("Fatal HLS error, destroying:", data);
+              console.error("Fatal HLS error, destroying and falling back:", data);
               hls.destroy();
+              hlsRef.current = null;
+              video.src = streamUrl;
+              video.load();
               break;
           }
         }
       });
+    } else if (isM3U8 && video.canPlayType('application/vnd.apple.mpegurl')) {
+      // Native Safari / iOS HLS
+      video.src = streamUrl;
+      video.load();
+      const isAutoplay = localStorage.getItem('anime_settings_autoplay') !== 'false';
+      if (isAutoplay) {
+        video.play()
+          .then(() => setIsPlaying(true))
+          .catch((err) => {
+            console.log("Autoplay blocked:", err);
+            setIsPlaying(false);
+          });
+      }
     } else {
-      // standard source direct play
-      video.src = url;
+      // Standard video direct play
+      video.src = streamUrl;
       video.load();
       const isAutoplay = localStorage.getItem('anime_settings_autoplay') !== 'false';
       if (isAutoplay) {
@@ -980,7 +1015,6 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
           {/* Video Tag */}
           <video 
             ref={videoRef}
-            src={url}
             poster={poster}
             className="w-full h-full object-contain cursor-pointer"
             playsInline
@@ -995,6 +1029,10 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
             }}
             onPause={() => setIsPlaying(false)}
             onPlay={() => setIsPlaying(true)}
+            onError={(e) => {
+              console.error("Video element error:", e);
+              setIsBuffering(false);
+            }}
           />
 
           {/* Loading/Buffering feedback */}

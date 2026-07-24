@@ -10,6 +10,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [loadingComments, setLoadingComments] = useState(true);
   const [bannerIndex, setBannerIndex] = useState(0);
+  useEffect(() => {
+    document.title = "Animem Uz - O'zbekistondagi eng yirik anime portali";
+  }, []);
 
   useEffect(() => {
     const fetchHomeData = async () => {

@@ -14,6 +14,14 @@ export default function Animelar() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
+    if (genreFilter && genreFilter !== 'Barchasi') {
+      document.title = `${genreFilter} animelar - O'zbek tilida ko'rish | Animem.uz`;
+    } else {
+      document.title = "Barcha Animelar - O'zbek tilida tomosha qilish | Animem.uz";
+    }
+  }, [genreFilter]);
+
+  useEffect(() => {
     const fetchAnimes = async () => {
       try {
         const API_BASE = '';
