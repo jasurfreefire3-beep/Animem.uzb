@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#facc15" />
+      <stop offset="100%" stop-color="#eab308" />
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#15803d" />
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="40" fill="url(#bgGrad)" />
+  <rect width="192" height="192" x="4" y="4" rx="36" fill="none" stroke="#334155" stroke-width="2" />
+  <circle cx="100" cy="82" r="50" fill="none" stroke="url(#goldGrad)" stroke-width="6" stroke-dasharray="12 6" />
+  <circle cx="100" cy="82" r="40" fill="url(#blueGrad)" />
+  <path d="M 115 65 C 115 55, 85 55, 85 70 C 85 85, 115 80, 115 95 C 115 110, 85 110, 85 100" fill="none" stroke="url(#goldGrad)" stroke-width="10" stroke-linecap="round" />
+  <polygon points="100,24 103,32 111,32 105,37 107,45 100,40 93,45 95,37 89,32 97,32" fill="#facc15" />
+  <rect x="18" y="142" width="164" height="38" rx="10" fill="url(#greenGrad)" />
+  <text x="100" y="167" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="18" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">SPINBETTER</text>
+</svg>

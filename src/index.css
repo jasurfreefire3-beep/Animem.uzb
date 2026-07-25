@@ -8,12 +8,19 @@
 }
 
 body {
-  background-color: #000000;
+  background-color: #0b0b0e;
   color: #ffffff;
   min-height: 100vh;
   overflow-x: hidden;
   background-attachment: fixed;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Smart TV D-Pad Remote Focus Ring */
+:focus-visible {
+  outline: 3px solid #ff006a !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
 }
 
 @layer utilities {

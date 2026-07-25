@@ -6,12 +6,12 @@ import { Download, X } from 'lucide-react';
 const AFFILIATE_URL = "https://spin-b.com/mwGY27?tag=d_221320m_722889c_cz_AufBZvd8JsHCVwcFAHWmcL";
 const TEN_MINUTES_MS = 10 * 60 * 1000; // 10 minutes
 
-// Base64 fallback so the logo ALWAYS displays even if static image file fails on Render.com or CDNs
-const SPINBETTER_LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCADyAMgBAREA/8QAFgABAQEAAAAAAAAAAAAAAAAAAAEC/9oACAEBAAAAACa0oAAAAAAAAAAAAAAAAGGl0AABOebpIAtAABMNyylq4y0oAJqM3YAAAC133AAACa/8QAGAEBAQEBAQAAAAAAAAAAAAAAAAEEAwX/2gAIAQIAAAAA53eS25i9xAM5o11yqI1eRrnEa4s03g1yS9ZfUf/EABgBAQEBAQEAAAAAAAAAAAAAAAABAgME/9oACAEAEAAAAAAtACpYAAAAAE0AAAAD/8QAIhAAAQEJAQACAwAAAAAAAAAAAAECEBECAxAgMEBQEjFh/9oACAEBAAE/AP3QxM8X0zL8I4IWWvWvWvWvd2U452aIoj3b6a9a9a9f24I4/v9aI/NfB32f22j6107x9m3f/Z";
+// High quality clean SVG fallback data URL for SpinBetter
+const SPINBETTER_LOGO_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' width='200' height='200'><rect width='200' height='200' rx='40' fill='%230f172a'/><circle cx='100' cy='80' r='45' fill='%231d4ed8'/><circle cx='100' cy='80' r='45' fill='none' stroke='%23facc15' stroke-width='6' stroke-dasharray='10 5'/><path d='M 115 65 C 115 55, 85 55, 85 70 C 85 85, 115 80, 115 95 C 115 110, 85 110, 85 100' fill='none' stroke='%23facc15' stroke-width='9' stroke-linecap='round'/><rect x='15' y='140' width='170' height='40' rx='10' fill='%2322c55e'/><text x='100' y='166' font-family='sans-serif' font-weight='900' font-size='18' fill='%23ffffff' text-anchor='middle'>SPINBETTER</text></svg>";
 
 export default function SpinBetterAdModal() {
   const [isOpen, setIsOpen] = useState(false);
-  const [imgSrc, setImgSrc] = useState("/spinbetter_logo.jpg");
+  const [imgSrc, setImgSrc] = useState("/spinbetter_logo.svg");
   const location = useLocation();
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function SpinBetterAdModal() {
               <div className="relative shrink-0">
                 <img
                   src={imgSrc}
-                  onError={() => setImgSrc(SPINBETTER_LOGO_BASE64)}
+                  onError={() => setImgSrc(SPINBETTER_LOGO_FALLBACK)}
                   alt="SpinBetter Logo"
                   className="w-16 h-16 md:w-20 md:h-20 rounded-2xl object-cover shadow-md border border-gray-100 group-hover:scale-105 transition-transform"
                 />

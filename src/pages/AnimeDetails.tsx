@@ -29,6 +29,12 @@ export default function AnimeDetails() {
   const [ratingSummary, setRatingSummary] = useState<{ average: number; total: number; distribution: Record<number, number> } | null>(null);
   const [similarAnimes, setSimilarAnimes] = useState<Anime[]>([]);
 
+  useEffect(() => {
+    if (!user) {
+      navigate('/register');
+    }
+  }, [user, navigate]);
+
   const fetchRatingSummary = async (animeId: number) => {
     try {
       const res = await fetch(`${API_BASE}/api/animes/${animeId}/ratings-summary`);
@@ -346,6 +352,10 @@ export default function AnimeDetails() {
   });
 
   const handleEpisodeClick = (ep: any) => {
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
+    }
     setActiveEpisode(ep.number);
     setCurrentVideoUrl(ep.video_url || '');
     window.scrollTo({ top: document.getElementById('player-section')?.offsetTop || 0, behavior: 'smooth' });
@@ -918,10 +928,10 @@ export default function AnimeDetails() {
 
               {/* Titles */}
               <h3 className="text-xl font-extrabold text-white mb-2 uppercase tracking-wide">
-                Baholash va Sharh Yozish
+                Ro'yxatdan O'tish Shart!
               </h3>
               <p className="text-white/60 text-sm mb-8 leading-relaxed max-w-xs mx-auto">
-                Animega o'z bahoingizni berish va fikringizni bildirish uchun avval tizimga kirishingiz kerak.
+                Anime tomosha qilish, baholash va izoh qoldirish uchun tizimga kiring yoki ro'yxatdan o'ting.
               </p>
 
               {/* Actions */}

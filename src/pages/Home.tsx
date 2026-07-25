@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom';
 import { Anime, toSlug } from '../types';
 import { Star, PlayCircle, Calendar, Play, Clock, Grid, MessageSquare, ChevronLeft, ChevronRight, TrendingUp, Info, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import AnimeCard from '../components/AnimeCard';
+import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
+  const { user } = useAuth();
   const [animes, setAnimes] = useState<Anime[]>([]);
   const [recentComments, setRecentComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -188,14 +191,14 @@ export default function Home() {
               {/* Row 5: Action Buttons */}
               <div className="flex flex-wrap items-center gap-4 pt-2">
                 <Link 
-                  to={`/anime/${toSlug(featuredAnime.title)}`}
+                  to={user ? `/anime/${toSlug(featuredAnime.title)}` : '/register'}
                   className="bg-[#ff006a] hover:bg-[#d40058] text-white px-6 py-3 rounded-sm font-black flex items-center gap-2 shadow-lg shadow-[#ff006a]/20 transition-all text-xs uppercase tracking-wider cursor-pointer"
                 >
                   <Play className="w-4 h-4 fill-current text-white" /> 
                   TOMOSHA QILISH
                 </Link>
                 <Link 
-                  to={`/anime/${toSlug(featuredAnime.title)}`}
+                  to={user ? `/anime/${toSlug(featuredAnime.title)}` : '/register'}
                   className="bg-black/40 hover:bg-black/60 border border-white/10 text-white px-6 py-3 rounded-sm font-bold flex items-center gap-2 transition-all text-xs uppercase tracking-wider cursor-pointer"
                 >
                   <Info className="w-4 h-4" /> 
@@ -248,37 +251,7 @@ export default function Home() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
                 >
-                  <Link to={`/anime/${toSlug(anime.title)}`} title={`${anime.title} - O'zbek tilida ko'rish`} className="group block relative">
-                    <div className="relative aspect-[3/4] overflow-hidden mb-2 rounded-sm bg-[#111]">
-                      <img 
-                        src={anime.image_url} 
-                        alt={`${anime.title} - O'zbek tilida ko'rish`} 
-                        title={`${anime.title} - O'zbek tilida ko'rish`}
-                        className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300" 
-                      />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                        <div className="w-12 h-12 bg-[#ff006a] rounded-full flex items-center justify-center transform scale-90 group-hover:scale-100 transition-transform duration-300 shadow-[0_0_15px_rgba(255,0,106,0.5)]">
-                          <Play className="w-5 h-5 text-white fill-current ml-1" />
-                        </div>
-                      </div>
-                      <div className="absolute bottom-2 left-2 bg-[#ff006a] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow">
-                        EP {anime.qismlar_soni || 12}
-                      </div>
-                      <div className="absolute top-2 left-2 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm flex items-center gap-1">
-                        <Star className="w-2.5 h-2.5 text-yellow-400 fill-current" />
-                        {Number(anime.rating || 8.5).toFixed(1)}
-                      </div>
-                    </div>
-                    <h3 className="text-white font-medium text-sm line-clamp-1 group-hover:text-[#ff006a] transition-colors">
-                      {anime.title}
-                    </h3>
-                    <div className="flex items-center justify-between mt-0.5">
-                      <p className="text-white/40 text-[11px] truncate">TV Series • {anime.yil || '2026'}</p>
-                      <span className="text-white/40 text-[10px] flex items-center gap-0.5 font-mono shrink-0">
-                        <Eye className="w-3 h-3 text-[#ff006a]/80" /> {anime.korishlar || 0}
-                      </span>
-                    </div>
-                  </Link>
+                  <AnimeCard anime={anime} />
                 </motion.div>
               ))}
             </div>
@@ -296,7 +269,7 @@ export default function Home() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {updateList.map((anime, idx) => (
                   <Link 
-                    to={`/anime/${toSlug(anime.title)}`} 
+                    to={user ? `/anime/${toSlug(anime.title)}` : '/register'} 
                     title={`${anime.title} - O'zbek tilida ko'rish`}
                     key={anime.id} 
                     className="flex items-center gap-3 p-2 rounded hover:bg-[#222] transition-colors group"

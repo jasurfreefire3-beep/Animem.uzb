@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Anime, toSlug } from '../types';
 import { Clock, Star, Play, PlayCircle, Calendar, Eye } from 'lucide-react';
 import { motion } from 'motion/react';
+import AnimeCard from '../components/AnimeCard';
 
 export default function YangiChiqishlar() {
   const [animes, setAnimes] = useState<Anime[]>([]);
@@ -55,51 +56,8 @@ export default function YangiChiqishlar() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: idx * 0.02 }}
-            className="group relative"
           >
-            <Link to={`/anime/${toSlug(anime.title)}`} title={`${anime.title} - O'zbek tilida ko'rish`} className="block">
-              <div className="relative aspect-[3/4] overflow-hidden mb-2 rounded-sm bg-[#111] border border-[#222]">
-                <img
-                  src={anime.image_url}
-                  alt={`${anime.title} - O'zbek tilida ko'rish`}
-                  title={`${anime.title} - O'zbek tilida ko'rish`}
-                  className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300"
-                />
-                
-                {/* Visual hover overlays */}
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                  <div className="w-11 h-11 bg-[#ff006a] rounded-full flex items-center justify-center transform scale-90 group-hover:scale-100 transition-transform duration-300 shadow-[0_0_15px_rgba(255,0,106,0.5)]">
-                    <Play className="w-4 h-4 text-white fill-current ml-0.5" />
-                  </div>
-                </div>
-
-                {/* Badges */}
-                <div className="absolute bottom-2 left-2 bg-[#ff006a] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm">
-                  EP {anime.qismlar_soni || 12}
-                </div>
-                
-                <div className="absolute top-2 left-2 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm flex items-center gap-1 border border-white/5">
-                  <Star className="w-2.5 h-2.5 text-yellow-400 fill-current" />
-                  {Number(anime.rating || 8.5).toFixed(1)}
-                </div>
-
-                {/* Newly Added tag */}
-                <div className="absolute top-2 right-2 bg-green-500 text-white text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-sm">
-                  Yangi
-                </div>
-              </div>
-
-              {/* Title & metadata */}
-              <h3 className="text-white font-bold text-sm line-clamp-1 group-hover:text-[#ff006a] transition-colors">
-                {anime.title}
-              </h3>
-              <div className="flex justify-between items-center text-[10px] text-white/40 mt-1 font-mono">
-                <span className="flex items-center gap-1">
-                  <Eye className="w-3.5 h-3.5 text-[#ff006a]/85" /> {anime.korishlar || 0}
-                </span>
-                <span>{anime.yil || '2026'}</span>
-              </div>
-            </Link>
+            <AnimeCard anime={anime} showBadge="Yangi" />
           </motion.div>
         ))}
 

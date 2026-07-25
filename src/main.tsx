@@ -4,21 +4,32 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import './index.css';
 import { AuthProvider } from './context/AuthContext.tsx';
+import ErrorBoundary from './components/ErrorBoundary.tsx';
 
-// Synchronous theme check to prevent flickering on load
-const savedTheme = localStorage.getItem('theme');
-if (savedTheme === 'light') {
-  document.documentElement.classList.add('light');
-} else {
-  document.documentElement.classList.remove('light');
+// TV & Safe Storage theme check
+try {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light') {
+    document.documentElement.classList.add('light');
+  } else {
+    document.documentElement.classList.remove('light');
+  }
+} catch (e) {
+  console.warn("Storage not accessible for theme check:", e);
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </BrowserRouter>
-  </StrictMode>
-);
+const rootElement = document.getElementById('root');
+if (rootElement) {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </BrowserRouter>
+      </ErrorBoundary>
+    </StrictMode>
+  );
+}
+

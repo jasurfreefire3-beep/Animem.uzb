@@ -32,10 +32,43 @@
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/logo.png" />
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@videojs/html/cdn/video.js"></script>
+
+    <!-- Smart TV Browser Compatibility & Crash Polyfills -->
+    <script>
+      (function() {
+        if (typeof window !== 'undefined') {
+          if (typeof globalThis === 'undefined') { window.globalThis = window; }
+          try {
+            window.localStorage.getItem('_tv_test');
+          } catch (e) {
+            var _store = {};
+            window.localStorage = {
+              getItem: function(k) { return _store[k] || null; },
+              setItem: function(k, v) { _store[k] = String(v); },
+              removeItem: function(k) { delete _store[k]; },
+              clear: function() { _store = {}; }
+            };
+          }
+          if (typeof window.ResizeObserver === 'undefined') {
+            window.ResizeObserver = function() {
+              return { observe: function(){}, unobserve: function(){}, disconnect: function(){} };
+            };
+          }
+          if (!window.requestAnimationFrame) {
+            window.requestAnimationFrame = function(cb) { return setTimeout(cb, 16); };
+          }
+          window.addEventListener('error', function(e) {
+            console.warn("TV Browser script notice:", e.message);
+          });
+          window.addEventListener('unhandledrejection', function(e) {
+            console.warn("TV Browser async notice:", e.reason);
+          });
+        }
+      })();
+    </script>
   </head>
-  <body>
-    <div id="root"></div>
+  <body class="bg-[#0b0b0e] text-white min-h-screen">
+    <div id="root" class="min-h-screen bg-[#0b0b0e]"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
