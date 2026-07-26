@@ -29,12 +29,6 @@ export default function AnimeDetails() {
   const [ratingSummary, setRatingSummary] = useState<{ average: number; total: number; distribution: Record<number, number> } | null>(null);
   const [similarAnimes, setSimilarAnimes] = useState<Anime[]>([]);
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/register');
-    }
-  }, [user, navigate]);
-
   const fetchRatingSummary = async (animeId: number) => {
     try {
       const res = await fetch(`${API_BASE}/api/animes/${animeId}/ratings-summary`);

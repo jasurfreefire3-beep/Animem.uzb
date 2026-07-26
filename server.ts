@@ -347,7 +347,81 @@ interface VerificationRecord {
 }
 
 const verificationCodes: Record<string, VerificationRecord> = {};
-const RESEND_API_KEY = process.env.RESEND_API_KEY || "re_U5PzHxXk_6Ng3krrsu3TNKCRyywxx9Kmt";
+const passwordResetCodes: Record<string, VerificationRecord> = {};
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "re_SeJuCp73_DFV7UrQUQwVRESKmKitvo2bg";
+
+// Helper function to build ultra-stylish Anime-themed HTML Email Template
+function buildAnimeEmailHtml(title: string, subtitle: string, code: string, note: string) {
+  const logoUrl = "https://s3.devspace.uz/tirikchilik/local/avatar/14265509_206448_avatar.jpeg";
+  const bannerUrl = "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80";
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Animem.uz</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #07070a; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #ffffff;">
+      <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #07070a; padding: 30px 10px;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 520px; background-color: #12121a; border-radius: 16px; overflow: hidden; border: 1px solid #ff006a44; box-shadow: 0 10px 40px rgba(255, 0, 106, 0.2);">
+              
+              <!-- Anime Banner Image Header -->
+              <tr>
+                <td style="position: relative; background: #181824 url('${bannerUrl}') center/cover no-repeat; height: 160px; text-align: center; vertical-align: bottom;">
+                  <div style="background: linear-gradient(to bottom, rgba(18, 18, 26, 0.2), #12121a); padding: 20px 0 0 0;">
+                    <!-- Logo Badge -->
+                    <img src="${logoUrl}" alt="Animem.uz Logo" width="84" height="84" style="border-radius: 50%; border: 3px solid #ff006a; box-shadow: 0 0 20px rgba(255, 0, 106, 0.8); object-fit: cover; display: inline-block;" />
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Content Area -->
+              <tr>
+                <td style="padding: 25px 30px; text-align: center;">
+                  <h1 style="margin: 0 0 8px 0; font-size: 26px; font-weight: 900; color: #ffffff; text-transform: uppercase; letter-spacing: 2px;">
+                    ANIMEM<span style="color: #ff006a;">.UZ</span>
+                  </h1>
+                  <p style="margin: 0 0 20px 0; font-size: 14px; color: #a0a0b8; line-height: 1.5;">
+                    ${subtitle}
+                  </p>
+
+                  <!-- Code Box -->
+                  <div style="background: #181826; border: 2px dashed #ff006a; border-radius: 14px; padding: 22px 15px; margin: 20px 0; text-align: center; box-shadow: inset 0 0 15px rgba(255, 0, 106, 0.1);">
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #ff006a; font-weight: 800; margin-bottom: 8px;">
+                      ⚡ ${title} ⚡
+                    </div>
+                    <div style="font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 900; letter-spacing: 12px; color: #ffffff; text-shadow: 0 0 12px #ff006a;">
+                      ${code}
+                    </div>
+                  </div>
+
+                  <p style="margin: 20px 0 0 0; font-size: 12px; color: #787898; line-height: 1.5;">
+                    ${note}
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: #0b0b12; padding: 16px 30px; text-align: center; border-top: 1px solid #1a1a28;">
+                  <p style="margin: 0; font-size: 11px; color: #626278;">
+                    © ${new Date().getFullYear()} Animem.uz - Barcha huquqlar himoyalangan.
+                  </p>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
 
 // Send 6-digit verification code via Resend
 app.post("/api/auth/send-code", async (req, res) => {
@@ -389,19 +463,15 @@ app.post("/api/auth/send-code", async (req, res) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Animem.uz <onboarding@resend.dev>",
+          from: "Animem.uz <noreply@animem.uz>",
           to: [cleanEmail],
           subject: "Animem.uz - Tasdiqlash kodi: " + code,
-          html: `
-            <div style="font-family: Arial, sans-serif; background-color: #0b0b0e; color: #ffffff; padding: 30px; border-radius: 8px; max-width: 500px; margin: 0 auto; border: 1px solid #222;">
-              <h2 style="color: #ff006a; margin-bottom: 10px; text-transform: uppercase;">Animem.uz</h2>
-              <p style="font-size: 14px; color: #ccc;">Ro'yxatdan o'tish uchun tasdiqlash kodingiz:</p>
-              <div style="background: #18181c; padding: 15px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #ff006a; border-radius: 6px; margin: 20px 0; border: 1px solid #ff006a33;">
-                ${code}
-              </div>
-              <p style="font-size: 12px; color: #777;">Ushbu kod 10 daqiqa davomida amal qiladi. Agarda siz ro'yxatdan o'tishni so'ramagan bo'lsangiz, ushbu xabarni e'tiborsiz qoldiring.</p>
-            </div>
-          `,
+          html: buildAnimeEmailHtml(
+            "TASDIQLASH KODI",
+            "Ro'yxatdan o'tishni yakunlash uchun quyidagi tasdiqlash kodini kiriting:",
+            code,
+            "Ushbu kod 10 daqiqa davomida amal qiladi. Agarda siz ro'yxatdan o'tishni so'ramagan bo'lsangiz, ushbu xabarni e'tiborsiz qoldiring."
+          ),
         }),
       });
 
@@ -447,6 +517,179 @@ app.post("/api/auth/send-code", async (req, res) => {
   } catch (error: any) {
     console.error("Send code error:", error);
     res.status(500).json({ error: "Tasdiqlash kodini yuborishda xatolik yuz berdi" });
+  }
+});
+
+// FORGOT PASSWORD: Send Code
+app.post("/api/auth/forgot-password-send-code", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !email.includes("@")) {
+      return res.status(400).json({ error: "Yaroqli email manzilini kiriting!" });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Check if user exists in DB
+    const [existing]: any = await dbQuery("SELECT id FROM users WHERE email = ?", [cleanEmail]);
+    if (!existing || existing.length === 0) {
+      return res.status(400).json({ error: "Ushbu email manzili bilan foydalanuvchi topilmadi!" });
+    }
+
+    // Generate 6-digit random code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store code in memory for 10 minutes
+    passwordResetCodes[cleanEmail] = {
+      code,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+      verified: false,
+    };
+
+    console.log(`[Forgot Password] Reset code for ${cleanEmail}: ${code}`);
+
+    // Send email via Resend
+    let emailSent = false;
+    let emailError = "";
+
+    try {
+      const resendResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "Animem.uz <noreply@animem.uz>",
+          to: [cleanEmail],
+          subject: "Animem.uz - Parolni tiklash kodi: " + code,
+          html: buildAnimeEmailHtml(
+            "PAROLNI TIKLASH KODI",
+            "Parolingizni tiklash va yangisini o'rnatish uchun tasdiqlash kodi:",
+            code,
+            "Ushbu kod 10 daqiqa davomida amal qiladi. Agarda siz parolni tiklashni so'ramagan bo'lsangiz, ushbu xabarni e'tiborsiz qoldiring."
+          ),
+        }),
+      });
+
+      const resendData = await resendResponse.json();
+      console.log("[Resend API Forgot Password Response]:", resendData);
+
+      if (resendResponse.ok) {
+        emailSent = true;
+      } else {
+        if (typeof resendData.message === "string") {
+          emailError = resendData.message;
+        } else if (resendData.error && typeof resendData.error.message === "string") {
+          emailError = resendData.error.message;
+        } else {
+          emailError = "Resend API xatosi";
+        }
+      }
+    } catch (sendErr: any) {
+      console.error("[Resend Forgot Password Fetch Error]:", sendErr);
+      emailError = sendErr.message || "Email serveriga ulanishda xatolik";
+    }
+
+    if (!emailSent) {
+      return res.status(400).json({
+        error: `Emailga parolni tiklash kodini yuborib bo'lmadi: ${emailError}`,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Parolni tiklash kodi email manzilingizga yuborildi! Pochtani (va Spam papkasini) tekshiring.",
+    });
+  } catch (error: any) {
+    console.error("Forgot password send code error:", error);
+    res.status(500).json({ error: "Parolni tiklash kodini yuborishda xatolik yuz berdi" });
+  }
+});
+
+// FORGOT PASSWORD: Verify Code
+app.post("/api/auth/forgot-password-verify-code", async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) {
+      return res.status(400).json({ error: "Email va kodni kiriting!" });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanCode = code.toString().trim();
+
+    const record = passwordResetCodes[cleanEmail];
+    if (!record) {
+      return res.status(400).json({ error: "Tiklash kodi topilmadi yoki yuborilmagan!" });
+    }
+
+    if (Date.now() > record.expiresAt) {
+      delete passwordResetCodes[cleanEmail];
+      return res.status(400).json({ error: "Tiklash kodi muddati o'tgan! Qayta kod so'rang." });
+    }
+
+    if (record.code !== cleanCode) {
+      return res.status(400).json({ error: "Tasdiqlash kodi xato kiritildi!" });
+    }
+
+    record.verified = true;
+
+    return res.json({
+      success: true,
+      message: "Tasdiqlash kodi to'g'ri kiritildi!",
+    });
+  } catch (error: any) {
+    console.error("Verify reset code error:", error);
+    res.status(500).json({ error: "Kodni tekshirishda xatolik yuz berdi" });
+  }
+});
+
+// FORGOT PASSWORD: Complete Reset
+app.post("/api/auth/forgot-password-reset", async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ error: "Barcha maydonlarni to'ldiring!" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: "Yangi parol kamida 6 ta belgidan iborat bo'lishi kerak!" });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanCode = code.toString().trim();
+
+    const record = passwordResetCodes[cleanEmail];
+    if (!record || !record.verified || record.code !== cleanCode) {
+      return res.status(400).json({ error: "Kodingiz tasdiqlanmagan yoki xato!" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await dbQuery("UPDATE users SET password = ? WHERE email = ?", [hashedPassword, cleanEmail]);
+
+    delete passwordResetCodes[cleanEmail];
+
+    // Fetch user info for login
+    const [users]: any = await dbQuery("SELECT id, name, email, role, avatar_url FROM users WHERE email = ?", [cleanEmail]);
+    const user = users[0];
+
+    const tokenPayload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "30d" });
+
+    return res.json({
+      success: true,
+      message: "Parolingiz muvaffaqiyatli yangilandi!",
+      token,
+      user,
+    });
+  } catch (error: any) {
+    console.error("Forgot password reset error:", error);
+    res.status(500).json({ error: "Parolni o'zgartirishda xatolik yuz berdi" });
   }
 });
 

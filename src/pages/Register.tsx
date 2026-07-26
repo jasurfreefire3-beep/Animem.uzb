@@ -324,8 +324,12 @@ export default function Register() {
       >
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="w-14 h-14 bg-[#ff006a]/10 rounded-full flex items-center justify-center mx-auto mb-3 border border-[#ff006a]/20 text-[#ff006a]">
-            <UserPlus className="w-7 h-7" />
+          <div className="relative w-16 h-16 mx-auto mb-3">
+            <img 
+              src="https://s3.devspace.uz/tirikchilik/local/avatar/14265509_206448_avatar.jpeg" 
+              alt="Animem.uz Logo" 
+              className="w-16 h-16 rounded-full object-cover border-2 border-[#ff006a] shadow-[0_0_20px_rgba(255,0,106,0.5)]"
+            />
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Ro'yxatdan o'tish</h1>
           <p className="text-white/50 text-xs sm:text-sm mt-1">Animem.uz jamiyatiga xush kelibsiz!</p>
