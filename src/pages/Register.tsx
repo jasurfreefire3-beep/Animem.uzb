@@ -1,16 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, Mail, Lock, User, Phone, X, Loader2, Send } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, ArrowLeft, Loader2, CheckCircle2, Send, ShieldCheck, KeyRound, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 
 export default function Register() {
-  const [name, setName] = useState('');
+  const [signupMethod, setSignupMethod] = useState<'options' | 'email'>('options');
+  const [emailStep, setEmailStep] = useState<'email' | 'code' | 'details'>('email');
+
   const [email, setEmail] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [receivedDevCode, setReceivedDevCode] = useState('');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
   const [error, setError] = useState('');
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -37,7 +48,7 @@ export default function Register() {
 
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data.error || 'Google login failed');
+          throw new Error(data.error || 'Google orqali kirishda xatolik');
         }
 
         login(data.token, data.user);
@@ -48,7 +59,7 @@ export default function Register() {
         console.error("Redirect auth error:", err);
         if (err.code === 'auth/unauthorized-domain') {
           setError(
-            `Google tizimiga kirish xatosi (unauthorized domain): Ushbu domen Firebase ruxsat etilgan domenlar ro'yxatida yo'q. Uni faollashtirish uchun: \n1. Firebase Konsoliga kiring -> Authentication -> Settings -> Authorized Domains bo'limiga o'ting. \n2. Quyidagi domenni ruxsat etilganlar ro'yxatiga qo'shing: \n👉 ${window.location.hostname}`
+            `Google tizimiga kirish xatosi (unauthorized domain): Ushbu domen Firebase ruxsat etilgan domenlar ro'yxatida yo'q.`
           );
         } else if (err.code !== 'auth/popup-closed-by-user') {
           setError(err.message || 'Google orqali kirishda xatolik');
@@ -84,7 +95,6 @@ export default function Register() {
             setTelegramProgress(3);
             clearInterval(interval);
             
-            // Wait 2.5 seconds to show the beautiful checkmark animation, then login!
             setTimeout(() => {
               login(data.token, data.user);
               setShowTelegramModal(false);
@@ -105,7 +115,7 @@ export default function Register() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [telegramSessionId, showTelegramModal, telegramStatus]);
+  }, [telegramSessionId, showTelegramModal, telegramStatus, login, navigate]);
 
   const handleTelegramLoginStart = async () => {
     try {
@@ -124,32 +134,6 @@ export default function Register() {
       }
     } catch (err: any) {
       setError(err.message || 'Telegram orqali kirishni boshlashda xatolik');
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    try {
-      const API_BASE = '';
-      const res = await fetch(`${API_BASE}/api/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Registration failed');
-      }
-
-      login(data.token, data.user);
-      navigate('/');
-    } catch (err: any) {
-      setError(err.message || 'Registration failed');
     }
   };
 
@@ -183,9 +167,7 @@ export default function Register() {
       navigate('/');
     } catch (err: any) {
       console.error("Google login popup error:", err);
-      if (err.code === 'auth/popup-closed-by-user') {
-        return;
-      }
+      if (err.code === 'auth/popup-closed-by-user') return;
       if (err.code === 'auth/popup-blocked') {
         try {
           await signInWithRedirect(auth, googleProvider);
@@ -194,136 +176,495 @@ export default function Register() {
           console.error("Redirect fallback error:", redirectErr);
         }
       }
-      if (err.code === 'auth/unauthorized-domain') {
-        setError(
-          `Google tizimiga kirish xatosi (unauthorized domain): Ushbu domen Firebase ruxsat etilgan domenlar ro'yxatida yo'q. Uni faollashtirish uchun: \n1. Firebase Konsoliga kiring -> Authentication -> Settings -> Authorized Domains bo'limiga o'ting. \n2. Quyidagi domenni ruxsat etilganlar ro'yxatiga qo'shing: \n👉 ${window.location.hostname}`
-        );
-      } else {
-        setError(err.message || 'Google orqali kirishda xatolik');
-      }
+      setError(err.message || 'Google orqali kirishda xatolik');
     }
   };
 
+  // Step 1: Send verification code to Email via Resend
+  const handleSendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setResendMessage('');
 
+    if (!email || !email.includes('@')) {
+      setError('Iltimos, to\'g\'ri email manzilini kiriting!');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Kodni yuborishda xatolik yuz berdi');
+      }
+
+      if (data.devCode) {
+        setReceivedDevCode(data.devCode);
+        setVerificationCode(data.devCode);
+      }
+      if (data.warning) {
+        setResendMessage(data.warning);
+      } else {
+        setResendMessage('6 xonali tasdiqlash kodi emailga yuborildi! Pochtani (va Spam papkasini) tekshiring.');
+      }
+
+      setEmailStep('code');
+    } catch (err: any) {
+      setError(err.message || 'Kodni yuborishda xatolik yuz berdi');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend code handler
+  const handleResendCode = async () => {
+    setError('');
+    setResendMessage('');
+    setResending(true);
+    try {
+      const res = await fetch('/api/auth/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Kodni qayta yuborishda xatolik');
+      }
+
+      if (data.devCode) {
+        setReceivedDevCode(data.devCode);
+        setVerificationCode(data.devCode);
+      }
+      if (data.warning) {
+        setResendMessage(data.warning);
+      } else {
+        setResendMessage('Yangi 6 xonali kod emailga yuborildi!');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Kodni qayta yuborishda xatolik');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  // Step 2: Verify 6-digit code
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!verificationCode || verificationCode.trim().length !== 6) {
+      setError('Iltimos, emailga yuborilgan 6 xonali tasdiqlash kodini to\'liq kiriting!');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: verificationCode }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Kodni tekshirishda xatolik');
+      }
+
+      setEmailStep('details');
+    } catch (err: any) {
+      setError(err.message || 'Tasdiqlash kodi xato');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 3: Complete Registration
+  const handleCompleteRegistration = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!name.trim()) {
+      setError('Iltimos, ismingizni kiriting!');
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      setError('Parol kamida 6 ta belgidan iborat bo\'lishi kerak!');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Kiritilgan parollar bir-biriga mos kelmadi!');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/register-verified', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          email,
+          password,
+          code: verificationCode,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Ro\'yxatdan o\'tishda xatolik');
+      }
+
+      login(data.token, data.user);
+      navigate('/');
+    } catch (err: any) {
+      setError(err.message || 'Ro\'yxatdan o\'tishda xatolik');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center">
+    <div className="min-h-[75vh] flex items-center justify-center p-4">
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md bg-[#111] border border-[#222] rounded-sm p-8"
+        className="w-full max-w-md bg-[#111] border border-[#222] rounded-md p-6 sm:p-8 shadow-2xl relative"
       >
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-[#ff006a]/10 rounded-sm flex items-center justify-center mx-auto mb-4 border border-[#ff006a]/20">
-            <UserPlus className="w-8 h-8 text-[#ff006a]" />
+        {/* Header */}
+        <div className="text-center mb-6">
+          <div className="w-14 h-14 bg-[#ff006a]/10 rounded-full flex items-center justify-center mx-auto mb-3 border border-[#ff006a]/20 text-[#ff006a]">
+            <UserPlus className="w-7 h-7" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2 uppercase tracking-wide">Create Account</h1>
-          <p className="text-white/50 text-sm">Join the largest anime community</p>
+          <h1 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Ro'yxatdan o'tish</h1>
+          <p className="text-white/50 text-xs sm:text-sm mt-1">Animem.uz jamiyatiga xush kelibsiz!</p>
         </div>
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-bold p-3 rounded-sm mb-6 text-center">
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold p-3 rounded-sm mb-5 text-center leading-relaxed">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-white/50 mb-1.5 uppercase">Username</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User className="h-4 w-4 text-white/30" />
+        {resendMessage && (
+          <div className="bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-bold p-3 rounded-sm mb-5 text-center">
+            {resendMessage}
+          </div>
+        )}
+
+        {/* ----------------- METHOD OPTIONS VIEW ----------------- */}
+        {signupMethod === 'options' && (
+          <div className="space-y-3.5">
+            <p className="text-xs font-bold text-white/50 text-center uppercase tracking-wider mb-2">
+              Ro'yxatdan o'tish usulini tanlang:
+            </p>
+
+            {/* Option 1: Email */}
+            <button
+              onClick={() => {
+                setSignupMethod('email');
+                setEmailStep('email');
+                setError('');
+              }}
+              className="w-full bg-[#18181c] hover:bg-[#222] border border-[#333] hover:border-[#ff006a]/50 p-4 rounded-sm transition-all text-left flex items-center gap-4 group cursor-pointer"
+            >
+              <div className="w-10 h-10 bg-[#ff006a]/10 border border-[#ff006a]/30 rounded-sm flex items-center justify-center text-[#ff006a] group-hover:scale-105 transition-transform">
+                <Mail className="w-5 h-5" />
               </div>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a]/50 transition-colors"
-                placeholder="Otaku123"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-white/50 mb-1.5 uppercase">Email</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Mail className="h-4 w-4 text-white/30" />
+              <div className="flex-1">
+                <div className="text-sm font-black text-white group-hover:text-[#ff006a] transition-colors">
+                  Email bilan ro'yxatdan o'tish
+                </div>
+                <div className="text-[11px] text-white/40">
+                  Emailga 6 xonali kod yuboriladi
+                </div>
               </div>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a]/50 transition-colors"
-                placeholder="you@example.com"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-white/50 mb-1.5 uppercase">Password</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-4 w-4 text-white/30" />
+            </button>
+
+            {/* Option 2: Google */}
+            <button
+              onClick={handleGoogleLogin}
+              className="w-full bg-white text-black hover:bg-gray-100 p-4 rounded-sm transition-all text-left flex items-center gap-4 cursor-pointer font-bold"
+            >
+              <div className="w-10 h-10 bg-gray-100 rounded-sm flex items-center justify-center">
+                <svg viewBox="0 0 24 24" className="w-5 h-5">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                </svg>
               </div>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a]/50 transition-colors"
-                placeholder="••••••••"
-              />
-            </div>
+              <div className="flex-1">
+                <div className="text-sm font-black text-gray-900">
+                  Google bilan kirish
+                </div>
+                <div className="text-[11px] text-gray-600 font-normal">
+                  Google akkunt orqali bir bosishda
+                </div>
+              </div>
+            </button>
+
+            {/* Option 3: Telegram */}
+            <button
+              onClick={handleTelegramLoginStart}
+              className="w-full bg-[#0088cc] hover:bg-[#0077b5] text-white p-4 rounded-sm transition-all text-left flex items-center gap-4 cursor-pointer"
+            >
+              <div className="w-10 h-10 bg-white/10 rounded-sm flex items-center justify-center">
+                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current text-white">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.24-5.54 3.65-.52.36-.97.53-1.34.52-.41-.01-1.21-.23-1.8-.42-.73-.24-1.32-.37-1.27-.78.02-.21.31-.43.87-.67 3.42-1.49 5.71-2.48 6.86-2.96 3.27-1.37 3.95-1.61 4.4-.1.01.03.02.05.02.08.01.12.01.25-.01.37z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-black text-white">
+                  Telegram bilan kirish
+                </div>
+                <div className="text-[11px] text-white/70">
+                  Telegram bot orqali xavfsiz avtorizatsiya
+                </div>
+              </div>
+            </button>
           </div>
+        )}
 
-          <button
-            type="submit"
-            className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-6"
-          >
-            Sign Up
-          </button>
-        </form>
+        {/* ----------------- EMAIL FLOW STEP 1: ENTER EMAIL ----------------- */}
+        {signupMethod === 'email' && emailStep === 'email' && (
+          <div>
+            <button
+              onClick={() => {
+                setSignupMethod('options');
+                setError('');
+              }}
+              className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white mb-4 transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={14} /> Boshqa usulni tanlash
+            </button>
 
-        <div className="mt-6">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#222]"></div>
-            </div>
-            <div className="relative flex justify-center text-xs uppercase tracking-widest font-bold">
-              <span className="bg-[#111] px-2 text-white/40">yoki</span>
-            </div>
+            <form onSubmit={handleSendCode} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase">
+                  Email manzilingiz
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="h-4 w-4 text-white/30" />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors text-sm font-medium"
+                    placeholder="emailingiz@gmail.com"
+                  />
+                </div>
+                <p className="text-[11px] text-white/40 mt-1.5">
+                  Ushbu emailga 6 xonali tasdiqlash kodi yuboriladi.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Kod yuborilmoqda...
+                  </>
+                ) : (
+                  <>
+                    <Send size={14} />
+                    Kod yuborish
+                  </>
+                )}
+              </button>
+            </form>
           </div>
-          
-          <button
-            onClick={handleGoogleLogin}
-            className="w-full bg-white text-black hover:bg-gray-100 font-bold py-3 px-4 rounded-sm transition-colors mt-6 flex items-center justify-center gap-3 cursor-pointer"
-          >
-            <svg viewBox="0 0 24 24" className="w-5 h-5">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-            </svg>
-            Google bilan kirish
-          </button>
+        )}
 
-          <button
-            type="button"
-            onClick={handleTelegramLoginStart}
-            className="w-full bg-[#0088cc] hover:bg-[#0077b5] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-3 flex items-center justify-center gap-3 cursor-pointer"
-          >
-            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.24-5.54 3.65-.52.36-.97.53-1.34.52-.41-.01-1.21-.23-1.8-.42-.73-.24-1.32-.37-1.27-.78.02-.21.31-.43.87-.67 3.42-1.49 5.71-2.48 6.86-2.96 3.27-1.37 3.95-1.61 4.4-.1.01.03.02.05.02.08.01.12.01.25-.01.37z" />
-            </svg>
-            Telegram bilan kirish
-          </button>
-        </div>
+        {/* ----------------- EMAIL FLOW STEP 2: ENTER CODE ----------------- */}
+        {signupMethod === 'email' && emailStep === 'code' && (
+          <div>
+            <button
+              onClick={() => {
+                setEmailStep('email');
+                setError('');
+                setResendMessage('');
+              }}
+              className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white mb-4 transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={14} /> Emailni o'zgartirish ({email})
+            </button>
 
-        <div className="mt-8 text-center text-xs font-bold text-white/50">
-          Already have an account?{' '}
+            <form onSubmit={handleVerifyCode} className="space-y-4">
+              <div>
+                <div className="text-center mb-4 p-3 bg-white/5 border border-white/10 rounded-sm">
+                  <p className="text-xs text-white/70">
+                    <strong className="text-white">{email}</strong> manziliga 6 xonali kod yuborildi.
+                  </p>
+                  <p className="text-[11px] text-white/40 mt-1">
+                    Pochtani va Spam papkasini tekshiring
+                  </p>
+                  {receivedDevCode && (
+                    <div className="mt-2.5 p-2 bg-[#ff006a]/10 border border-[#ff006a]/30 rounded text-[#ff006a] text-xs font-bold flex flex-col items-center gap-1">
+                      <span className="text-[11px] text-white/70 font-normal">Tasdiqlash kodi:</span>
+                      <span className="text-white font-mono text-lg tracking-[6px] bg-black/50 px-3 py-1 rounded border border-[#ff006a]/40">{receivedDevCode}</span>
+                    </div>
+                  )}
+                </div>
+
+                <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase text-center">
+                  6 xonali tasdiqlash kodi
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <KeyRound className="h-4 w-4 text-white/30" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                    className="w-full bg-[#000] border border-[#333] rounded-sm pl-10 pr-4 py-3 text-center text-xl font-black text-[#ff006a] tracking-[10px] placeholder-white/20 focus:outline-none focus:border-[#ff006a] transition-colors"
+                    placeholder="123456"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Tekshirilmoqda...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck size={16} />
+                    Kodni tasdiqlash
+                  </>
+                )}
+              </button>
+
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  disabled={resending}
+                  onClick={handleResendCode}
+                  className="text-xs text-[#ff006a] hover:underline disabled:opacity-50 cursor-pointer font-bold"
+                >
+                  {resending ? 'Qayta yuborilmoqda...' : 'Kodni qayta yuborish'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* ----------------- EMAIL FLOW STEP 3: ENTER DETAILS ----------------- */}
+        {signupMethod === 'email' && emailStep === 'details' && (
+          <div>
+            <div className="mb-4 p-2.5 bg-green-500/10 border border-green-500/30 rounded-sm flex items-center gap-2 text-green-400 text-xs font-bold">
+              <CheckCircle2 size={16} className="shrink-0" />
+              <span>Email tasdiqlandi: {email}</span>
+            </div>
+
+            <form onSubmit={handleCompleteRegistration} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase">
+                  Ismingiz yoki Taxallusingiz
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className="h-4 w-4 text-white/30" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors text-sm"
+                    placeholder="Ismingizni kiriting"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase">
+                  Parol yaratish
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-4 w-4 text-white/30" />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors text-sm"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase">
+                  Parolni tasdiqlash
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-4 w-4 text-white/30" />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors text-sm"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-4 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Ro'yxatdan o'tkazilmoqda...
+                  </>
+                ) : (
+                  "Ro'yxatdan o'tishni yakunlash"
+                )}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Footer Link */}
+        <div className="mt-6 pt-5 border-t border-[#222] text-center text-xs font-bold text-white/50">
+          Allaqachon hisobingiz bormi?{' '}
           <Link to="/login" className="text-[#ff006a] hover:text-[#d40058] transition-colors uppercase tracking-wide">
-            Sign in
+            Kirish
           </Link>
         </div>
       </motion.div>
@@ -336,7 +677,6 @@ export default function Register() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             className="w-full max-w-md bg-[#0e0e0e] border border-white/10 rounded-lg overflow-hidden shadow-2xl relative"
           >
-            {/* Close */}
             <button
               onClick={() => setShowTelegramModal(false)}
               className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors p-1 bg-white/5 hover:bg-white/10 rounded-full cursor-pointer z-10"
@@ -346,7 +686,6 @@ export default function Register() {
 
             {telegramProgress < 3 ? (
               <div className="p-6 sm:p-8">
-                {/* Header */}
                 <div className="text-center mb-6">
                   <div className="w-12 h-12 bg-[#0088cc]/10 rounded-full flex items-center justify-center mx-auto mb-3 border border-[#0088cc]/20">
                     <svg viewBox="0 0 24 24" className="w-6 h-6 text-[#0088cc] fill-current">
@@ -357,7 +696,6 @@ export default function Register() {
                   <p className="text-white/40 text-xs mt-1">Xavfsiz va tezkor avtorizatsiya tizimi</p>
                 </div>
 
-                {/* Progress Indicators */}
                 <div className="flex justify-center items-center gap-2 mb-8">
                   <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold border transition-colors ${
                     telegramProgress === 1 
@@ -378,7 +716,6 @@ export default function Register() {
                   </div>
                 </div>
 
-                {/* Step contents */}
                 {telegramProgress === 1 ? (
                   <div className="space-y-4 text-center">
                     <p className="text-xs text-white/70 leading-relaxed max-w-xs mx-auto">
@@ -409,7 +746,6 @@ export default function Register() {
                 )}
               </div>
             ) : (
-              /* Success checkmark view with beautiful drawing green path checkmark animation */
               <div className="p-8 text-center flex flex-col items-center justify-center min-h-[300px]">
                 <div className="relative w-24 h-24 mb-6 flex items-center justify-center">
                   <motion.div

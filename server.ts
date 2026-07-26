@@ -339,6 +339,216 @@ io.on("connection", async (socket) => {
 
 // --- API ROUTES ---
 
+// Resend Email Verification Store
+interface VerificationRecord {
+  code: string;
+  expiresAt: number;
+  verified: boolean;
+}
+
+const verificationCodes: Record<string, VerificationRecord> = {};
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "re_U5PzHxXk_6Ng3krrsu3TNKCRyywxx9Kmt";
+
+// Send 6-digit verification code via Resend
+app.post("/api/auth/send-code", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !email.includes("@")) {
+      return res.status(400).json({ error: "Yaroqli email manzilini kiriting!" });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Check if email already exists in DB
+    const [existing]: any = await dbQuery("SELECT id FROM users WHERE email = ?", [cleanEmail]);
+    if (existing && existing.length > 0) {
+      return res.status(400).json({ error: "Ushbu email bilan allaqachon ro'yxatdan o'tilgan! Kirish sahifasidan foydalaning." });
+    }
+
+    // Generate 6-digit random code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store code in memory for 10 minutes
+    verificationCodes[cleanEmail] = {
+      code,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+      verified: false,
+    };
+
+    console.log(`[Resend Auth] Verification code for ${cleanEmail}: ${code}`);
+
+    // Send email using Resend API
+    let emailSent = false;
+    let emailError = "";
+
+    try {
+      const resendResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "Animem.uz <onboarding@resend.dev>",
+          to: [cleanEmail],
+          subject: "Animem.uz - Tasdiqlash kodi: " + code,
+          html: `
+            <div style="font-family: Arial, sans-serif; background-color: #0b0b0e; color: #ffffff; padding: 30px; border-radius: 8px; max-width: 500px; margin: 0 auto; border: 1px solid #222;">
+              <h2 style="color: #ff006a; margin-bottom: 10px; text-transform: uppercase;">Animem.uz</h2>
+              <p style="font-size: 14px; color: #ccc;">Ro'yxatdan o'tish uchun tasdiqlash kodingiz:</p>
+              <div style="background: #18181c; padding: 15px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #ff006a; border-radius: 6px; margin: 20px 0; border: 1px solid #ff006a33;">
+                ${code}
+              </div>
+              <p style="font-size: 12px; color: #777;">Ushbu kod 10 daqiqa davomida amal qiladi. Agarda siz ro'yxatdan o'tishni so'ramagan bo'lsangiz, ushbu xabarni e'tiborsiz qoldiring.</p>
+            </div>
+          `,
+        }),
+      });
+
+      const resendData = await resendResponse.json();
+      console.log("[Resend API Response]:", resendData);
+
+      if (resendResponse.ok) {
+        emailSent = true;
+      } else {
+        if (typeof resendData.message === "string") {
+          emailError = resendData.message;
+        } else if (resendData.error && typeof resendData.error.message === "string") {
+          emailError = resendData.error.message;
+        } else if (typeof resendData.error === "string") {
+          emailError = resendData.error;
+        } else {
+          emailError = "Resend API cheklovi";
+        }
+      }
+    } catch (sendErr: any) {
+      console.error("[Resend Fetch Error]:", sendErr);
+      emailError = sendErr.message || "Email serveriga ulanishda xatolik";
+    }
+
+    if (!emailSent) {
+      console.warn(`[Resend Auth Warning] Email sending failed for ${cleanEmail}: ${emailError}. Dev code is ${code}`);
+      
+      const friendlyWarning = emailError.includes("testing emails") || emailError.includes("validation_error")
+        ? "Resend bepul (test) rejimida bo'lgani uchun xat faqat biriktirilgan pochtaga yuboriladi. Tasdiqlash kodi pastda ko'rsatildi va kiritildi!"
+        : `Email yuborishda muammo bo'ldi (${emailError}). Tasdiqlash kodi ekranda ko'rsatildi!`;
+
+      return res.status(200).json({
+        success: true,
+        emailSent: false,
+        warning: friendlyWarning,
+        devCode: code,
+        message: "Tasdiqlash kodi shakllantirildi.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      emailSent: true,
+      message: "Tasdiqlash kodi email manzilingizga yuborildi!",
+    });
+  } catch (error: any) {
+    console.error("Send code error:", error);
+    res.status(500).json({ error: "Tasdiqlash kodini yuborishda xatolik yuz berdi" });
+  }
+});
+
+// Verify 6-digit code
+app.post("/api/auth/verify-code", async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) {
+      return res.status(400).json({ error: "Email va kodni kiriting!" });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanCode = code.toString().trim();
+
+    const record = verificationCodes[cleanEmail];
+    if (!record) {
+      return res.status(400).json({ error: "Tasdiqlash kodi topilmadi yoki yuborilmagan! Qayta kod so'rang." });
+    }
+
+    if (Date.now() > record.expiresAt) {
+      delete verificationCodes[cleanEmail];
+      return res.status(400).json({ error: "Tasdiqlash kodi muddati o'tgan! Qayta kod so'rang." });
+    }
+
+    if (record.code !== cleanCode) {
+      return res.status(400).json({ error: "Tasdiqlash kodi xato kiritildi!" });
+    }
+
+    // Mark as verified
+    record.verified = true;
+
+    return res.json({
+      success: true,
+      message: "Tasdiqlash kodi to'g'ri kiritildi!",
+    });
+  } catch (error: any) {
+    console.error("Verify code error:", error);
+    res.status(500).json({ error: "Kodni tekshirishda xatolik yuz berdi" });
+  }
+});
+
+// Complete registration for email verified user
+app.post("/api/auth/register-verified", async (req, res) => {
+  try {
+    const { name, email, password, code } = req.body;
+    if (!name || !email || !password || !code) {
+      return res.status(400).json({ error: "Barcha maydonlarni to'ldiring!" });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanCode = code.toString().trim();
+
+    const record = verificationCodes[cleanEmail];
+    if (!record || !record.verified || record.code !== cleanCode) {
+      return res.status(400).json({ error: "Email manzilingiz hali tasdiqlanmagan yoki xato kod!" });
+    }
+
+    // Check if user already exists
+    const [existing]: any = await dbQuery("SELECT id FROM users WHERE email = ?", [cleanEmail]);
+    if (existing && existing.length > 0) {
+      return res.status(400).json({ error: "Ushbu email bilan allaqachon ro'yxatdan o'tilgan!" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const role = cleanEmail === "mosinjonovjasurbek28@gmail.com" ? "admin" : "user";
+
+    const [result]: any = await dbQuery(
+      "INSERT INTO users (name, email, password, role, avatar_url) VALUES (?, ?, ?, ?, NULL)",
+      [name, cleanEmail, hashedPassword, role]
+    );
+
+    delete verificationCodes[cleanEmail];
+
+    const userPayload = {
+      id: result.insertId,
+      name,
+      email: cleanEmail,
+      role,
+      avatar_url: null,
+    };
+
+    const tokenPayload = {
+      id: result.insertId,
+      email: cleanEmail,
+      role,
+    };
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "30d" });
+
+    return res.status(201).json({
+      token,
+      user: userPayload,
+    });
+  } catch (error: any) {
+    console.error("Register verified error:", error);
+    res.status(500).json({ error: "Ro'yxatdan o'tishda xatolik yuz berdi" });
+  }
+});
+
 // Auth Register
 app.post("/api/auth/register", async (req, res) => {
   try {
