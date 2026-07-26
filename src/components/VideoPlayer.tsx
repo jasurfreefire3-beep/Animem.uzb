@@ -1026,7 +1026,10 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
       `}</style>
 
 
-      <div className="relative w-full aspect-video rounded-2xl overflow-hidden shadow-2xl bg-black border border-white/10 group">
+      <div 
+        onContextMenu={(e) => e.preventDefault()}
+        className="relative w-full aspect-video rounded-2xl overflow-hidden shadow-2xl bg-black border border-white/10 group select-none"
+      >
         {isEmbed ? (
           <iframe
             src={embedUrl}
@@ -1035,6 +1038,7 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             referrerPolicy="no-referrer"
+            onContextMenu={(e) => e.preventDefault()}
           />
         ) : (
           <div 
@@ -1042,6 +1046,7 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
             className={`container ${showControls ? 'show-controls' : ''} ${isFullscreen ? 'fullscreen' : ''}`}
             onMouseMove={handleMouseMove}
             onMouseLeave={() => isPlaying && setShowControls(false)}
+            onContextMenu={(e) => e.preventDefault()}
           >
             <div className="wrapper">
               {/* Timeline */}
@@ -1139,6 +1144,9 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
               poster={poster}
               className="w-full h-full object-contain cursor-pointer"
               playsInline
+              controlsList="nodownload noremoteplayback"
+              disablePictureInPicture
+              onContextMenu={(e) => e.preventDefault()}
               onClick={handleVideoClick}
               onDoubleClick={handleVideoDoubleClick}
               onTimeUpdate={handleTimeUpdate}
