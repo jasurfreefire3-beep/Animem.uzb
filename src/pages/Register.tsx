@@ -12,7 +12,6 @@ export default function Register() {
 
   const [email, setEmail] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
-  const [receivedDevCode, setReceivedDevCode] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -204,16 +203,7 @@ export default function Register() {
         throw new Error(data.error || 'Kodni yuborishda xatolik yuz berdi');
       }
 
-      if (data.devCode) {
-        setReceivedDevCode(data.devCode);
-        setVerificationCode(data.devCode);
-      }
-      if (data.warning) {
-        setResendMessage(data.warning);
-      } else {
-        setResendMessage('6 xonali tasdiqlash kodi emailga yuborildi! Pochtani (va Spam papkasini) tekshiring.');
-      }
-
+      setResendMessage('6 xonali tasdiqlash kodi emailga yuborildi! Pochtani (va Spam papkasini) tekshiring.');
       setEmailStep('code');
     } catch (err: any) {
       setError(err.message || 'Kodni yuborishda xatolik yuz berdi');
@@ -239,15 +229,7 @@ export default function Register() {
         throw new Error(data.error || 'Kodni qayta yuborishda xatolik');
       }
 
-      if (data.devCode) {
-        setReceivedDevCode(data.devCode);
-        setVerificationCode(data.devCode);
-      }
-      if (data.warning) {
-        setResendMessage(data.warning);
-      } else {
-        setResendMessage('Yangi 6 xonali kod emailga yuborildi!');
-      }
+      setResendMessage('Yangi 6 xonali kod emailga yuborildi!');
     } catch (err: any) {
       setError(err.message || 'Kodni qayta yuborishda xatolik');
     } finally {
@@ -515,12 +497,6 @@ export default function Register() {
                   <p className="text-[11px] text-white/40 mt-1">
                     Pochtani va Spam papkasini tekshiring
                   </p>
-                  {receivedDevCode && (
-                    <div className="mt-2.5 p-2 bg-[#ff006a]/10 border border-[#ff006a]/30 rounded text-[#ff006a] text-xs font-bold flex flex-col items-center gap-1">
-                      <span className="text-[11px] text-white/70 font-normal">Tasdiqlash kodi:</span>
-                      <span className="text-white font-mono text-lg tracking-[6px] bg-black/50 px-3 py-1 rounded border border-[#ff006a]/40">{receivedDevCode}</span>
-                    </div>
-                  )}
                 </div>
 
                 <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase text-center">

@@ -427,25 +427,22 @@ app.post("/api/auth/send-code", async (req, res) => {
     }
 
     if (!emailSent) {
-      console.warn(`[Resend Auth Warning] Email sending failed for ${cleanEmail}: ${emailError}. Dev code is ${code}`);
+      console.error(`[Resend Auth Error] Email sending failed for ${cleanEmail}: ${emailError}`);
       
-      const friendlyWarning = emailError.includes("testing emails") || emailError.includes("validation_error")
-        ? "Resend bepul (test) rejimida bo'lgani uchun xat faqat biriktirilgan pochtaga yuboriladi. Tasdiqlash kodi pastda ko'rsatildi va kiritildi!"
-        : `Email yuborishda muammo bo'ldi (${emailError}). Tasdiqlash kodi ekranda ko'rsatildi!`;
+      let friendlyError = emailError;
+      if (emailError.includes("testing emails") || emailError.includes("validation_error")) {
+        friendlyError = "Resend (bepul rejim) faqat biriktirilgan pochtaga xat yuborishga ruxsat beradi. Iltimos, o'zingizning Resend hisobingizga ulangan pochtadan foydalaning yoki domen biriktiring.";
+      }
 
-      return res.status(200).json({
-        success: true,
-        emailSent: false,
-        warning: friendlyWarning,
-        devCode: code,
-        message: "Tasdiqlash kodi shakllantirildi.",
+      return res.status(400).json({
+        error: `Emailga tasdiqlash kodini yuborib bo'lmadi: ${friendlyError}`,
       });
     }
 
     return res.json({
       success: true,
       emailSent: true,
-      message: "Tasdiqlash kodi email manzilingizga yuborildi!",
+      message: "Tasdiqlash kodi email manzilingizga yuborildi! Pochtani (va Spam papkasini) tekshiring.",
     });
   } catch (error: any) {
     console.error("Send code error:", error);
