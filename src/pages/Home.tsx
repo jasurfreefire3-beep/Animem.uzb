@@ -322,24 +322,35 @@ export default function Home() {
                    Fikrlar hozircha yo'q
                  </div>
                ) : (
-                 recentComments.map((c, i) => (
-                   <Link 
-                     to={`/anime/${toSlug(c.anime_title)}`}
-                     key={i} 
-                     className="block group bg-[#000] p-3 rounded-sm border border-[#222] hover:border-[#ff006a]/30 transition-colors"
-                   >
-                     <div className="flex items-center gap-2 mb-2">
-                        <div className="w-5 h-5 rounded bg-[#333] flex items-center justify-center text-[9px] font-bold text-white uppercase">
-                          {(c.user_name || 'U').charAt(0)}
-                        </div>
-                        <span className="text-white/50 text-[11px] font-medium">{c.user_name}</span>
-                     </div>
-                     <div>
-                       <p className="text-white/80 text-xs leading-relaxed group-hover:text-white transition-colors line-clamp-2">{c.content}</p>
-                       <span className="text-[#ff006a]/70 text-[10px] uppercase font-bold mt-2 block">{c.anime_title}</span>
-                     </div>
-                   </Link>
-                 ))
+                 recentComments.map((c, i) => {
+                   const avatarSrc = c.user_avatar || c.avatar_url;
+                   return (
+                     <Link 
+                       to={`/anime/${toSlug(c.anime_title)}`}
+                       key={i} 
+                       className="block group bg-[#000] p-3 rounded-sm border border-[#222] hover:border-[#ff006a]/30 transition-colors"
+                     >
+                       <div className="flex items-center gap-2 mb-2">
+                          {avatarSrc ? (
+                            <img
+                              src={avatarSrc}
+                              alt={c.user_name}
+                              className="w-5 h-5 rounded-full object-cover border border-[#ff006a]/30 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-5 h-5 rounded bg-[#333] flex items-center justify-center text-[9px] font-bold text-white uppercase shrink-0">
+                              {(c.user_name || 'U').charAt(0)}
+                            </div>
+                          )}
+                          <span className="text-white/50 text-[11px] font-medium">{c.user_name}</span>
+                       </div>
+                       <div>
+                         <p className="text-white/80 text-xs leading-relaxed group-hover:text-white transition-colors line-clamp-2">{c.content}</p>
+                         <span className="text-[#ff006a]/70 text-[10px] uppercase font-bold mt-2 block">{c.anime_title}</span>
+                       </div>
+                     </Link>
+                   );
+                 })
                )}
             </div>
             <Link to="/chat" className="mt-4 block w-full py-2.5 text-center text-xs font-bold text-white bg-[#222] hover:bg-[#333] rounded-sm transition-colors">

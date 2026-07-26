@@ -39,6 +39,8 @@ export interface Comment {
   anime_id: string;
   user_id: string;
   user_name: string;
+  user_avatar?: string;
+  avatar_url?: string;
   content: string;
   created_at: string;
 }
@@ -47,6 +49,8 @@ export interface Message {
   id: string;
   user_id: string;
   user_name: string;
+  user_avatar?: string;
+  avatar_url?: string;
   content: string;
   reply_to_id?: string | null;
   reply_to_name?: string | null;

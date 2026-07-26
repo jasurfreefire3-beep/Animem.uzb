@@ -173,6 +173,7 @@ export default function Chat() {
         ) : (
           messages.map((msg, i) => {
             const isMe = msg.user_id === user.id;
+            const avatarSrc = msg.user_avatar || msg.avatar_url;
             return (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -180,7 +181,18 @@ export default function Chat() {
                 key={msg.id || i}
                 className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'}`}
               >
-                <div className="flex items-baseline space-x-2 mb-1">
+                <div className="flex items-center space-x-2 mb-1">
+                  {avatarSrc ? (
+                    <img 
+                      src={avatarSrc} 
+                      alt={msg.user_name} 
+                      className="w-5 h-5 rounded-full object-cover border border-[#ff006a]/30 shrink-0" 
+                    />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-[#1c1c1e] border border-[#ff006a]/20 flex items-center justify-center text-[10px] text-[#ff006a] font-bold uppercase shrink-0">
+                      {msg.user_name.charAt(0)}
+                    </div>
+                  )}
                   <span className={`text-xs font-bold ${isMe ? 'text-[#ff006a]' : 'text-[#4fd1c5]'}`}>{msg.user_name}</span>
                   <span className="text-[9px] text-white/30">{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                 </div>

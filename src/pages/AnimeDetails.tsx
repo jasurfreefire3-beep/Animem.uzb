@@ -778,9 +778,17 @@ export default function AnimeDetails() {
                {user ? (
                   <div className="bg-[#1a1a1a] p-4 rounded-sm border border-[#222] mb-6">
                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-6 h-6 bg-[#333] rounded-sm flex items-center justify-center text-[10px] font-bold text-white">
-                           {user.name.charAt(0).toUpperCase()}
-                        </div>
+                        {user.avatar_url ? (
+                           <img 
+                              src={user.avatar_url} 
+                              alt={user.name} 
+                              className="w-6 h-6 rounded-full object-cover border border-[#ff006a]/40 shrink-0" 
+                           />
+                        ) : (
+                           <div className="w-6 h-6 bg-[#333] rounded-sm flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                              {user.name.charAt(0).toUpperCase()}
+                           </div>
+                        )}
                         <span className="text-white/70 text-xs font-medium">{user.name}</span>
                      </div>
                      <form onSubmit={handleCommentSubmit}>
@@ -808,18 +816,28 @@ export default function AnimeDetails() {
                )}
 
                <div className="space-y-3">
-                  {comments.map((comment, idx) => (
-                     <motion.div 
-                        initial={{ opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.05 }}
-                        key={comment.id} 
-                        className="bg-[#1a1a1a] p-4 rounded-sm border border-[#222] flex gap-3 relative group"
-                     >
-                        <div className="shrink-0 w-8 h-8 bg-[#333] rounded-sm flex items-center justify-center text-white/50 text-xs font-bold">
-                           {comment.user_name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
+                  {comments.map((comment, idx) => {
+                     const avatarSrc = comment.user_avatar || comment.avatar_url;
+                     return (
+                        <motion.div 
+                           initial={{ opacity: 0, y: 5 }}
+                           animate={{ opacity: 1, y: 0 }}
+                           transition={{ delay: idx * 0.05 }}
+                           key={comment.id} 
+                           className="bg-[#1a1a1a] p-4 rounded-sm border border-[#222] flex gap-3 relative group"
+                        >
+                           {avatarSrc ? (
+                              <img 
+                                 src={avatarSrc} 
+                                 alt={comment.user_name} 
+                                 className="shrink-0 w-8 h-8 rounded-full object-cover border border-[#ff006a]/30" 
+                              />
+                           ) : (
+                              <div className="shrink-0 w-8 h-8 bg-[#333] rounded-sm flex items-center justify-center text-white/50 text-xs font-bold">
+                                 {comment.user_name.charAt(0).toUpperCase()}
+                              </div>
+                           )}
+                           <div className="flex-1 min-w-0">
                            <div className="flex items-center gap-2 mb-1.5">
                               <span className="text-white/90 font-medium text-xs">{comment.user_name}</span>
                                {user && (comment.user_id === user.id || user.role === 'admin') && (
@@ -836,7 +854,8 @@ export default function AnimeDetails() {
                            <p className="text-white/70 text-sm leading-relaxed">{comment.content}</p>
                         </div>
                      </motion.div>
-                  ))}
+                  );
+               })}
                   {comments.length === 0 && (
                      <div className="text-center text-white/40 text-sm py-8 bg-[#1a1a1a] rounded-sm border border-[#222]">
                         No comments yet.

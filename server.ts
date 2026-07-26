@@ -286,7 +286,10 @@ io.on("connection", async (socket) => {
   try {
     // Send previous 50 messages to the newly connected user
     const [rows]: any = await dbQuery(
-      "SELECT * FROM messages ORDER BY id DESC LIMIT 50"
+      `SELECT m.*, u.avatar_url AS user_avatar 
+       FROM messages m 
+       LEFT JOIN users u ON m.user_id = u.id 
+       ORDER BY m.id DESC LIMIT 50`
     );
     // Reverse rows so they are in chronological order
     const previousMessages = [...rows].reverse();
@@ -301,7 +304,6 @@ io.on("connection", async (socket) => {
     try {
       const { user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content } = data;
 
-      
       const [result]: any = await dbQuery(
         "INSERT INTO messages (user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content) VALUES (?, ?, ?, ?, ?, ?)",
         [
@@ -314,10 +316,21 @@ io.on("connection", async (socket) => {
         ]
       );
 
+      let user_avatar = null;
+      if (user_id) {
+        try {
+          const [uRows]: any = await dbQuery("SELECT avatar_url FROM users WHERE id = ?", [user_id]);
+          if (uRows && uRows[0]) {
+            user_avatar = uRows[0].avatar_url;
+          }
+        } catch (e) {}
+      }
+
       const insertedMessage = {
         id: result.insertId,
         user_id,
         user_name,
+        user_avatar,
         content,
         reply_to_id,
         reply_to_name,
@@ -1201,10 +1214,10 @@ app.put("/api/user/profile", authenticateToken, async (req: any, res) => {
 app.get("/api/comments/recent", async (req, res) => {
   try {
     const [rows]: any = await dbQuery(`
-      SELECT c.*, u.name AS user_name, a.title AS anime_title 
+      SELECT c.*, u.name AS user_name, u.avatar_url AS user_avatar, a.title AS anime_title 
       FROM comments c 
-      JOIN users u ON c.user_id = u.id 
-      JOIN animes a ON c.anime_id = a.id 
+      LEFT JOIN users u ON c.user_id = u.id 
+      LEFT JOIN animes a ON c.anime_id = a.id 
       ORDER BY c.id DESC 
       LIMIT 10
     `);
@@ -1410,9 +1423,9 @@ app.get("/api/animes/:id/comments", async (req, res) => {
   const id = req.params.id;
   try {
     const [rows]: any = await dbQuery(
-      `SELECT c.*, u.name AS user_name 
+      `SELECT c.*, u.name AS user_name, u.avatar_url AS user_avatar 
        FROM comments c 
-       JOIN users u ON c.user_id = u.id 
+       LEFT JOIN users u ON c.user_id = u.id 
        WHERE c.anime_id = ? 
        ORDER BY c.id DESC`,
       [id]
@@ -1444,11 +1457,20 @@ app.post("/api/animes/:id/comments", authenticateToken, async (req: any, res) =>
       [animeId, userId, content]
     );
 
+    let userAvatar = req.user.avatar_url || null;
+    try {
+      const [uRows]: any = await dbQuery("SELECT avatar_url FROM users WHERE id = ?", [userId]);
+      if (uRows && uRows.length > 0 && uRows[0].avatar_url) {
+        userAvatar = uRows[0].avatar_url;
+      }
+    } catch (e) {}
+
     res.status(201).json({
       id: result.insertId,
       anime_id: Number(animeId),
       user_id: userId,
       user_name: req.user.name,
+      user_avatar: userAvatar,
       content,
       created_at: new Date().toISOString(),
     });
@@ -1974,8 +1996,24 @@ app.post("/api/chat/messages", authenticateToken, async (req: any, res: any) => 
       ]
     );
 
-    const [rows]: any = await dbQuery("SELECT * FROM messages WHERE id = ?", [result.insertId]);
-    const insertedMessage = rows[0];
+    const [rows]: any = await dbQuery(
+      `SELECT m.*, u.avatar_url AS user_avatar 
+       FROM messages m 
+       LEFT JOIN users u ON m.user_id = u.id 
+       WHERE m.id = ?`,
+      [result.insertId]
+    );
+    const insertedMessage = rows[0] || {
+      id: result.insertId,
+      user_id: user_id || req.user.id,
+      user_name: user_name || req.user.name,
+      user_avatar: req.user.avatar_url || null,
+      content: content.trim(),
+      reply_to_id: reply_to_id || null,
+      reply_to_name: reply_to_name || null,
+      reply_to_content: reply_to_content || null,
+      created_at: new Date().toISOString(),
+    };
 
     // Broadcast new message to everyone
     io.emit("newMessage", insertedMessage);
