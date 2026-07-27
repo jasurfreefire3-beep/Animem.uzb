@@ -471,7 +471,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY || "re_SeJuCp73_DFV7UrQUQwVRES
 
 // Helper function to build ultra-stylish Anime-themed HTML Email Template
 function buildAnimeEmailHtml(title: string, subtitle: string, code: string, note: string) {
-  const logoUrl = "https://s3.devspace.uz/tirikchilik/local/avatar/14265509_206448_avatar.jpeg";
+  const logoUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSF45hYamscf6EOEVfza62xM3PmDvOBibTRYEmsaMscyw&s=10";
   const bannerUrl = "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80";
 
   return `

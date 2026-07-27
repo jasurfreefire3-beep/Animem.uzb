@@ -10,7 +10,7 @@ import Admin from './pages/Admin';
 import Chat from './pages/Chat';
 import ChatWidget from './components/ChatWidget';
 import SpinBetterAdModal from './components/SpinBetterAdModal';
-import { Send, X } from 'lucide-react';
+import { Send, X, Instagram } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Newly added pages
@@ -240,15 +240,24 @@ export default function App() {
           </Routes>
         </main>
 
-        <footer className="p-4 text-center border-t border-[#1a1a1a] mt-auto">
+        <footer className="p-4 border-t border-[#1a1a1a] mt-auto flex items-center justify-center gap-6">
           <a
             href="https://t.me/animemuz1"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 text-white/40 hover:text-[#0088cc] transition-colors text-xs uppercase tracking-wider"
+            className="flex items-center gap-2 text-white/40 hover:text-[#0088cc] transition-colors text-xs uppercase tracking-wider"
           >
             <Send className="w-4 h-4" />
             Telegram kanal
+          </a>
+          <a
+            href="https://www.instagram.com/animem.uz.official/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-white/40 hover:text-[#E1306C] transition-colors text-xs uppercase tracking-wider"
+          >
+            <Instagram className="w-4 h-4" />
+            Instagram
           </a>
         </footer>
       </div>
