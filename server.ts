@@ -352,6 +352,112 @@ io.on("connection", async (socket) => {
 
 // --- API ROUTES ---
 
+// Video streaming proxy endpoint to bypass CORS / hotlinking / referrer restrictions
+app.get("/api/proxy-video", async (req, res) => {
+  const targetUrl = req.query.url as string;
+  if (!targetUrl) {
+    return res.status(400).send("Video URL is required");
+  }
+
+  try {
+    let cleanUrl = targetUrl.trim();
+    if (cleanUrl.startsWith("//")) {
+      cleanUrl = "https:" + cleanUrl;
+    }
+
+    // Auto-resolve Mover.uz watch/embed/page links to direct MP4 stream
+    if (cleanUrl.includes("mover.uz")) {
+      const moverMatch = cleanUrl.match(/(?:v\.mover\.uz\/|mover\.uz\/(?:watch|video\/embed|video|v)\/)([A-Za-z0-9_-]+)/i);
+      if (moverMatch && moverMatch[1]) {
+        let rawId = moverMatch[1].replace(/\.mp4$/i, "").replace(/_(?:m|h|s|q)$/i, "");
+        if (rawId) {
+          const quality = req.query.quality === "720" || req.query.quality === "hd" ? "_h" : "_m";
+          cleanUrl = `https://v.mover.uz/${rawId}${quality}.mp4`;
+        }
+      }
+    }
+
+    const parsed = new URL(cleanUrl);
+
+    const isHttps = parsed.protocol === "https:";
+    const client = isHttps ? https : http;
+
+    const reqHeaders: Record<string, string> = {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "*/*",
+      "Accept-Encoding": "identity",
+      "Connection": "keep-alive",
+    };
+
+    if (req.headers.range) {
+      reqHeaders["Range"] = req.headers.range;
+    }
+
+    if (parsed.hostname.includes("mover.uz")) {
+      reqHeaders["Referer"] = "https://mover.uz/";
+    }
+
+    const proxyReq = client.request(
+      parsed,
+      {
+        method: req.method,
+        headers: reqHeaders,
+      },
+      (proxyRes) => {
+        // Follow redirects (301, 302, 307, 308)
+        if (
+          proxyRes.statusCode &&
+          [301, 302, 303, 307, 308].includes(proxyRes.statusCode) &&
+          proxyRes.headers.location
+        ) {
+          const redirectUrl = new URL(proxyRes.headers.location, parsed).toString();
+          return res.redirect(`/api/proxy-video?url=${encodeURIComponent(redirectUrl)}`);
+        }
+
+        res.status(proxyRes.statusCode || 200);
+
+        const headersToForward = [
+          "content-type",
+          "content-length",
+          "accept-ranges",
+          "content-range",
+          "content-disposition",
+        ];
+
+        headersToForward.forEach((h) => {
+          if (proxyRes.headers[h]) {
+            res.setHeader(h, proxyRes.headers[h]!);
+          }
+        });
+
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Cache-Control", "public, max-age=3600");
+
+        proxyRes.pipe(res);
+      }
+    );
+
+    proxyReq.on("error", (err) => {
+      console.error("[Video Proxy Error]", err.message);
+      if (!res.headersSent) {
+        res.status(500).send("Video Proxy failed: " + err.message);
+      }
+    });
+
+    req.on("close", () => {
+      proxyReq.destroy();
+    });
+
+    proxyReq.end();
+  } catch (err: any) {
+    console.error("[Video Proxy Exception]", err?.message || err);
+    if (!res.headersSent) {
+      res.status(400).send("Invalid URL");
+    }
+  }
+});
+
 // Resend Email Verification Store
 interface VerificationRecord {
   code: string;

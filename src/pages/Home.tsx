@@ -73,9 +73,9 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [bannerAnimes.length]);
 
-  const popularAnimes = animes.slice(0, 4);
-  const recentAnimes = animes.slice(0, 8);
-  const updateList = animes.slice(0, 10);
+  const newAnimes = [...animes].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()).slice(0, 10);
+  const mostViewedAnimes = [...animes].sort((a, b) => (b.korishlar || 0) - (a.korishlar || 0)).slice(0, 10);
+  const mostRatedAnimes = [...animes].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 10);
 
   if (loading) {
      return (
@@ -233,20 +233,20 @@ export default function Home() {
         {/* Left Column (Main) */}
         <div className="flex-1 space-y-12 min-w-0">
           
-          {/* Trending Grid */}
+          {/* Yangi qo'shilganlar */}
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-[#ff006a]" />
-                Trending Now
+                <Clock className="w-5 h-5 text-[#ff006a]" />
+                Yangi qo'shilganlar
               </h2>
               <Link to="/animelar" className="text-xs font-medium text-white/50 hover:text-[#ff006a] transition-colors">Barchasini ko'rish</Link>
             </div>
             
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {recentAnimes.map((anime, idx) => (
+              {newAnimes.map((anime, idx) => (
                 <motion.div
-                  key={anime.id}
+                  key={`new-${anime.id}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
@@ -257,40 +257,49 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Just Updated */}
+          {/* Eng ko'p ko'rilganlar */}
           <section>
             <div className="flex items-center justify-between mb-4 mt-8">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Clock className="w-5 h-5 text-white/50" />
-                Just Updated
+                <Eye className="w-5 h-5 text-[#ff006a]" />
+                Eng ko'p ko'rilganlar
               </h2>
             </div>
-            <div className="bg-[#111111] border border-[#222] rounded-sm p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {updateList.map((anime, idx) => (
-                  <Link 
-                    to={user ? `/anime/${toSlug(anime.title)}` : '/register'} 
-                    title={`${anime.title} - O'zbek tilida ko'rish`}
-                    key={anime.id} 
-                    className="flex items-center gap-3 p-2 rounded hover:bg-[#222] transition-colors group"
-                  >
-                    <div className="w-12 h-16 rounded-sm overflow-hidden shrink-0 bg-[#000]">
-                      <img 
-                        src={anime.image_url} 
-                        alt={`${anime.title} - O'zbek tilida ko'rish`} 
-                        title={`${anime.title} - O'zbek tilida ko'rish`}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-white font-medium text-sm truncate group-hover:text-[#ff006a] transition-colors">
-                        {anime.title}
-                      </h4>
-                      <p className="text-white/40 text-[11px] mt-0.5 truncate">Episode {anime.qismlar_soni || 1}</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {mostViewedAnimes.map((anime, idx) => (
+                <motion.div
+                  key={`viewed-${anime.id}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                >
+                  <AnimeCard anime={anime} />
+                </motion.div>
+              ))}
+            </div>
+          </section>
+
+          {/* Eng ko'p baholanganlar */}
+          <section>
+            <div className="flex items-center justify-between mb-4 mt-8">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Star className="w-5 h-5 text-[#ff006a]" />
+                Eng ko'p baholanganlar
+              </h2>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {mostRatedAnimes.map((anime, idx) => (
+                <motion.div
+                  key={`rated-${anime.id}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                >
+                  <AnimeCard anime={anime} />
+                </motion.div>
+              ))}
             </div>
           </section>
         </div>

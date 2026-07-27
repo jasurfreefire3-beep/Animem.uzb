@@ -12,7 +12,8 @@ import {
   PictureInPicture, 
   Maximize, 
   Minimize,
-  Loader2
+  Loader2,
+  Settings
 } from 'lucide-react';
 
 interface VideoPlayerProps {
@@ -37,9 +38,18 @@ function getEmbedUrl(url: string): { isEmbed: boolean; embedUrl: string } {
     }
   }
 
-  // If it's an .m3u8 stream, treat it as direct HLS stream for custom player (not iframe embed)
-  const isM3U8 = lowerUrl.includes('.m3u8') || lowerUrl.includes('format=m3u8') || lowerUrl.includes('/m3u8');
-  if (isM3U8) {
+  // Mover.uz links (mover.uz, v.mover.uz) -> Always play in our custom HTML5 video player via backend proxy!
+  if (lowerUrl.includes('mover.uz')) {
+    return { isEmbed: false, embedUrl: '' };
+  }
+
+  // Direct video files (.mp4, .webm, .m3u8) -> Play in custom HTML5 player!
+  if (
+    lowerUrl.endsWith('.mp4') || 
+    lowerUrl.endsWith('.webm') || 
+    lowerUrl.includes('.m3u8') || 
+    lowerUrl.includes('format=m3u8')
+  ) {
     return { isEmbed: false, embedUrl: '' };
   }
 
@@ -62,17 +72,14 @@ function getEmbedUrl(url: string): { isEmbed: boolean; embedUrl: string } {
     };
   }
 
-  // Check if it's already an embed link or a known third-party host
-  const hasEmbedPattern = (lowerUrl.includes('embed') || 
-                           lowerUrl.includes('iframe') || 
-                           lowerUrl.includes('player.vimeo.com') ||
-                           lowerUrl.includes('sibnet.ru') || 
-                           lowerUrl.includes('myvi.tv') ||
-                           lowerUrl.includes('yandex.ru/video/preview') ||
-                           lowerUrl.includes('rutube.ru/play/embed') ||
-                           lowerUrl.includes('mover.uz/video')) &&
-                           !lowerUrl.endsWith('.mp4') &&
-                           !lowerUrl.endsWith('.webm');
+  // Known third-party embed hosts
+  const hasEmbedPattern = (
+    lowerUrl.includes('player.vimeo.com') ||
+    lowerUrl.includes('sibnet.ru') || 
+    lowerUrl.includes('myvi.tv') ||
+    lowerUrl.includes('yandex.ru/video/preview') ||
+    lowerUrl.includes('rutube.ru/play/embed')
+  );
 
   if (hasEmbedPattern) {
     let finalUrl = trimmed;
@@ -103,28 +110,37 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
   const hlsRef = useRef<Hls | null>(null);
 
   const { isEmbed, embedUrl } = getEmbedUrl(url);
+  const [useFallbackEmbed, setUseFallbackEmbed] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUseFallbackEmbed(null);
+  }, [url]);
 
   // Ad states
   const [showAd, setShowAd] = useState(true);
   const [currentAdUrl, setCurrentAdUrl] = useState('');
-  const [adTimeLeft, setAdTimeLeft] = useState(15);
-  const [canSkipAd, setCanSkipAd] = useState(false);
+  const [adTimeLeft, setAdTimeLeft] = useState(5);
+  const [canSkipAd, setCanSkipAd] = useState(true);
   const [isAdMuted, setIsAdMuted] = useState(false);
   const [adErrorIndex, setAdErrorIndex] = useState(0);
   const adVideoRef = useRef<HTMLVideoElement>(null);
 
-  // Initialize random ad when URL changes
+  // Quality states (720p HD / 360p SD)
+  const [videoQuality, setVideoQuality] = useState<'720' | '360'>('720');
+  const [showQualityOptions, setShowQualityOptions] = useState(false);
+
+  // Initialize ad when URL changes
   useEffect(() => {
     if (!url) return;
     const randomAd = PUBLIC_ADS[Math.floor(Math.random() * PUBLIC_ADS.length)];
     setCurrentAdUrl(randomAd);
     setShowAd(true);
-    setAdTimeLeft(15);
+    setAdTimeLeft(10);
     setCanSkipAd(false);
     setAdErrorIndex(0);
   }, [url]);
 
-  // Guaranteed 1-second interval timer for 15s countdown
+  // Guaranteed interval timer for ad countdown
   useEffect(() => {
     if (!showAd) return;
 
@@ -141,13 +157,13 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
     return () => clearInterval(timer);
   }, [showAd]);
 
-  // Handle ad time update synchronized with video playback
+  // Handle ad time update
   const handleAdTimeUpdate = () => {
     if (adVideoRef.current && adVideoRef.current.duration > 0) {
       const current = adVideoRef.current.currentTime;
-      const remaining = Math.max(0, Math.ceil(15 - current));
+      const remaining = Math.max(0, Math.ceil(10 - current));
       setAdTimeLeft((prev) => (remaining < prev ? remaining : prev));
-      if (current >= 15 || remaining === 0) {
+      if (current >= 10 || remaining === 0) {
         setCanSkipAd(true);
       }
     }
@@ -183,7 +199,6 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
 
   const handleSkipAd = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!canSkipAd) return;
     setShowAd(false);
   };
 
@@ -381,15 +396,15 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.warn("HLS network error, attempting recovery...", data);
+              console.warn("HLS network error, attempting recovery...");
               hls.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.warn("HLS media error, attempting recovery...", data);
+              console.warn("HLS media error, attempting recovery...");
               hls.recoverMediaError();
               break;
             default:
-              console.error("Fatal HLS error, destroying and falling back:", data);
+              console.error("Fatal HLS error, destroying and falling back:");
               hls.destroy();
               hlsRef.current = null;
               video.src = streamUrl;
@@ -413,7 +428,12 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
       }
     } else {
       // Standard video direct play
-      video.src = streamUrl;
+      let finalSrc = streamUrl;
+      if (streamUrl.includes('mover.uz') || streamUrl.includes('v.mover.uz') || streamUrl.includes('t.me') || streamUrl.includes('telegram')) {
+        finalSrc = `/api/proxy-video?url=${encodeURIComponent(streamUrl)}&quality=${videoQuality}`;
+      }
+
+      video.src = finalSrc;
       video.load();
       const isAutoplay = localStorage.getItem('anime_settings_autoplay') !== 'false';
       if (isAutoplay && !showAd) {
@@ -437,7 +457,7 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
         hlsRef.current = null;
       }
     };
-  }, [url, isEmbed]);
+  }, [url, videoQuality, isEmbed]);
 
   // Click outside speed options menu to close it
   useEffect(() => {
@@ -445,6 +465,7 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
       const target = e.target as HTMLElement;
       if (!target.closest('.playback-content')) {
         setShowSpeedOptions(false);
+        setShowQualityOptions(false);
       }
     };
     document.addEventListener('click', handleClickOutside);
@@ -742,11 +763,18 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
         }
 
         .chirag-player-root .container.fullscreen {
-          max-width: 100% !important;
-          width: 100% !important;
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          width: 100vw !important;
           height: 100vh !important;
+          max-width: 100vw !important;
+          max-height: 100vh !important;
           border-radius: 0px !important;
-          z-index: 99999;
+          aspect-ratio: auto !important;
+          z-index: 99999 !important;
         }
 
         .chirag-player-root .wrapper {
@@ -1030,9 +1058,9 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
         onContextMenu={(e) => e.preventDefault()}
         className="relative w-full aspect-video rounded-2xl overflow-hidden shadow-2xl bg-black border border-white/10 group select-none"
       >
-        {isEmbed ? (
+        {(isEmbed || useFallbackEmbed) ? (
           <iframe
-            src={embedUrl}
+            src={useFallbackEmbed || embedUrl}
             title="Video Player"
             className="w-full h-full absolute inset-0 border-0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -1108,10 +1136,48 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
                 </li>
 
                 <li className="options right">
+                  {/* Quality options menu */}
+                  <div className="playback-content relative">
+                    <button 
+                      className="text-white hover:text-blue-400 transition-colors text-xs font-bold px-2 py-1 rounded bg-white/10 hover:bg-white/20 border border-white/10 flex items-center gap-1"
+                      onClick={() => {
+                        setShowQualityOptions(!showQualityOptions);
+                        setShowSpeedOptions(false);
+                      }}
+                      title="Sifatni tanlash (Quality)"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      <span>{videoQuality === '720' ? '720p' : '360p'}</span>
+                    </button>
+                    <ul className={`speed-options ${showQualityOptions ? 'show' : ''}`}>
+                      <li 
+                        className={videoQuality === '720' ? 'active' : ''}
+                        onClick={() => {
+                          setVideoQuality('720');
+                          setShowQualityOptions(false);
+                        }}
+                      >
+                        720p HD
+                      </li>
+                      <li 
+                        className={videoQuality === '360' ? 'active' : ''}
+                        onClick={() => {
+                          setVideoQuality('360');
+                          setShowQualityOptions(false);
+                        }}
+                      >
+                        360p SD
+                      </li>
+                    </ul>
+                  </div>
+
                   <div className="playback-content">
                     <button 
                       className="playback-speed"
-                      onClick={() => setShowSpeedOptions(!showSpeedOptions)}
+                      onClick={() => {
+                        setShowSpeedOptions(!showSpeedOptions);
+                        setShowQualityOptions(false);
+                      }}
                     >
                       <Gauge />
                     </button>
@@ -1144,6 +1210,7 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
               poster={poster}
               className="w-full h-full object-contain cursor-pointer"
               playsInline
+              referrerPolicy="no-referrer"
               controlsList="nodownload noremoteplayback"
               disablePictureInPicture
               onContextMenu={(e) => e.preventDefault()}
@@ -1151,23 +1218,42 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
               onDoubleClick={handleVideoDoubleClick}
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={handleLoadedMetadata}
-              onWaiting={() => setIsBuffering(true)}
+              onCanPlay={() => setIsBuffering(false)}
+              onCanPlayThrough={() => setIsBuffering(false)}
+              onLoadedData={() => setIsBuffering(false)}
+              onWaiting={() => {
+                if (!showAd) setIsBuffering(true);
+              }}
+              onSeeking={() => {
+                if (!showAd) setIsBuffering(true);
+              }}
+              onSeeked={() => setIsBuffering(false)}
               onPlaying={() => {
                 setIsBuffering(false);
                 setIsPlaying(true);
               }}
-              onPause={() => setIsPlaying(false)}
+              onPause={() => {
+                setIsBuffering(false);
+                setIsPlaying(false);
+              }}
               onPlay={() => {
                 if (showAd && videoRef.current) {
                   videoRef.current.pause();
                   setIsPlaying(false);
+                  setIsBuffering(false);
                 } else {
                   setIsPlaying(true);
                 }
               }}
-              onError={(e) => {
-                console.error("Video element error:", e);
+              onError={() => {
+                console.error("Video element playback error");
                 setIsBuffering(false);
+                const moverMatch = (url || '').match(/(?:v\.mover\.uz\/|mover\.uz\/(?:watch|video\/embed|video|v)\/)([A-Za-z0-9_-]+)/i);
+                if (moverMatch && moverMatch[1]) {
+                  let rawId = moverMatch[1].replace(/\.mp4$/i, '').replace(/_(?:m|h|s|q)$/i, '');
+                  console.log("Fallback to Mover embed iframe:", rawId);
+                  setUseFallbackEmbed(`https://mover.uz/video/embed/${rawId}/`);
+                }
               }}
             />
 
