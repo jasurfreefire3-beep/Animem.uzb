@@ -1,26 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, Mail, Lock, Phone, User, X, Loader2, Send, ArrowLeft, KeyRound, CheckCircle2 } from 'lucide-react';
+import { LogIn, Mail, Lock, Phone, User, X, Loader2, Send, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
-import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, getRedirectResult, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 
+declare global {
+  interface Window {
+    recaptchaVerifier?: RecaptchaVerifier;
+    confirmationResult?: ConfirmationResult;
+  }
+}
+
 export default function Login() {
+  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   // Forgot password flow states
-  const [viewMode, setViewMode] = useState<'login' | 'forgot_email' | 'forgot_code' | 'forgot_password'>('login');
+  const [viewMode, setViewMode] = useState<'login' | 'forgot_choose' | 'forgot_email' | 'forgot_phone' | 'forgot_code' | 'forgot_password'>('login');
+  const [forgotMethod, setForgotMethod] = useState<'email' | 'phone'>('phone');
+  
   const [resetEmail, setResetEmail] = useState('');
+  const [resetPhone, setResetPhone] = useState('');
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [resetSuccessMsg, setResetSuccessMsg] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [firebaseUid, setFirebaseUid] = useState('');
 
   // Check for Google Auth redirect result
   useEffect(() => {
@@ -56,7 +70,7 @@ export default function Login() {
         console.error("Redirect auth error:", err);
         if (err.code === 'auth/unauthorized-domain') {
           setError(
-            `Google tizimiga kirish xatosi (unauthorized domain): Ushbu domen Firebase ruxsat etilgan domenlar ro'yxatida yo'q. Uni faollashtirish uchun: \n1. Firebase Konsoliga kiring -> Authentication -> Settings -> Authorized Domains bo'limiga o'ting. \n2. Quyidagi domenni ruxsat etilganlar ro'yxatiga qo'shing: \n👉 ${window.location.hostname}`
+            `Google tizimiga kirish xatosi (unauthorized domain): Ushbu domen Firebase ruxsat etilgan domenlar ro'yxatida yo'q.`
           );
         } else if (err.code !== 'auth/popup-closed-by-user') {
           setError(err.message || 'Google orqali kirishda xatolik');
@@ -70,7 +84,7 @@ export default function Login() {
   const [showTelegramModal, setShowTelegramModal] = useState(false);
   const [telegramSessionId, setTelegramSessionId] = useState('');
   const [telegramStatus, setTelegramStatus] = useState<'pending' | 'pending_phone' | 'authorized' | 'expired' | ''>('');
-  const [telegramProgress, setTelegramProgress] = useState(1); // 1: go to bot, 2: send contact, 3: success
+  const [telegramProgress, setTelegramProgress] = useState(1);
 
   // Poll Telegram auth session status
   useEffect(() => {
@@ -92,7 +106,6 @@ export default function Login() {
             setTelegramProgress(3);
             clearInterval(interval);
             
-            // Wait 2.5 seconds to show the beautiful checkmark animation, then login!
             setTimeout(() => {
               login(data.token, data.user);
               setShowTelegramModal(false);
@@ -113,7 +126,7 @@ export default function Login() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [telegramSessionId, showTelegramModal, telegramStatus]);
+  }, [telegramSessionId, showTelegramModal, telegramStatus, login, navigate]);
 
   const handleTelegramLoginStart = async () => {
     try {
@@ -128,36 +141,62 @@ export default function Login() {
         setTelegramSessionId(data.sessionId);
         setShowTelegramModal(true);
       } else {
-        throw new Error('Telegram seansini yaratib bo\'lmadi');
+        throw new Error('Telegram seansini yaratib bo\'mladi');
       }
     } catch (err: any) {
       setError(err.message || 'Telegram orqali kirishni boshlashda xatolik');
     }
   };
 
+  const formatPhone = (input: string) => {
+    let digits = input.replace(/\D/g, '');
+    if (!digits.startsWith('998') && digits.length <= 9) {
+      digits = '998' + digits;
+    }
+    return '+' + digits;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
-      const API_BASE = '';
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      if (loginMethod === 'email') {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Login failed');
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Email yoki parol xato!');
+        }
+
+        login(data.token, data.user);
+        navigate('/');
+      } else {
+        // Phone login
+        const formatted = formatPhone(phone);
+        const res = await fetch('/api/auth/phone-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: formatted, password }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Telefon raqam yoki parol xato!');
+        }
+
+        login(data.token, data.user);
+        navigate('/');
       }
-
-      login(data.token, data.user);
-      navigate('/');
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      setError(err.message || 'Kirishda xatolik yuz berdi');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -191,29 +230,13 @@ export default function Login() {
       navigate('/');
     } catch (err: any) {
       console.error("Google login popup error:", err);
-      if (err.code === 'auth/popup-closed-by-user') {
-        return;
-      }
-      if (err.code === 'auth/popup-blocked') {
-        try {
-          await signInWithRedirect(auth, googleProvider);
-          return;
-        } catch (redirectErr) {
-          console.error("Redirect fallback error:", redirectErr);
-        }
-      }
-      if (err.code === 'auth/unauthorized-domain') {
-        setError(
-          `Google tizimiga kirish xatosi (unauthorized domain): Ushbu domen Firebase ruxsat etilgan domenlar ro'yxatida yo'q. Uni faollashtirish uchun: \n1. Firebase Konsoliga kiring -> Authentication -> Settings -> Authorized Domains bo'limiga o'ting. \n2. Quyidagi domenni ruxsat etilganlar ro'yxatiga qo'shing: \n👉 ${window.location.hostname}`
-        );
-      } else {
-        setError(err.message || 'Google orqali kirishda xatolik');
-      }
+      if (err.code === 'auth/popup-closed-by-user') return;
+      setError(err.message || 'Google orqali kirishda xatolik');
     }
   };
 
-  // Forgot Password Handlers
-  const handleForgotSendCode = async (e: React.FormEvent) => {
+  // --- FORGOT PASSWORD HANDLERS ---
+  const handleForgotSendEmailCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setResetSuccessMsg('');
@@ -245,6 +268,54 @@ export default function Login() {
     }
   };
 
+  const handleForgotSendPhoneCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setResetSuccessMsg('');
+
+    const formatted = formatPhone(resetPhone);
+    if (formatted.length < 12) {
+      setError('Iltimos, to\'g\'ri telefon raqamini kiriting! (masalan: 901234567)');
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      // Try Firebase Recaptcha & Phone Auth
+      try {
+        if (!window.recaptchaVerifier) {
+          window.recaptchaVerifier = new RecaptchaVerifier(auth, 'login-recaptcha-container', {
+            size: 'invisible',
+            callback: () => {},
+          });
+        }
+        const appVerifier = window.recaptchaVerifier;
+        const confirmationResult = await signInWithPhoneNumber(auth, formatted, appVerifier);
+        window.confirmationResult = confirmationResult;
+      } catch (fbErr: any) {
+        console.warn("Firebase Phone Auth attempt:", fbErr?.message || fbErr);
+      }
+
+      const res = await fetch('/api/auth/phone-send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formatted, type: 'forgot' }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'SMS kod yuborishda xatolik');
+      }
+
+      setResetSuccessMsg(`SMS tasdiqlash kodi ${formatted} raqamiga yuborildi!`);
+      setViewMode('forgot_code');
+    } catch (err: any) {
+      setError(err.message || 'SMS kod yuborishda xatolik');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   const handleForgotVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -256,18 +327,44 @@ export default function Login() {
 
     setForgotLoading(true);
     try {
-      const res = await fetch('/api/auth/forgot-password-verify-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail, code: resetCode }),
-      });
+      if (forgotMethod === 'phone') {
+        const formatted = formatPhone(resetPhone);
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Kodni tekshirishda xatolik');
+        if (window.confirmationResult) {
+          try {
+            const result = await window.confirmationResult.confirm(resetCode);
+            if (result && result.user) {
+              setFirebaseUid(result.user.uid);
+            }
+          } catch (fbErr: any) {
+            console.warn("Firebase confirm error:", fbErr?.message);
+          }
+        }
+
+        const res = await fetch('/api/auth/phone-verify-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: formatted, code: resetCode, type: 'forgot' }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Kodni tekshirishda xatolik');
+        }
+      } else {
+        const res = await fetch('/api/auth/forgot-password-verify-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: resetEmail, code: resetCode }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Kodni tekshirishda xatolik');
+        }
       }
 
-      setResetSuccessMsg("Tasdiqlash kodi to'g'ri! Endi yangi parolingizni kiritib tasdiqlang.");
+      setResetSuccessMsg("Tasdiqlash kodi to'g'ri! Endi yangi parolingizni kiriting.");
       setViewMode('forgot_password');
     } catch (err: any) {
       setError(err.message || 'Tasdiqlash kodi xato');
@@ -292,19 +389,41 @@ export default function Login() {
 
     setForgotLoading(true);
     try {
-      const res = await fetch('/api/auth/forgot-password-reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail, code: resetCode, newPassword }),
-      });
+      if (forgotMethod === 'phone') {
+        const formatted = formatPhone(resetPhone);
+        const res = await fetch('/api/auth/phone-reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phone: formatted,
+            code: resetCode,
+            newPassword,
+            firebaseUid
+          }),
+        });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Parolni tiklashda xatolik');
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Parolni tiklashda xatolik');
+        }
+
+        login(data.token, data.user);
+        navigate('/');
+      } else {
+        const res = await fetch('/api/auth/forgot-password-reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: resetEmail, code: resetCode, newPassword }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Parolni tiklashda xatolik');
+        }
+
+        login(data.token, data.user);
+        navigate('/');
       }
-
-      login(data.token, data.user);
-      navigate('/');
     } catch (err: any) {
       setError(err.message || 'Parolni tiklashda xatolik');
     } finally {
@@ -314,6 +433,7 @@ export default function Login() {
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center p-4">
+      <div id="login-recaptcha-container"></div>
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -330,14 +450,18 @@ export default function Login() {
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
             {viewMode === 'login' && 'Tizimga kirish'}
-            {viewMode === 'forgot_email' && 'Parolni tiklash'}
+            {viewMode === 'forgot_choose' && 'Parolni tiklash usuli'}
+            {viewMode === 'forgot_email' && 'Email orqali tiklash'}
+            {viewMode === 'forgot_phone' && 'SMS orqali tiklash'}
             {viewMode === 'forgot_code' && 'Tasdiqlash kodi'}
             {viewMode === 'forgot_password' && 'Yangi parol'}
           </h1>
           <p className="text-white/50 text-xs sm:text-sm mt-1">
             {viewMode === 'login' && 'Animem.uz akkauntingizga kiring'}
+            {viewMode === 'forgot_choose' && 'Parolni qaysi usulda tiklamoqchisiz?'}
             {viewMode === 'forgot_email' && 'Akkuntingizga ulangan emailni kiriting'}
-            {viewMode === 'forgot_code' && 'Pochtaga yuborilgan 6 xonali kodni kiriting'}
+            {viewMode === 'forgot_phone' && 'Telefon raqamingizga Firebase SMS yuboriladi'}
+            {viewMode === 'forgot_code' && 'Yuborilgan 6 xonali tasdiqlash kodini kiriting'}
             {viewMode === 'forgot_password' && "Akkauntingiz uchun yangi xavfsiz parol o'rnating"}
           </p>
         </div>
@@ -357,36 +481,90 @@ export default function Login() {
         {/* ------------------- NORMAL LOGIN FORM ------------------- */}
         {viewMode === 'login' && (
           <>
+            {/* Login Method Toggle Tabs */}
+            <div className="grid grid-cols-2 gap-1 bg-[#000] p-1 border border-[#222] rounded-sm mb-5">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMethod('email');
+                  setError('');
+                }}
+                className={`py-2 text-xs font-bold rounded-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  loginMethod === 'email'
+                    ? 'bg-[#ff006a] text-white shadow-md'
+                    : 'text-white/50 hover:text-white'
+                }`}
+              >
+                <Mail size={14} />
+                Email
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMethod('phone');
+                  setError('');
+                }}
+                className={`py-2 text-xs font-bold rounded-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  loginMethod === 'phone'
+                    ? 'bg-[#ff006a] text-white shadow-md'
+                    : 'text-white/50 hover:text-white'
+                }`}
+              >
+                <Phone size={14} />
+                Telefon
+              </button>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-white/50 mb-1.5 uppercase">Email</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-4 w-4 text-white/30" />
+              {loginMethod === 'email' ? (
+                <div>
+                  <label className="block text-xs font-bold text-white/50 mb-1.5 uppercase">Email</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className="h-4 w-4 text-white/30" />
+                    </div>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a]/50 transition-colors text-sm"
+                      placeholder="you@example.com"
+                    />
                   </div>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a]/50 transition-colors"
-                    placeholder="you@example.com"
-                  />
                 </div>
-              </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-white/50 mb-1.5 uppercase">Telefon raqam</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Phone className="h-4 w-4 text-[#ff006a]" />
+                    </div>
+                    <input
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a]/50 transition-colors text-sm"
+                      placeholder="90 123 45 67"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="block text-xs font-bold text-white/50 uppercase">Parol</label>
                   <button
                     type="button"
                     onClick={() => {
-                      setViewMode('forgot_email');
+                      setViewMode('forgot_choose');
                       setError('');
                       setResetSuccessMsg('');
                     }}
                     className="text-xs font-bold text-[#ff006a] hover:text-[#d40058] transition-colors cursor-pointer"
                   >
-                    Forgot password?
+                    Parolni unutdingizmi?
                   </button>
                 </div>
                 <div className="relative">
@@ -398,7 +576,7 @@ export default function Login() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a]/50 transition-colors"
+                    className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a]/50 transition-colors text-sm"
                     placeholder="••••••••"
                   />
                 </div>
@@ -406,9 +584,17 @@ export default function Login() {
 
               <button
                 type="submit"
-                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-6 uppercase text-xs tracking-wider cursor-pointer"
+                disabled={loading}
+                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-6 uppercase text-xs tracking-wider cursor-pointer flex items-center justify-center gap-2"
               >
-                Kirish
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Kirilmoqda...
+                  </>
+                ) : (
+                  'Kirish'
+                )}
               </button>
             </form>
 
@@ -457,21 +643,135 @@ export default function Login() {
           </>
         )}
 
-        {/* ---------------- FORGOT PASSWORD STEP 1: ENTER EMAIL ---------------- */}
-        {viewMode === 'forgot_email' && (
-          <div>
+        {/* ---------------- FORGOT PASSWORD METHOD CHOOSE ---------------- */}
+        {viewMode === 'forgot_choose' && (
+          <div className="space-y-3">
             <button
               onClick={() => {
                 setViewMode('login');
                 setError('');
-                setResetSuccessMsg('');
               }}
               className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white mb-4 transition-colors cursor-pointer"
             >
               <ArrowLeft size={14} /> Kirish sahifasiga qaytish
             </button>
 
-            <form onSubmit={handleForgotSendCode} className="space-y-4">
+            <button
+              onClick={() => {
+                setForgotMethod('phone');
+                setViewMode('forgot_phone');
+                setError('');
+              }}
+              className="w-full bg-[#18181c] hover:bg-[#222] border border-[#ff006a]/40 hover:border-[#ff006a] p-4 rounded-sm transition-all text-left flex items-center gap-4 group cursor-pointer"
+            >
+              <div className="w-10 h-10 bg-[#ff006a]/20 border border-[#ff006a]/50 rounded-sm flex items-center justify-center text-[#ff006a]">
+                <Phone size={20} />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-black text-white group-hover:text-[#ff006a] transition-colors flex items-center gap-1.5">
+                  Telefon raqami (SMS) orqali
+                  <span className="text-[9px] bg-[#ff006a] text-white px-1.5 py-0.5 rounded font-bold uppercase">Firebase</span>
+                </div>
+                <div className="text-[11px] text-white/40">
+                  Telefoningizga Firebase orqali SMS kod boradi
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                setForgotMethod('email');
+                setViewMode('forgot_email');
+                setError('');
+              }}
+              className="w-full bg-[#18181c] hover:bg-[#222] border border-[#333] hover:border-[#ff006a]/50 p-4 rounded-sm transition-all text-left flex items-center gap-4 group cursor-pointer"
+            >
+              <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-sm flex items-center justify-center text-white/80">
+                <Mail size={20} />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-black text-white group-hover:text-[#ff006a] transition-colors">
+                  Email manzili orqali
+                </div>
+                <div className="text-[11px] text-white/40">
+                  Email pochtangizga tiklash kodi yuboriladi
+                </div>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* ---------------- FORGOT PASSWORD PHONE STEP ---------------- */}
+        {viewMode === 'forgot_phone' && (
+          <div>
+            <button
+              onClick={() => {
+                setViewMode('forgot_choose');
+                setError('');
+              }}
+              className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white mb-4 transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={14} /> Usulni o'zgartirish
+            </button>
+
+            <form onSubmit={handleForgotSendPhoneCode} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase">
+                  Telefon raqamingiz
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Phone className="h-4 w-4 text-[#ff006a]" />
+                  </div>
+                  <input
+                    type="tel"
+                    required
+                    value={resetPhone}
+                    onChange={(e) => setResetPhone(e.target.value)}
+                    className="w-full bg-[#000] border border-[#333] rounded-sm pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors text-sm font-medium"
+                    placeholder="90 123 45 67"
+                  />
+                </div>
+                <p className="text-[11px] text-white/40 mt-1.5">
+                  Quyidagi raqamga Firebase SMS orqali 6 xonali tiklash kodi yuboriladi.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={forgotLoading}
+                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
+              >
+                {forgotLoading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    SMS yuborilmoqda...
+                  </>
+                ) : (
+                  <>
+                    <Send size={14} />
+                    SMS kod yuborish
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* ---------------- FORGOT PASSWORD EMAIL STEP ---------------- */}
+        {viewMode === 'forgot_email' && (
+          <div>
+            <button
+              onClick={() => {
+                setViewMode('forgot_choose');
+                setError('');
+              }}
+              className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white mb-4 transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={14} /> Usulni o'zgartirish
+            </button>
+
+            <form onSubmit={handleForgotSendEmailCode} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase">
                   Email manzilingiz
@@ -485,7 +785,7 @@ export default function Login() {
                     required
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
-                    className="w-full bg-[#000] border border-[#333] rounded-sm pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors"
+                    className="w-full bg-[#000] border border-[#333] rounded-sm pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors text-sm"
                     placeholder="email@example.com"
                   />
                 </div>
@@ -520,23 +820,23 @@ export default function Login() {
           <div>
             <button
               onClick={() => {
-                setViewMode('forgot_email');
+                setViewMode(forgotMethod === 'phone' ? 'forgot_phone' : 'forgot_email');
                 setError('');
                 setResetSuccessMsg('');
               }}
               className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white mb-4 transition-colors cursor-pointer"
             >
-              <ArrowLeft size={14} /> Emailni o'zgartirish ({resetEmail})
+              <ArrowLeft size={14} /> Qaytash ({forgotMethod === 'phone' ? resetPhone : resetEmail})
             </button>
 
             <form onSubmit={handleForgotVerifyCode} className="space-y-4">
               <div>
                 <div className="text-center mb-4 p-3 bg-white/5 border border-white/10 rounded-sm">
                   <p className="text-xs text-white/70">
-                    <strong className="text-white">{resetEmail}</strong> manziliga 6 xonali tiklash kodi yuborildi.
+                    <strong className="text-white">{forgotMethod === 'phone' ? formatPhone(resetPhone) : resetEmail}</strong> manziliga 6 xonali tiklash kodi yuborildi.
                   </p>
                   <p className="text-[11px] text-white/40 mt-1">
-                    Pochtani (va Spam papkasini) tekshiring
+                    {forgotMethod === 'phone' ? 'SMS xabarnomani tekshiring' : 'Pochtani (va Spam papkasini) tekshiring'}
                   </p>
                 </div>
 
@@ -545,7 +845,7 @@ export default function Login() {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <KeyRound className="h-4 w-4 text-white/30" />
+                    <KeyRound className="h-4 w-4 text-[#ff006a]" />
                   </div>
                   <input
                     type="text"
@@ -595,7 +895,7 @@ export default function Login() {
                     minLength={6}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-[#000] border border-[#333] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors"
+                    className="w-full bg-[#000] border border-[#333] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors text-sm"
                     placeholder="Kamida 6 ta belgi"
                   />
                 </div>
@@ -615,7 +915,7 @@ export default function Login() {
                     minLength={6}
                     value={confirmNewPassword}
                     onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    className="w-full bg-[#000] border border-[#333] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors"
+                    className="w-full bg-[#000] border border-[#333] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors text-sm"
                     placeholder="Parolni qayta kiriting"
                   />
                 </div>
@@ -651,7 +951,6 @@ export default function Login() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             className="w-full max-w-md bg-[#0e0e0e] border border-white/10 rounded-lg overflow-hidden shadow-2xl relative"
           >
-            {/* Close */}
             <button
               onClick={() => setShowTelegramModal(false)}
               className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors p-1 bg-white/5 hover:bg-white/10 rounded-full cursor-pointer z-10"
@@ -661,7 +960,6 @@ export default function Login() {
 
             {telegramProgress < 3 ? (
               <div className="p-6 sm:p-8">
-                {/* Header */}
                 <div className="text-center mb-6">
                   <div className="w-12 h-12 bg-[#0088cc]/10 rounded-full flex items-center justify-center mx-auto mb-3 border border-[#0088cc]/20">
                     <svg viewBox="0 0 24 24" className="w-6 h-6 text-[#0088cc] fill-current">
@@ -672,7 +970,6 @@ export default function Login() {
                   <p className="text-white/40 text-xs mt-1">Xavfsiz va tezkor avtorizatsiya tizimi</p>
                 </div>
 
-                {/* Progress Indicators */}
                 <div className="flex justify-center items-center gap-2 mb-8">
                   <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold border transition-colors ${
                     telegramProgress === 1 
@@ -693,7 +990,6 @@ export default function Login() {
                   </div>
                 </div>
 
-                {/* Step contents */}
                 {telegramProgress === 1 ? (
                   <div className="space-y-4 text-center">
                     <p className="text-xs text-white/70 leading-relaxed max-w-xs mx-auto">
@@ -724,7 +1020,6 @@ export default function Login() {
                 )}
               </div>
             ) : (
-              /* Success checkmark view with beautiful drawing green path checkmark animation */
               <div className="p-8 text-center flex flex-col items-center justify-center min-h-[300px]">
                 <div className="relative w-24 h-24 mb-6 flex items-center justify-center">
                   <motion.div

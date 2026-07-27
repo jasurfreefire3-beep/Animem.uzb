@@ -1,20 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, Mail, Lock, User, ArrowLeft, Loader2, CheckCircle2, Send, ShieldCheck, KeyRound, X } from 'lucide-react';
+import { Mail, Lock, User, Phone, ArrowLeft, Loader2, CheckCircle2, Send, ShieldCheck, KeyRound, X } from 'lucide-react';
 import { motion } from 'motion/react';
-import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, getRedirectResult, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 
-export default function Register() {
-  const [signupMethod, setSignupMethod] = useState<'options' | 'email'>('options');
-  const [emailStep, setEmailStep] = useState<'email' | 'code' | 'details'>('email');
+declare global {
+  interface Window {
+    recaptchaVerifier?: RecaptchaVerifier;
+    confirmationResult?: ConfirmationResult;
+  }
+}
 
+export default function Register() {
+  const [signupMethod, setSignupMethod] = useState<'options' | 'email' | 'phone'>('options');
+  const [emailStep, setEmailStep] = useState<'email' | 'code' | 'details'>('email');
+  const [phoneStep, setPhoneStep] = useState<'phone' | 'code' | 'details'>('phone');
+
+  // Email form states
   const [email, setEmail] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Phone form states
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneCode, setPhoneCode] = useState('');
+  const [phoneName, setPhoneName] = useState('');
+  const [phonePassword, setPhonePassword] = useState('');
+  const [phoneConfirmPassword, setPhoneConfirmPassword] = useState('');
+  const [firebaseUid, setFirebaseUid] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -72,7 +89,7 @@ export default function Register() {
   const [showTelegramModal, setShowTelegramModal] = useState(false);
   const [telegramSessionId, setTelegramSessionId] = useState('');
   const [telegramStatus, setTelegramStatus] = useState<'pending' | 'pending_phone' | 'authorized' | 'expired' | ''>('');
-  const [telegramProgress, setTelegramProgress] = useState(1); // 1: go to bot, 2: send contact, 3: success
+  const [telegramProgress, setTelegramProgress] = useState(1);
 
   // Poll Telegram auth session status
   useEffect(() => {
@@ -179,7 +196,161 @@ export default function Register() {
     }
   };
 
-  // Step 1: Send verification code to Email via Resend
+  // Helper to format phone number to international standard (e.g., +998901234567)
+  const formatPhone = (input: string) => {
+    let digits = input.replace(/\D/g, '');
+    if (!digits.startsWith('998') && digits.length <= 9) {
+      digits = '998' + digits;
+    }
+    return '+' + digits;
+  };
+
+  // --- PHONE REGISTRATION HANDLERS ---
+  const handlePhoneSendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setResendMessage('');
+
+    const formatted = formatPhone(phoneNumber);
+    if (formatted.length < 12) {
+      setError('Iltimos, to\'g\'ri telefon raqamini kiriting! (masalan: 901234567)');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 1. Try Firebase Auth Recaptcha & Phone Auth
+      let firebaseSent = false;
+      try {
+        if (!window.recaptchaVerifier) {
+          window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            size: 'invisible',
+            callback: () => {},
+          });
+        }
+        const appVerifier = window.recaptchaVerifier;
+        const confirmationResult = await signInWithPhoneNumber(auth, formatted, appVerifier);
+        window.confirmationResult = confirmationResult;
+        firebaseSent = true;
+      } catch (fbErr: any) {
+        console.warn("Firebase Phone Auth attempt:", fbErr?.message || fbErr);
+      }
+
+      // 2. Call backend server API
+      const res = await fetch('/api/auth/phone-send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formatted, type: 'register' }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Kodni yuborishda xatolik yuz berdi');
+      }
+
+      setResendMessage(`SMS tasdiqlash kodi ${formatted} raqamiga yuborildi!`);
+      setPhoneStep('code');
+    } catch (err: any) {
+      setError(err.message || 'Kodni yuborishda xatolik yuz berdi');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePhoneVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!phoneCode || phoneCode.trim().length !== 6) {
+      setError('Iltimos, 6 xonali tasdiqlash kodini kiriting!');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const formatted = formatPhone(phoneNumber);
+
+      // Try Firebase confirm if available
+      if (window.confirmationResult) {
+        try {
+          const result = await window.confirmationResult.confirm(phoneCode);
+          if (result && result.user) {
+            setFirebaseUid(result.user.uid);
+          }
+        } catch (fbConfirmErr: any) {
+          console.warn("Firebase confirm warning:", fbConfirmErr?.message);
+        }
+      }
+
+      // Verify with backend
+      const res = await fetch('/api/auth/phone-verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formatted, code: phoneCode, type: 'register' }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Tasdiqlash kodi xato');
+      }
+
+      setPhoneStep('details');
+    } catch (err: any) {
+      setError(err.message || 'Tasdiqlash kodi xato');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePhoneCompleteRegistration = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!phoneName.trim()) {
+      setError('Iltimos, ismingizni kiriting!');
+      return;
+    }
+
+    if (!phonePassword || phonePassword.length < 6) {
+      setError('Parol kamida 6 ta belgidan iborat bo\'lishi kerak!');
+      return;
+    }
+
+    if (phonePassword !== phoneConfirmPassword) {
+      setError('Kiritilgan parollar bir-biriga mos kelmadi!');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const formatted = formatPhone(phoneNumber);
+      const res = await fetch('/api/auth/phone-register-verified', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: phoneName.trim(),
+          phone: formatted,
+          password: phonePassword,
+          code: phoneCode,
+          firebaseUid,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Ro\'yxatdan o\'tishda xatolik');
+      }
+
+      login(data.token, data.user);
+      navigate('/');
+    } catch (err: any) {
+      setError(err.message || 'Ro\'yxatdan o\'tishda xatolik');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- EMAIL REGISTRATION HANDLERS ---
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -203,7 +374,7 @@ export default function Register() {
         throw new Error(data.error || 'Kodni yuborishda xatolik yuz berdi');
       }
 
-      setResendMessage('6 xonali tasdiqlash kodi emailga yuborildi! Pochtani (va Spam papkasini) tekshiring.');
+      setResendMessage(data.message || '6 xonali tasdiqlash kodi emailga yuborildi! Pochtani (va Spam papkasini) tekshiring.');
       setEmailStep('code');
     } catch (err: any) {
       setError(err.message || 'Kodni yuborishda xatolik yuz berdi');
@@ -212,7 +383,6 @@ export default function Register() {
     }
   };
 
-  // Resend code handler
   const handleResendCode = async () => {
     setError('');
     setResendMessage('');
@@ -229,7 +399,7 @@ export default function Register() {
         throw new Error(data.error || 'Kodni qayta yuborishda xatolik');
       }
 
-      setResendMessage('Yangi 6 xonali kod emailga yuborildi!');
+      setResendMessage(data.message || 'Yangi 6 xonali kod emailga yuborildi!');
     } catch (err: any) {
       setError(err.message || 'Kodni qayta yuborishda xatolik');
     } finally {
@@ -237,7 +407,6 @@ export default function Register() {
     }
   };
 
-  // Step 2: Verify 6-digit code
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -268,7 +437,6 @@ export default function Register() {
     }
   };
 
-  // Step 3: Complete Registration
   const handleCompleteRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -317,6 +485,7 @@ export default function Register() {
 
   return (
     <div className="min-h-[75vh] flex items-center justify-center p-4">
+      <div id="recaptcha-container"></div>
       <motion.div 
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -354,16 +523,41 @@ export default function Register() {
               Ro'yxatdan o'tish usulini tanlang:
             </p>
 
-            {/* Option 1: Email */}
+            {/* Option 1: Phone Number */}
+            <button
+              onClick={() => {
+                setSignupMethod('phone');
+                setPhoneStep('phone');
+                setError('');
+                setResendMessage('');
+              }}
+              className="w-full bg-[#18181c] hover:bg-[#222] border border-[#ff006a]/40 hover:border-[#ff006a] p-4 rounded-sm transition-all text-left flex items-center gap-4 group cursor-pointer shadow-lg shadow-[#ff006a]/5"
+            >
+              <div className="w-10 h-10 bg-[#ff006a]/20 border border-[#ff006a]/50 rounded-sm flex items-center justify-center text-[#ff006a] group-hover:scale-105 transition-transform">
+                <Phone className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-black text-white group-hover:text-[#ff006a] transition-colors flex items-center gap-1.5">
+                  Telefon raqam bilan ro'yxatdan o'tish
+                  <span className="text-[9px] bg-[#ff006a] text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-widest">SMS</span>
+                </div>
+                <div className="text-[11px] text-white/40">
+                  Firebase orqali SMS kod boradi
+                </div>
+              </div>
+            </button>
+
+            {/* Option 2: Email */}
             <button
               onClick={() => {
                 setSignupMethod('email');
                 setEmailStep('email');
                 setError('');
+                setResendMessage('');
               }}
               className="w-full bg-[#18181c] hover:bg-[#222] border border-[#333] hover:border-[#ff006a]/50 p-4 rounded-sm transition-all text-left flex items-center gap-4 group cursor-pointer"
             >
-              <div className="w-10 h-10 bg-[#ff006a]/10 border border-[#ff006a]/30 rounded-sm flex items-center justify-center text-[#ff006a] group-hover:scale-105 transition-transform">
+              <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-sm flex items-center justify-center text-white/80 group-hover:scale-105 transition-transform">
                 <Mail className="w-5 h-5" />
               </div>
               <div className="flex-1">
@@ -376,7 +570,7 @@ export default function Register() {
               </div>
             </button>
 
-            {/* Option 2: Google */}
+            {/* Option 3: Google */}
             <button
               onClick={handleGoogleLogin}
               className="w-full bg-white text-black hover:bg-gray-100 p-4 rounded-sm transition-all text-left flex items-center gap-4 cursor-pointer font-bold"
@@ -399,7 +593,7 @@ export default function Register() {
               </div>
             </button>
 
-            {/* Option 3: Telegram */}
+            {/* Option 4: Telegram */}
             <button
               onClick={handleTelegramLoginStart}
               className="w-full bg-[#0088cc] hover:bg-[#0077b5] text-white p-4 rounded-sm transition-all text-left flex items-center gap-4 cursor-pointer"
@@ -418,6 +612,214 @@ export default function Register() {
                 </div>
               </div>
             </button>
+          </div>
+        )}
+
+        {/* ----------------- PHONE FLOW STEP 1: ENTER PHONE ----------------- */}
+        {signupMethod === 'phone' && phoneStep === 'phone' && (
+          <div>
+            <button
+              onClick={() => {
+                setSignupMethod('options');
+                setError('');
+              }}
+              className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white mb-4 transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={14} /> Boshqa usulni tanlash
+            </button>
+
+            <form onSubmit={handlePhoneSendCode} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase">
+                  Telefon raqamingiz
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Phone className="h-4 w-4 text-[#ff006a]" />
+                  </div>
+                  <input
+                    type="tel"
+                    required
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="w-full bg-[#000] border border-[#333] rounded-sm pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors text-sm font-medium"
+                    placeholder="90 123 45 67"
+                  />
+                </div>
+                <p className="text-[11px] text-white/40 mt-1.5">
+                  Quyidagi raqamga Firebase SMS orqali 6 xonali tasdiqlash kodi yuboriladi.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    SMS yuborilmoqda...
+                  </>
+                ) : (
+                  <>
+                    <Send size={14} />
+                    SMS kod yuborish
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* ----------------- PHONE FLOW STEP 2: ENTER CODE ----------------- */}
+        {signupMethod === 'phone' && phoneStep === 'code' && (
+          <div>
+            <button
+              onClick={() => {
+                setPhoneStep('phone');
+                setError('');
+                setResendMessage('');
+              }}
+              className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white mb-4 transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={14} /> Telefon raqamni o'zgartirish ({phoneNumber})
+            </button>
+
+            <form onSubmit={handlePhoneVerifyCode} className="space-y-4">
+              <div>
+                <div className="text-center mb-4 p-3 bg-white/5 border border-white/10 rounded-sm">
+                  <p className="text-xs text-white/70">
+                    <strong className="text-white">{formatPhone(phoneNumber)}</strong> raqamiga SMS kod yuborildi.
+                  </p>
+                  <p className="text-[11px] text-white/40 mt-1">
+                    SMS xabarnomani tekshiring
+                  </p>
+                </div>
+
+                <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase text-center">
+                  6 xonali SMS kodi
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <KeyRound className="h-4 w-4 text-[#ff006a]" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={phoneCode}
+                    onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, ''))}
+                    className="w-full bg-[#000] border border-[#333] rounded-sm pl-10 pr-4 py-3 text-center text-xl font-black text-[#ff006a] tracking-[10px] placeholder-white/20 focus:outline-none focus:border-[#ff006a] transition-colors"
+                    placeholder="123456"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Tekshirilmoqda...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck size={16} />
+                    SMS kodni tasdiqlash
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* ----------------- PHONE FLOW STEP 3: ENTER DETAILS ----------------- */}
+        {signupMethod === 'phone' && phoneStep === 'details' && (
+          <div>
+            <div className="mb-4 p-2.5 bg-green-500/10 border border-green-500/30 rounded-sm flex items-center gap-2 text-green-400 text-xs font-bold">
+              <CheckCircle2 size={16} className="shrink-0" />
+              <span>Telefon raqami tasdiqlandi: {formatPhone(phoneNumber)}</span>
+            </div>
+
+            <form onSubmit={handlePhoneCompleteRegistration} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase">
+                  Ismingiz yoki Taxallusingiz (Login)
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className="h-4 w-4 text-white/30" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={phoneName}
+                    onChange={(e) => setPhoneName(e.target.value)}
+                    className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors text-sm"
+                    placeholder="Ismingizni kiriting"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase">
+                  Parol yaratish
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-4 w-4 text-white/30" />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={phonePassword}
+                    onChange={(e) => setPhonePassword(e.target.value)}
+                    className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors text-sm"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase">
+                  Parolni tasdiqlash
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-4 w-4 text-white/30" />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={phoneConfirmPassword}
+                    onChange={(e) => setPhoneConfirmPassword(e.target.value)}
+                    className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors text-sm"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-4 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Ro'yxatdan o'tkazilmoqda...
+                  </>
+                ) : (
+                  "Ro'yxatdan o'tishni yakunlash"
+                )}
+              </button>
+            </form>
           </div>
         )}
 
