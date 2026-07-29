@@ -27,6 +27,33 @@ export interface Anime {
   created_at: string;
 }
 
+export interface Manga {
+  id: string | number;
+  title: string;
+  description: string;
+  cover_url: string;
+  banner_url?: string;
+  author?: string;
+  artist?: string;
+  janrlar: string;
+  holati: string;
+  released_year?: number;
+  rating?: number;
+  korishlar?: number;
+  chapters_count?: number;
+  created_at?: string;
+}
+
+export interface MangaChapter {
+  id: string | number;
+  manga_id: string | number;
+  chapter_number: number;
+  title?: string;
+  pages: string[];
+  views?: number;
+  created_at?: string;
+}
+
 export interface Notification {
   id: string;
   message: string;

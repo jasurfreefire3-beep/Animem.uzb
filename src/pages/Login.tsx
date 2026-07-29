@@ -14,9 +14,7 @@ declare global {
 }
 
 export default function Login() {
-  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,17 +22,14 @@ export default function Login() {
   const navigate = useNavigate();
 
   // Forgot password flow states
-  const [viewMode, setViewMode] = useState<'login' | 'forgot_choose' | 'forgot_email' | 'forgot_phone' | 'forgot_code' | 'forgot_password'>('login');
-  const [forgotMethod, setForgotMethod] = useState<'email' | 'phone'>('phone');
+  const [viewMode, setViewMode] = useState<'login' | 'forgot_email' | 'forgot_code' | 'forgot_password'>('login');
   
   const [resetEmail, setResetEmail] = useState('');
-  const [resetPhone, setResetPhone] = useState('');
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [resetSuccessMsg, setResetSuccessMsg] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
-  const [firebaseUid, setFirebaseUid] = useState('');
 
   // Check for Google Auth redirect result
   useEffect(() => {
@@ -259,6 +254,10 @@ export default function Login() {
         throw new Error(data.error || 'Kodni yuborishda xatolik');
       }
 
+      if (data.devCode) {
+        setResetCode(data.devCode);
+      }
+
       setResetSuccessMsg(data.message || 'Parolni tiklash kodi emailga yuborildi!');
       setViewMode('forgot_code');
     } catch (err: any) {
@@ -307,7 +306,11 @@ export default function Login() {
         throw new Error(data.error || 'SMS kod yuborishda xatolik');
       }
 
-      setResetSuccessMsg(`SMS tasdiqlash kodi ${formatted} raqamiga yuborildi!`);
+      if (data.devCode) {
+        setResetCode(data.devCode);
+      }
+
+      setResetSuccessMsg(data.message || `SMS tasdiqlash kodi ${formatted} raqamiga yuborildi!`);
       setViewMode('forgot_code');
     } catch (err: any) {
       setError(err.message || 'SMS kod yuborishda xatolik');
@@ -450,17 +453,13 @@ export default function Login() {
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
             {viewMode === 'login' && 'Tizimga kirish'}
-            {viewMode === 'forgot_choose' && 'Parolni tiklash usuli'}
             {viewMode === 'forgot_email' && 'Email orqali tiklash'}
-            {viewMode === 'forgot_phone' && 'SMS orqali tiklash'}
             {viewMode === 'forgot_code' && 'Tasdiqlash kodi'}
             {viewMode === 'forgot_password' && 'Yangi parol'}
           </h1>
           <p className="text-white/50 text-xs sm:text-sm mt-1">
             {viewMode === 'login' && 'Animem.uz akkauntingizga kiring'}
-            {viewMode === 'forgot_choose' && 'Parolni qaysi usulda tiklamoqchisiz?'}
             {viewMode === 'forgot_email' && 'Akkuntingizga ulangan emailni kiriting'}
-            {viewMode === 'forgot_phone' && 'Telefon raqamingizga Firebase SMS yuboriladi'}
             {viewMode === 'forgot_code' && 'Yuborilgan 6 xonali tasdiqlash kodini kiriting'}
             {viewMode === 'forgot_password' && "Akkauntingiz uchun yangi xavfsiz parol o'rnating"}
           </p>
@@ -481,76 +480,23 @@ export default function Login() {
         {/* ------------------- NORMAL LOGIN FORM ------------------- */}
         {viewMode === 'login' && (
           <>
-            {/* Login Method Toggle Tabs */}
-            <div className="grid grid-cols-2 gap-1 bg-[#000] p-1 border border-[#222] rounded-sm mb-5">
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginMethod('email');
-                  setError('');
-                }}
-                className={`py-2 text-xs font-bold rounded-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  loginMethod === 'email'
-                    ? 'bg-[#ff006a] text-white shadow-md'
-                    : 'text-white/50 hover:text-white'
-                }`}
-              >
-                <Mail size={14} />
-                Email
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginMethod('phone');
-                  setError('');
-                }}
-                className={`py-2 text-xs font-bold rounded-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  loginMethod === 'phone'
-                    ? 'bg-[#ff006a] text-white shadow-md'
-                    : 'text-white/50 hover:text-white'
-                }`}
-              >
-                <Phone size={14} />
-                Telefon
-              </button>
-            </div>
-
             <form onSubmit={handleSubmit} className="space-y-4">
-              {loginMethod === 'email' ? (
-                <div>
-                  <label className="block text-xs font-bold text-white/50 mb-1.5 uppercase">Email</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Mail className="h-4 w-4 text-white/30" />
-                    </div>
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a]/50 transition-colors text-sm"
-                      placeholder="you@example.com"
-                    />
+              <div>
+                <label className="block text-xs font-bold text-white/50 mb-1.5 uppercase">Email</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="h-4 w-4 text-white/30" />
                   </div>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a]/50 transition-colors text-sm"
+                    placeholder="you@example.com"
+                  />
                 </div>
-              ) : (
-                <div>
-                  <label className="block text-xs font-bold text-white/50 mb-1.5 uppercase">Telefon raqam</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Phone className="h-4 w-4 text-[#ff006a]" />
-                    </div>
-                    <input
-                      type="tel"
-                      required
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full bg-[#000] border border-[#222] rounded-sm pl-10 pr-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a]/50 transition-colors text-sm"
-                      placeholder="90 123 45 67"
-                    />
-                  </div>
-                </div>
-              )}
+              </div>
 
               <div>
                 <div className="flex justify-between items-center mb-1.5">
@@ -558,7 +504,7 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => {
-                      setViewMode('forgot_choose');
+                      setViewMode('forgot_email');
                       setError('');
                       setResetSuccessMsg('');
                     }}
@@ -643,9 +589,9 @@ export default function Login() {
           </>
         )}
 
-        {/* ---------------- FORGOT PASSWORD METHOD CHOOSE ---------------- */}
-        {viewMode === 'forgot_choose' && (
-          <div className="space-y-3">
+        {/* ---------------- FORGOT PASSWORD EMAIL STEP ---------------- */}
+        {viewMode === 'forgot_email' && (
+          <div>
             <button
               onClick={() => {
                 setViewMode('login');
@@ -654,121 +600,6 @@ export default function Login() {
               className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white mb-4 transition-colors cursor-pointer"
             >
               <ArrowLeft size={14} /> Kirish sahifasiga qaytish
-            </button>
-
-            <button
-              onClick={() => {
-                setForgotMethod('phone');
-                setViewMode('forgot_phone');
-                setError('');
-              }}
-              className="w-full bg-[#18181c] hover:bg-[#222] border border-[#ff006a]/40 hover:border-[#ff006a] p-4 rounded-sm transition-all text-left flex items-center gap-4 group cursor-pointer"
-            >
-              <div className="w-10 h-10 bg-[#ff006a]/20 border border-[#ff006a]/50 rounded-sm flex items-center justify-center text-[#ff006a]">
-                <Phone size={20} />
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-black text-white group-hover:text-[#ff006a] transition-colors flex items-center gap-1.5">
-                  Telefon raqami (SMS) orqali
-                  <span className="text-[9px] bg-[#ff006a] text-white px-1.5 py-0.5 rounded font-bold uppercase">Firebase</span>
-                </div>
-                <div className="text-[11px] text-white/40">
-                  Telefoningizga Firebase orqali SMS kod boradi
-                </div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => {
-                setForgotMethod('email');
-                setViewMode('forgot_email');
-                setError('');
-              }}
-              className="w-full bg-[#18181c] hover:bg-[#222] border border-[#333] hover:border-[#ff006a]/50 p-4 rounded-sm transition-all text-left flex items-center gap-4 group cursor-pointer"
-            >
-              <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-sm flex items-center justify-center text-white/80">
-                <Mail size={20} />
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-black text-white group-hover:text-[#ff006a] transition-colors">
-                  Email manzili orqali
-                </div>
-                <div className="text-[11px] text-white/40">
-                  Email pochtangizga tiklash kodi yuboriladi
-                </div>
-              </div>
-            </button>
-          </div>
-        )}
-
-        {/* ---------------- FORGOT PASSWORD PHONE STEP ---------------- */}
-        {viewMode === 'forgot_phone' && (
-          <div>
-            <button
-              onClick={() => {
-                setViewMode('forgot_choose');
-                setError('');
-              }}
-              className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white mb-4 transition-colors cursor-pointer"
-            >
-              <ArrowLeft size={14} /> Usulni o'zgartirish
-            </button>
-
-            <form onSubmit={handleForgotSendPhoneCode} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-white/70 mb-1.5 uppercase">
-                  Telefon raqamingiz
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Phone className="h-4 w-4 text-[#ff006a]" />
-                  </div>
-                  <input
-                    type="tel"
-                    required
-                    value={resetPhone}
-                    onChange={(e) => setResetPhone(e.target.value)}
-                    className="w-full bg-[#000] border border-[#333] rounded-sm pl-10 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-[#ff006a] transition-colors text-sm font-medium"
-                    placeholder="90 123 45 67"
-                  />
-                </div>
-                <p className="text-[11px] text-white/40 mt-1.5">
-                  Quyidagi raqamga Firebase SMS orqali 6 xonali tiklash kodi yuboriladi.
-                </p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={forgotLoading}
-                className="w-full bg-[#ff006a] hover:bg-[#d40058] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
-              >
-                {forgotLoading ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    SMS yuborilmoqda...
-                  </>
-                ) : (
-                  <>
-                    <Send size={14} />
-                    SMS kod yuborish
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* ---------------- FORGOT PASSWORD EMAIL STEP ---------------- */}
-        {viewMode === 'forgot_email' && (
-          <div>
-            <button
-              onClick={() => {
-                setViewMode('forgot_choose');
-                setError('');
-              }}
-              className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white mb-4 transition-colors cursor-pointer"
-            >
-              <ArrowLeft size={14} /> Usulni o'zgartirish
             </button>
 
             <form onSubmit={handleForgotSendEmailCode} className="space-y-4">
@@ -820,23 +651,23 @@ export default function Login() {
           <div>
             <button
               onClick={() => {
-                setViewMode(forgotMethod === 'phone' ? 'forgot_phone' : 'forgot_email');
+                setViewMode('forgot_email');
                 setError('');
                 setResetSuccessMsg('');
               }}
               className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white mb-4 transition-colors cursor-pointer"
             >
-              <ArrowLeft size={14} /> Qaytash ({forgotMethod === 'phone' ? resetPhone : resetEmail})
+              <ArrowLeft size={14} /> Qaytash ({resetEmail})
             </button>
 
             <form onSubmit={handleForgotVerifyCode} className="space-y-4">
               <div>
                 <div className="text-center mb-4 p-3 bg-white/5 border border-white/10 rounded-sm">
                   <p className="text-xs text-white/70">
-                    <strong className="text-white">{forgotMethod === 'phone' ? formatPhone(resetPhone) : resetEmail}</strong> manziliga 6 xonali tiklash kodi yuborildi.
+                    <strong className="text-white">{resetEmail}</strong> manziliga 6 xonali tiklash kodi yuborildi.
                   </p>
                   <p className="text-[11px] text-white/40 mt-1">
-                    {forgotMethod === 'phone' ? 'SMS xabarnomani tekshiring' : 'Pochtani (va Spam papkasini) tekshiring'}
+                    Pochtani (va Spam papkasini) tekshiring
                   </p>
                 </div>
 

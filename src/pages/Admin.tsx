@@ -4,16 +4,17 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ShieldAlert, Plus, Link as LinkIcon, Image, Type, AlignLeft, 
   Calendar, Building, ListOrdered, Tag, Film, Tv, Video, 
-  Trash2, Edit2, Search, X, Check, Eye, Bell 
+  Trash2, Edit2, Search, X, Check, Eye, Bell, BookOpen
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Anime, GENRE_MAP, translateGenre } from '../types';
 import AdminNotifications from '../components/AdminNotifications';
+import AdminMangalar from '../components/AdminMangalar';
 
 export default function Admin() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'manage_animes' | 'add_anime' | 'episodes' | 'notifications'>('manage_animes');
+  const [activeTab, setActiveTab] = useState<'manage_animes' | 'add_anime' | 'episodes' | 'notifications' | 'mangas'>('manage_animes');
   
   // Anime Form States
   const [title, setTitle] = useState('');
@@ -542,6 +543,18 @@ export default function Admin() {
         >
           <Bell size={16} />
           <span>Bildirishnomalar</span>
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('mangas');
+            setMessage({ type: '', text: '' });
+          }}
+          className={`flex items-center space-x-2 px-3 sm:px-6 py-2 sm:py-2.5 rounded-sm text-xs sm:text-sm font-bold transition-colors flex-1 justify-center ${
+            activeTab === 'mangas' ? 'bg-[#ff006a] text-white' : 'text-white/50 hover:bg-[#222] hover:text-white'
+          }`}
+        >
+          <BookOpen size={16} />
+          <span>Mangalar</span>
         </button>
       </div>
 
@@ -1215,6 +1228,16 @@ export default function Admin() {
           animate={{ opacity: 1, y: 0 }}
         >
           <AdminNotifications />
+        </motion.div>
+      )}
+
+      {/* Tab 5: Mangalar */}
+      {activeTab === 'mangas' && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <AdminMangalar token={token} />
         </motion.div>
       )}
     </div>

@@ -15,6 +15,9 @@ import { motion, AnimatePresence } from 'motion/react';
 
 // Newly added pages
 import Animelar from './pages/Animelar';
+import Mangalar from './pages/Mangalar';
+import MangaDetails from './pages/MangaDetails';
+import MangaReader from './pages/MangaReader';
 import Jadval from './pages/Jadval';
 import YangiChiqishlar from './pages/YangiChiqishlar';
 import Top100 from './pages/Top100';
@@ -229,6 +232,9 @@ export default function App() {
             
             {/* Added high fidelity views matching user design */}
             <Route path="/animelar" element={<Animelar />} />
+            <Route path="/mangalar" element={<Mangalar />} />
+            <Route path="/manga/:id" element={<MangaDetails />} />
+            <Route path="/manga/:id/read/:chapterNumber" element={<MangaReader />} />
             <Route path="/jadval" element={<Jadval />} />
             <Route path="/yangi-chiqishlar" element={<YangiChiqishlar />} />
             <Route path="/top100" element={<Top100 />} />

@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   Home, 
   Tv, 
+  BookOpen,
   Calendar, 
   Clock, 
   Star, 
@@ -68,6 +69,7 @@ export default function Sidebar({ onClose, onGenreSelect }: SidebarProps) {
   const menuItems = [
     { name: 'Bosh sahifa', path: '/', icon: Home },
     { name: 'Animelar', path: '/animelar', icon: Tv },
+    { name: 'Mangalar', path: '/mangalar', icon: BookOpen },
     { name: 'Jadval', path: '/jadval', icon: Calendar },
     { name: 'Yangi chiqishlar', path: '/yangi-chiqishlar', icon: Clock },
     { name: 'Top 100', path: '/top100', icon: Star },

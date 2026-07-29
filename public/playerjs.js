@@ -4,38 +4,50 @@
 
 (function() {
   function Playerjs(config) {
-    this.config = config;
-    this.container = document.getElementById(config.id);
+    if (!config) config = {};
+    this.config = typeof config === 'string' ? { file: config } : config;
+    var containerId = this.config.id || 'player';
+    this.container = document.getElementById(containerId);
+    
+    if (!this.container && this.config.element) {
+      this.container = this.config.element;
+    }
+
     if (!this.container) {
-      console.warn('Playerjs: Container not found:', config.id);
+      console.warn('Playerjs: Container element not found for id:', containerId);
       return;
     }
 
     // Create the video element
     const video = document.createElement('video');
-    video.id = 'playerjs-video';
-    video.style.width = '100%';
-    video.style.height = '100%';
-    video.style.backgroundColor = '#000';
+    video.id = containerId + '-video';
+    if (video && video.style) {
+      video.style.width = '100%';
+      video.style.height = '100%';
+      video.style.backgroundColor = '#000';
+    }
     video.controls = true;
     video.playsInline = true;
     video.setAttribute('playsinline', 'true');
     video.setAttribute('webkit-playsinline', 'true');
     
-    if (config.poster) {
-      video.poster = config.poster;
+    if (this.config.poster) {
+      video.poster = this.config.poster;
     }
 
     // Clear and append
-    this.container.innerHTML = '';
-    this.container.appendChild(video);
+    try {
+      this.container.innerHTML = '';
+      this.container.appendChild(video);
+    } catch (e) {
+      console.warn('Playerjs: Could not append video to container:', e);
+    }
     this.video = video;
 
-    const fileUrl = config.file || '';
+    const fileUrl = this.config.file || '';
     const isHls = fileUrl.includes('.m3u8') || fileUrl.includes('m3u8');
 
     if (isHls) {
-      // Dynamically load Hls.js if not already loaded globally
       if (window.Hls) {
         this.initHls(fileUrl);
       } else {
@@ -46,18 +58,19 @@
         };
         document.head.appendChild(script);
       }
-    } else {
+    } else if (fileUrl && video) {
       video.src = fileUrl;
     }
   }
 
   Playerjs.prototype.initHls = function(url) {
+    if (!this.video) return;
     if (window.Hls && window.Hls.isSupported()) {
       const hls = new window.Hls();
       hls.loadSource(url);
       hls.attachMedia(this.video);
       this.hls = hls;
-    } else if (this.video.canPlayType('application/vnd.apple.mpegurl')) {
+    } else if (this.video && this.video.canPlayType && this.video.canPlayType('application/vnd.apple.mpegurl')) {
       this.video.src = url;
     }
   };
@@ -78,12 +91,24 @@
 
   Playerjs.prototype.destroy = function() {
     if (this.hls) {
-      this.hls.destroy();
+      try { this.hls.destroy(); } catch (e) {}
+      this.hls = null;
     }
     if (this.container) {
-      this.container.innerHTML = '';
+      try { this.container.innerHTML = ''; } catch (e) {}
     }
+    this.video = null;
+    this.container = null;
+  };
+
+  Playerjs.prototype.api = function(param1, param2) {
+    if (!this.video) return null;
+    if (param1 === 'play') this.play();
+    else if (param1 === 'pause') this.pause();
+    else if (param1 === 'seek') this.video.currentTime = Number(param2) || 0;
+    else if (param1 === 'volume') this.video.volume = Number(param2) || 1;
   };
 
   window.Playerjs = Playerjs;
 })();
+

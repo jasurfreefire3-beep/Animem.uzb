@@ -180,13 +180,150 @@ function loadLocalStore() {
         episodes: [],
         users: [],
         ratings: [],
-        messages: []
+        messages: [],
+        mangas: [
+          {
+            id: 1,
+            title: "Solo Leveling (Manga)",
+            description: "Dunyoning eng kuchsiz F-darajali ovchisi Sung Jin-Woo kutilmaganda xavfli reyd paytida yagona va afsonaviy tizim orqali darajasini oshirish imkoniyatiga ega bo'ladi.",
+            cover_url: "https://m.media-amazon.com/images/M/MV5BODlhWOE5NjMtN2I0OC00NjA3LTkyM2YtM2I5Njg3MTBhYTY1XkEyXkFqcGc@._V1_.jpg",
+            banner_url: "https://images.alphacoders.com/134/1349072.png",
+            author: "Chugong",
+            artist: "DUBU (REDICE Studio)",
+            janrlar: "Jangari, Sarguzasht, Fantastika",
+            holati: "Tugallangan",
+            released_year: 2018,
+            rating: 9.9,
+            korishlar: 4200,
+            chapters_count: 2,
+            created_at: new Date().toISOString()
+          },
+          {
+            id: 2,
+            title: "Jujutsu Kaisen (Manga)",
+            description: "Yuji Itadori lanatlangan sehrli ob'ektni yutib yuboradi va Sehrgarlar akademiyasiga qo'shilib, dahshatli lanatlarga qarshi kurashadi.",
+            cover_url: "https://m.media-amazon.com/images/M/MV5BNGY4MTg3NjgtMmFkYi00ZTNmLTgwAVtLTExNmI0MDI0U3M4XkEyXkFqcGc@._V1_.jpg",
+            banner_url: "https://images.alphacoders.com/113/1132688.jpg",
+            author: "Gege Akutami",
+            artist: "Gege Akutami",
+            janrlar: "Jangari, Mistika, G'ayritabiiy",
+            holati: "Davom etmoqda",
+            released_year: 2018,
+            rating: 9.7,
+            korishlar: 3100,
+            chapters_count: 1,
+            created_at: new Date().toISOString()
+          }
+        ],
+        manga_chapters: [
+          {
+            id: 1,
+            manga_id: 1,
+            chapter_number: 1,
+            title: "1-bob: Eng kuchsiz F-darajali ovchi",
+            pages: [
+              "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1000",
+              "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1000",
+              "https://images.unsplash.com/photo-1563089145-599997674d42?w=1000"
+            ],
+            views: 1200,
+            created_at: new Date().toISOString()
+          },
+          {
+            id: 2,
+            manga_id: 1,
+            chapter_number: 2,
+            title: "2-bob: Ikki karra ibodatxona siri",
+            pages: [
+              "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=1000",
+              "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=1000"
+            ],
+            views: 950,
+            created_at: new Date().toISOString()
+          },
+          {
+            id: 3,
+            manga_id: 2,
+            chapter_number: 1,
+            title: "1-bob: Sukuna barmog'i",
+            pages: [
+              "https://images.unsplash.com/photo-1563089145-599997674d42?w=1000",
+              "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1000"
+            ],
+            views: 800,
+            created_at: new Date().toISOString()
+          }
+        ]
       };
       fs.writeFileSync(LOCAL_STORE_PATH, JSON.stringify(defaultData, null, 2), "utf-8");
       return defaultData;
     }
     const raw = fs.readFileSync(LOCAL_STORE_PATH, "utf-8");
-    return JSON.parse(raw);
+    const data = JSON.parse(raw);
+    if (!data.mangas) {
+      data.mangas = [
+        {
+          id: 1,
+          title: "Solo Leveling (Manga)",
+          description: "Dunyoning eng kuchsiz F-darajali ovchisi Sung Jin-Woo kutilmaganda xavfli reyd paytida yagona va afsonaviy tizim orqali darajasini oshirish imkoniyatiga ega bo'ladi.",
+          cover_url: "https://m.media-amazon.com/images/M/MV5BODlhWOE5NjMtN2I0OC00NjA3LTkyM2YtM2I5Njg3MTBhYTY1XkEyXkFqcGc@._V1_.jpg",
+          banner_url: "https://images.alphacoders.com/134/1349072.png",
+          author: "Chugong",
+          artist: "DUBU (REDICE Studio)",
+          janrlar: "Jangari, Sarguzasht, Fantastika",
+          holati: "Tugallangan",
+          released_year: 2018,
+          rating: 9.9,
+          korishlar: 4200,
+          chapters_count: 2,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 2,
+          title: "Jujutsu Kaisen (Manga)",
+          description: "Yuji Itadori lanatlangan sehrli ob'ektni yutib yuboradi va Sehrgarlar akademiyasiga qo'shilib, dahshatli lanatlarga qarshi kurashadi.",
+          cover_url: "https://m.media-amazon.com/images/M/MV5BNGY4MTg3NjgtMmFkYi00ZTNmLTgwAVtLTExNmI0MDI0U3M4XkEyXkFqcGc@._V1_.jpg",
+          banner_url: "https://images.alphacoders.com/113/1132688.jpg",
+          author: "Gege Akutami",
+          artist: "Gege Akutami",
+          janrlar: "Jangari, Mistika, G'ayritabiiy",
+          holati: "Davom etmoqda",
+          released_year: 2018,
+          rating: 9.7,
+          korishlar: 3100,
+          chapters_count: 1,
+          created_at: new Date().toISOString()
+        }
+      ];
+    }
+    if (!data.manga_chapters) {
+      data.manga_chapters = [
+        {
+          id: 1,
+          manga_id: 1,
+          chapter_number: 1,
+          title: "1-bob: Eng kuchsiz F-darajali ovchi",
+          pages: [
+            "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1000",
+            "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1000"
+          ],
+          views: 1200,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 2,
+          manga_id: 1,
+          chapter_number: 2,
+          title: "2-bob: Ikki karra ibodatxona siri",
+          pages: [
+            "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=1000"
+          ],
+          views: 950,
+          created_at: new Date().toISOString()
+        }
+      ];
+    }
+    return data;
   } catch (e) {
     console.error("Error loading local_store.json:", e);
     return { animes: [], notifications: [], comments: [], episodes: [], users: [], ratings: [], messages: [] };
@@ -633,14 +770,19 @@ app.post("/api/auth/send-code", async (req, res) => {
       emailError = sendErr.message || "Email serveriga ulanishda xatolik";
     }
 
+    let devCode: string | undefined = undefined;
     if (!emailSent) {
+      devCode = code;
       console.warn(`[Resend Auth Warning] Email sending failed for ${cleanEmail}: ${emailError}. Providing fallback code.`);
     }
 
     return res.json({
       success: true,
       emailSent,
-      message: "Tasdiqlash kodi email manzilingizga yuborildi! Pochtani (va Spam papkasini) tekshiring.",
+      devCode,
+      message: emailSent
+        ? "Tasdiqlash kodi email manzilingizga yuborildi! Pochtani (va Spam papkasini) tekshiring."
+        : `Tasdiqlash kodi tayyorlandi! (Test kodi: ${code})`,
     });
   } catch (error: any) {
     console.error("Send code error:", error);
@@ -719,14 +861,19 @@ app.post("/api/auth/forgot-password-send-code", async (req, res) => {
       emailError = sendErr.message || "Email serveriga ulanishda xatolik";
     }
 
+    let devCode: string | undefined = undefined;
     if (!emailSent) {
+      devCode = code;
       console.warn(`[Resend Forgot Warning] Email sending failed for ${cleanEmail}: ${emailError}. Providing fallback code.`);
     }
 
     return res.json({
       success: true,
       emailSent,
-      message: "Parolni tiklash kodi email manzilingizga yuborildi! Pochtani (va Spam papkasini) tekshiring.",
+      devCode,
+      message: emailSent
+        ? "Parolni tiklash kodi email manzilingizga yuborildi! Pochtani (va Spam papkasini) tekshiring."
+        : `Parolni tiklash kodi tayyorlandi! (Test kodi: ${code})`,
     });
   } catch (error: any) {
     console.error("Forgot password send code error:", error);
@@ -1115,12 +1262,67 @@ app.post("/api/auth/phone-send-code", async (req, res) => {
       };
     }
 
-    console.log(`[Phone Auth SMS Code] ${type || 'auth'} for ${cleanPhone}: ${code}`);
+    let smsSent = false;
+    let smsError = "";
+
+    // Check if Eskiz SMS service is configured
+    const eskizEmail = process.env.ESKIZ_EMAIL;
+    const eskizPassword = process.env.ESKIZ_PASSWORD;
+    const eskizToken = process.env.ESKIZ_TOKEN;
+
+    if (eskizToken || (eskizEmail && eskizPassword)) {
+      try {
+        let activeToken = eskizToken;
+        if (!activeToken && eskizEmail && eskizPassword) {
+          const authRes = await fetch("https://notify.eskiz.uz/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: eskizEmail, password: eskizPassword }),
+          });
+          const authData = await authRes.json();
+          if (authData?.data?.token) {
+            activeToken = authData.data.token;
+          }
+        }
+
+        if (activeToken) {
+          const formattedPhone = cleanPhone.replace(/^\+/, '');
+          const smsRes = await fetch("https://notify.eskiz.uz/api/message/sms/send", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${activeToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              mobile_phone: formattedPhone,
+              message: `Animem.uz - Tasdiqlash kodingiz: ${code}`,
+              from: "4546",
+              callback_url: "",
+            }),
+          });
+          const smsData = await smsRes.json();
+          if (smsRes.ok && smsData?.status === "waiting") {
+            smsSent = true;
+          } else {
+            smsError = smsData?.message || "Eskiz SMS yuborishda xatolik";
+          }
+        }
+      } catch (e: any) {
+        console.error("[Eskiz SMS Error]:", e);
+        smsError = e.message || "SMS xizmati bilan aloqa uzildi";
+      }
+    }
+
+    console.log(`[Phone Auth SMS Code] ${type || 'auth'} for ${cleanPhone}: ${code} (Sent: ${smsSent})`);
 
     return res.json({
       success: true,
-      message: `SMS tasdiqlash kodi ${cleanPhone} raqamiga yuborildi!`,
       codeSent: true,
+      smsSent,
+      devCode: smsSent ? undefined : code,
+      message: smsSent
+        ? `SMS tasdiqlash kodi ${cleanPhone} raqamiga yuborildi!`
+        : `SMS provayderi (Eskiz) ulanmaganligi sababli test kodi tayyorlandi (${code}).`,
     });
   } catch (err: any) {
     console.error("phone-send-code error:", err);
@@ -2324,6 +2526,235 @@ app.delete("/api/animes/:animeId/episodes/:episodeNumber", authenticateToken, as
   } catch (err) {
     console.error("Delete episode error:", err);
     res.status(500).json({ error: "Failed to delete episode" });
+  }
+});
+
+// ==================== MANGA API ENDPOINTS ====================
+
+// GET All Mangas
+app.get("/api/mangas", async (req, res) => {
+  try {
+    const store = loadLocalStore();
+    const mangas = store.mangas || [];
+    res.json(mangas);
+  } catch (err) {
+    console.error("Get mangas error:", err);
+    res.status(500).json({ error: "Failed to fetch mangas" });
+  }
+});
+
+// GET Single Manga Details with Chapters
+app.get("/api/mangas/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const store = loadLocalStore();
+    const mangas = store.mangas || [];
+    const mangaIndex = mangas.findIndex((m: any) => String(m.id) === String(id));
+    if (mangaIndex === -1) {
+      return res.status(404).json({ error: "Manga topilmadi" });
+    }
+    
+    // Increment view count
+    mangas[mangaIndex].korishlar = (mangas[mangaIndex].korishlar || 0) + 1;
+    saveLocalStore(store);
+
+    const manga = mangas[mangaIndex];
+    const chapters = (store.manga_chapters || [])
+      .filter((c: any) => String(c.manga_id) === String(id))
+      .sort((a: any, b: any) => a.chapter_number - b.chapter_number);
+
+    res.json({ ...manga, chapters });
+  } catch (err) {
+    console.error("Get manga details error:", err);
+    res.status(500).json({ error: "Failed to fetch manga details" });
+  }
+});
+
+// GET Single Manga Chapter Pages
+app.get("/api/mangas/:id/chapters/:chapterNumber", async (req, res) => {
+  try {
+    const { id, chapterNumber } = req.params;
+    const store = loadLocalStore();
+    const chapter = (store.manga_chapters || []).find(
+      (c: any) => String(c.manga_id) === String(id) && String(c.chapter_number) === String(chapterNumber)
+    );
+    if (!chapter) {
+      return res.status(404).json({ error: "Bob topilmadi" });
+    }
+    const manga = (store.mangas || []).find((m: any) => String(m.id) === String(id));
+    const allChapters = (store.manga_chapters || [])
+      .filter((c: any) => String(c.manga_id) === String(id))
+      .sort((a: any, b: any) => a.chapter_number - b.chapter_number);
+
+    res.json({
+      chapter,
+      manga_title: manga?.title || "Manga",
+      all_chapters: allChapters.map((c: any) => ({
+        id: c.id,
+        chapter_number: c.chapter_number,
+        title: c.title
+      }))
+    });
+  } catch (err) {
+    console.error("Get chapter error:", err);
+    res.status(500).json({ error: "Failed to fetch chapter" });
+  }
+});
+
+// Admin Route: Create/Add Manga
+app.post("/api/mangas", authenticateToken, async (req: any, res) => {
+  try {
+    if (req.user.role !== "admin") return res.sendStatus(403);
+    const { title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year } = req.body;
+
+    if (!title || !description || !cover_url) {
+      return res.status(400).json({ error: "Sarlavha, tavsif va muqova havola (cover_url) kiritilishi shart!" });
+    }
+
+    const newManga = {
+      id: Date.now(),
+      title,
+      description,
+      cover_url,
+      banner_url: banner_url || cover_url,
+      author: author || "Noma'lum",
+      artist: artist || "Noma'lum",
+      janrlar: janrlar || "Jangari",
+      holati: holati || "Davom etmoqda",
+      released_year: released_year ? parseInt(released_year) : new Date().getFullYear(),
+      rating: 9.5,
+      korishlar: 0,
+      chapters_count: 0,
+      created_at: new Date().toISOString()
+    };
+
+    const store = loadLocalStore();
+    store.mangas = store.mangas || [];
+    store.mangas.unshift(newManga);
+    saveLocalStore(store);
+
+    res.status(201).json({ message: "Manga muvaffaqiyatli qo'shildi", manga: newManga });
+  } catch (err) {
+    console.error("Create manga error:", err);
+    res.status(500).json({ error: "Manga qo'shishda xatolik yuz berdi" });
+  }
+});
+
+// Admin Route: Update Manga
+app.put("/api/mangas/:id", authenticateToken, async (req: any, res) => {
+  try {
+    if (req.user.role !== "admin") return res.sendStatus(403);
+    const id = req.params.id;
+    const store = loadLocalStore();
+    store.mangas = store.mangas || [];
+    const idx = store.mangas.findIndex((m: any) => String(m.id) === String(id));
+    if (idx < 0) {
+      return res.status(404).json({ error: "Manga topilmadi" });
+    }
+
+    store.mangas[idx] = {
+      ...store.mangas[idx],
+      ...req.body
+    };
+    saveLocalStore(store);
+
+    res.json({ message: "Manga tahrirlandi", manga: store.mangas[idx] });
+  } catch (err) {
+    console.error("Update manga error:", err);
+    res.status(500).json({ error: "Manga tahrirlashda xatolik" });
+  }
+});
+
+// Admin Route: Delete Manga
+app.delete("/api/mangas/:id", authenticateToken, async (req: any, res) => {
+  try {
+    if (req.user.role !== "admin") return res.sendStatus(403);
+    const id = req.params.id;
+    const store = loadLocalStore();
+    store.mangas = (store.mangas || []).filter((m: any) => String(m.id) !== String(id));
+    store.manga_chapters = (store.manga_chapters || []).filter((c: any) => String(c.manga_id) !== String(id));
+    saveLocalStore(store);
+
+    res.json({ message: "Manga o'chirildi" });
+  } catch (err) {
+    console.error("Delete manga error:", err);
+    res.status(500).json({ error: "Manga o'chirishda xatolik" });
+  }
+});
+
+// Admin Route: Save / Add Manga Chapter
+app.post("/api/mangas/:mangaId/chapters", authenticateToken, async (req: any, res) => {
+  try {
+    if (req.user.role !== "admin") return res.sendStatus(403);
+    const mangaId = req.params.mangaId;
+    const { chapter_number, title, pages } = req.body;
+
+    if (!chapter_number || !pages || !Array.isArray(pages) || pages.length === 0) {
+      return res.status(400).json({ error: "Bob raqami va kamida 1 ta rasm havolasi (pages) talab qilinadi!" });
+    }
+
+    const store = loadLocalStore();
+    store.manga_chapters = store.manga_chapters || [];
+
+    const existingIdx = store.manga_chapters.findIndex(
+      (c: any) => String(c.manga_id) === String(mangaId) && Number(c.chapter_number) === Number(chapter_number)
+    );
+
+    const chapterObj = {
+      id: existingIdx >= 0 ? store.manga_chapters[existingIdx].id : Date.now(),
+      manga_id: isNaN(Number(mangaId)) ? mangaId : Number(mangaId),
+      chapter_number: Number(chapter_number),
+      title: title || `${chapter_number}-bob`,
+      pages: pages.filter((p: string) => typeof p === 'string' && p.trim().length > 0),
+      views: existingIdx >= 0 ? store.manga_chapters[existingIdx].views || 0 : 0,
+      created_at: existingIdx >= 0 ? store.manga_chapters[existingIdx].created_at : new Date().toISOString()
+    };
+
+    if (existingIdx >= 0) {
+      store.manga_chapters[existingIdx] = chapterObj;
+    } else {
+      store.manga_chapters.push(chapterObj);
+    }
+
+    // Update manga chapter count
+    const mangaIdx = (store.mangas || []).findIndex((m: any) => String(m.id) === String(mangaId));
+    if (mangaIdx >= 0) {
+      const chapterCount = store.manga_chapters.filter((c: any) => String(c.manga_id) === String(mangaId)).length;
+      store.mangas[mangaIdx].chapters_count = chapterCount;
+    }
+
+    saveLocalStore(store);
+
+    res.json({ message: "Bob muvaffaqiyatli saqlandi", chapter: chapterObj });
+  } catch (err) {
+    console.error("Save manga chapter error:", err);
+    res.status(500).json({ error: "Bobni saqlashda xatolik yuz berdi" });
+  }
+});
+
+// Admin Route: Delete Manga Chapter
+app.delete("/api/mangas/:mangaId/chapters/:chapterNumber", authenticateToken, async (req: any, res) => {
+  try {
+    if (req.user.role !== "admin") return res.sendStatus(403);
+    const { mangaId, chapterNumber } = req.params;
+    const store = loadLocalStore();
+
+    store.manga_chapters = (store.manga_chapters || []).filter(
+      (c: any) => !(String(c.manga_id) === String(mangaId) && String(c.chapter_number) === String(chapterNumber))
+    );
+
+    const mangaIdx = (store.mangas || []).findIndex((m: any) => String(m.id) === String(mangaId));
+    if (mangaIdx >= 0) {
+      const chapterCount = store.manga_chapters.filter((c: any) => String(c.manga_id) === String(mangaId)).length;
+      store.mangas[mangaIdx].chapters_count = chapterCount;
+    }
+
+    saveLocalStore(store);
+
+    res.json({ message: "Bob o'chirildi" });
+  } catch (err) {
+    console.error("Delete manga chapter error:", err);
+    res.status(500).json({ error: "Bobni o'chirishda xatolik" });
   }
 });
 
