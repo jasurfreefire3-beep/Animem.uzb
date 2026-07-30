@@ -13,7 +13,8 @@ import {
   Maximize, 
   Minimize,
   Loader2,
-  Settings
+  Settings,
+  AlertCircle
 } from 'lucide-react';
 
 interface VideoPlayerProps {
@@ -38,19 +39,15 @@ function getEmbedUrl(url: string): { isEmbed: boolean; embedUrl: string } {
     }
   }
 
-  // Mover.uz links (mover.uz, v.mover.uz) -> Always play in our custom HTML5 video player via backend proxy!
+  // Mover.uz links -> Use fast native iframe embed for instant CDN playback!
   if (lowerUrl.includes('mover.uz')) {
-    return { isEmbed: false, embedUrl: '' };
-  }
-
-  // Direct video files (.mp4, .webm, .m3u8) -> Play in custom HTML5 player!
-  if (
-    lowerUrl.endsWith('.mp4') || 
-    lowerUrl.endsWith('.webm') || 
-    lowerUrl.includes('.m3u8') || 
-    lowerUrl.includes('format=m3u8')
-  ) {
-    return { isEmbed: false, embedUrl: '' };
+    const moverMatch = trimmed.match(/(?:v\.mover\.uz\/|mover\.uz\/(?:watch|video\/embed|video|v)\/)([A-Za-z0-9_-]+)/i);
+    if (moverMatch && moverMatch[1]) {
+      let rawId = moverMatch[1].replace(/\.mp4$/i, "").replace(/_(?:m|h|s|q)$/i, "");
+      if (rawId) {
+        return { isEmbed: true, embedUrl: `https://mover.uz/video/embed/${rawId}/` };
+      }
+    }
   }
 
   // YouTube checks
@@ -74,11 +71,20 @@ function getEmbedUrl(url: string): { isEmbed: boolean; embedUrl: string } {
 
   // Known third-party embed hosts
   const hasEmbedPattern = (
+    lowerUrl.includes('/embed/') ||
+    lowerUrl.includes('/video/embed/') ||
+    lowerUrl.includes('/player/') ||
     lowerUrl.includes('player.vimeo.com') ||
     lowerUrl.includes('sibnet.ru') || 
     lowerUrl.includes('myvi.tv') ||
+    lowerUrl.includes('myvi.ru') ||
+    lowerUrl.includes('ok.ru/videoembed') ||
+    lowerUrl.includes('vk.com/video_ext') ||
     lowerUrl.includes('yandex.ru/video/preview') ||
-    lowerUrl.includes('rutube.ru/play/embed')
+    lowerUrl.includes('rutube.ru/play/embed') ||
+    lowerUrl.includes('drive.google.com') ||
+    lowerUrl.includes('kodik.') ||
+    lowerUrl.includes('allplay.uz/embed')
   );
 
   if (hasEmbedPattern) {
@@ -87,7 +93,7 @@ function getEmbedUrl(url: string): { isEmbed: boolean; embedUrl: string } {
     return { isEmbed: true, embedUrl: finalUrl };
   }
 
-  // Treat all other web links as direct video/stream URLs in our custom player
+  // Direct video/stream URLs (.mp4, .webm, .m3u8, etc.) in custom player
   return { isEmbed: false, embedUrl: '' };
 }
 
@@ -111,15 +117,17 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
 
   const { isEmbed, embedUrl } = getEmbedUrl(url);
   const [useFallbackEmbed, setUseFallbackEmbed] = useState<string | null>(null);
+  const [hasPlaybackError, setHasPlaybackError] = useState(false);
 
   useEffect(() => {
     setUseFallbackEmbed(null);
+    setHasPlaybackError(false);
   }, [url]);
 
   // Ad states
-  const [showAd, setShowAd] = useState(true);
+  const [showAd, setShowAd] = useState(false);
   const [currentAdUrl, setCurrentAdUrl] = useState('');
-  const [adTimeLeft, setAdTimeLeft] = useState(5);
+  const [adTimeLeft, setAdTimeLeft] = useState(0);
   const [canSkipAd, setCanSkipAd] = useState(true);
   const [isAdMuted, setIsAdMuted] = useState(false);
   const [adErrorIndex, setAdErrorIndex] = useState(0);
@@ -132,12 +140,7 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
   // Initialize ad when URL changes
   useEffect(() => {
     if (!url) return;
-    const randomAd = PUBLIC_ADS[Math.floor(Math.random() * PUBLIC_ADS.length)];
-    setCurrentAdUrl(randomAd);
-    setShowAd(true);
-    setAdTimeLeft(10);
-    setCanSkipAd(false);
-    setAdErrorIndex(0);
+    setShowAd(false);
   }, [url]);
 
   // Guaranteed interval timer for ad countdown
@@ -429,7 +432,13 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
     } else {
       // Standard video direct play
       let finalSrc = streamUrl;
-      if (streamUrl.includes('mover.uz') || streamUrl.includes('v.mover.uz') || streamUrl.includes('t.me') || streamUrl.includes('telegram')) {
+      // Proxy videos that require referer headers (animem.uz, mover.uz, telegram) or cross-origin headers
+      if (
+        streamUrl.includes('animem.uz') ||
+        streamUrl.includes('mover.uz') ||
+        streamUrl.includes('t.me') ||
+        streamUrl.includes('telegram')
+      ) {
         finalSrc = `/api/proxy-video?url=${encodeURIComponent(streamUrl)}&quality=${videoQuality}`;
       }
 
@@ -1210,6 +1219,7 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
               poster={poster}
               className="w-full h-full object-contain cursor-pointer"
               playsInline
+              preload="auto"
               referrerPolicy="no-referrer"
               controlsList="nodownload noremoteplayback"
               disablePictureInPicture
@@ -1221,6 +1231,7 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
               onCanPlay={() => setIsBuffering(false)}
               onCanPlayThrough={() => setIsBuffering(false)}
               onLoadedData={() => setIsBuffering(false)}
+              onStalled={() => setIsBuffering(false)}
               onWaiting={() => {
                 if (!showAd) setIsBuffering(true);
               }}
@@ -1246,19 +1257,57 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
                 }
               }}
               onError={() => {
-                console.error("Video element playback error");
                 setIsBuffering(false);
                 const moverMatch = (url || '').match(/(?:v\.mover\.uz\/|mover\.uz\/(?:watch|video\/embed|video|v)\/)([A-Za-z0-9_-]+)/i);
                 if (moverMatch && moverMatch[1]) {
                   let rawId = moverMatch[1].replace(/\.mp4$/i, '').replace(/_(?:m|h|s|q)$/i, '');
-                  console.log("Fallback to Mover embed iframe:", rawId);
                   setUseFallbackEmbed(`https://mover.uz/video/embed/${rawId}/`);
+                } else if (videoRef.current && url && !videoRef.current.src.includes('/api/proxy-video')) {
+                  // Try proxy video fallback
+                  videoRef.current.src = `/api/proxy-video?url=${encodeURIComponent(url)}`;
+                  videoRef.current.load();
+                } else {
+                  setHasPlaybackError(true);
                 }
               }}
             />
 
+            {/* Playback Error Overlay */}
+            {hasPlaybackError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 text-white p-6 text-center z-30">
+                <AlertCircle className="w-12 h-12 text-rose-500 mb-3 animate-pulse" />
+                <h3 className="text-lg font-bold mb-1">Videoni yuklashda xatolik yuz berdi</h3>
+                <p className="text-xs text-white/60 mb-4 max-w-md">
+                  Ushbu video manbasi vaqtincha mavjud emas yoki brauzer uni qo'llab-quvvatlamaydi. Telegram botimiz orqali ham tomosha qilishingiz mumkin.
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      setHasPlaybackError(false);
+                      setIsBuffering(true);
+                      if (videoRef.current) {
+                        videoRef.current.src = url;
+                        videoRef.current.load();
+                      }
+                    }}
+                    className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Qayta urinish
+                  </button>
+                  <a
+                    href="https://t.me/Animem_uz_bot"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-[#0088cc] hover:bg-[#0077bb] text-white rounded-lg text-xs font-bold transition-colors"
+                  >
+                    Telegram Botda ko'rish
+                  </a>
+                </div>
+              </div>
+            )}
+
             {/* Loading/Buffering feedback */}
-            {isBuffering && (
+            {isBuffering && !hasPlaybackError && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-20 pointer-events-none">
                 <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
               </div>

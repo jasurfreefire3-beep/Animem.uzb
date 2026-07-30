@@ -21,6 +21,12 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
+  const [phone, setPhone] = useState('');
+  const [forgotMethod, setForgotMethod] = useState<'email' | 'phone'>('email');
+  const [resetPhone, setResetPhone] = useState('');
+  const [firebaseUid, setFirebaseUid] = useState('');
+
   // Forgot password flow states
   const [viewMode, setViewMode] = useState<'login' | 'forgot_email' | 'forgot_code' | 'forgot_password'>('login');
   

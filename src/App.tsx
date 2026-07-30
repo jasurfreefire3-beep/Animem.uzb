@@ -29,7 +29,7 @@ import NotFound from './pages/NotFound';
 
 export default function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [showTelegramBanner, setShowTelegramBanner] = useState(true);
+  const [showTelegramBanner, setShowTelegramBanner] = useState(false);
 
   // Site-wide Content & Media Protection (Anti-copy, Anti-right-click, Anti-F12 / DevTools)
   useEffect(() => {

@@ -547,8 +547,14 @@ app.get("/api/proxy-video", async (req, res) => {
       reqHeaders["Range"] = req.headers.range;
     }
 
-    if (parsed.hostname.includes("mover.uz")) {
+    if (parsed.hostname.includes("animem.uz")) {
+      reqHeaders["Referer"] = "https://animem.uz/";
+      reqHeaders["Origin"] = "https://animem.uz";
+    } else if (parsed.hostname.includes("mover.uz")) {
       reqHeaders["Referer"] = "https://mover.uz/";
+      reqHeaders["Origin"] = "https://mover.uz";
+    } else {
+      reqHeaders["Referer"] = `https://${parsed.hostname}/`;
     }
 
     const proxyReq = client.request(
