@@ -174,6 +174,16 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           <Search size={16} />
         </button>
 
+        {/* Donat Quick Button */}
+        <Link
+          to="/donat"
+          className="flex items-center gap-1.5 bg-[#ff006a]/15 hover:bg-[#ff006a] text-[#ff006a] hover:text-white border border-[#ff006a]/30 px-2.5 py-1.5 rounded-sm text-[11px] font-bold transition-all shadow-[0_0_10px_rgba(255,0,106,0.15)] uppercase tracking-wider shrink-0"
+          title="Loyiha rivojiga donat qilish"
+        >
+          <Heart size={13} className="fill-current animate-pulse" />
+          <span className="hidden sm:inline">Donat</span>
+        </Link>
+
         {/* Upload/Add Anime Quick-link (Admins or generic) */}
         {user?.role === 'admin' && (
           <Link

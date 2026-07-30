@@ -181,79 +181,9 @@ function loadLocalStore() {
         users: [],
         ratings: [],
         messages: [],
-        mangas: [
-          {
-            id: 1,
-            title: "Solo Leveling (Manga)",
-            description: "Dunyoning eng kuchsiz F-darajali ovchisi Sung Jin-Woo kutilmaganda xavfli reyd paytida yagona va afsonaviy tizim orqali darajasini oshirish imkoniyatiga ega bo'ladi.",
-            cover_url: "https://m.media-amazon.com/images/M/MV5BODlhWOE5NjMtN2I0OC00NjA3LTkyM2YtM2I5Njg3MTBhYTY1XkEyXkFqcGc@._V1_.jpg",
-            banner_url: "https://images.alphacoders.com/134/1349072.png",
-            author: "Chugong",
-            artist: "DUBU (REDICE Studio)",
-            janrlar: "Jangari, Sarguzasht, Fantastika",
-            holati: "Tugallangan",
-            released_year: 2018,
-            rating: 9.9,
-            korishlar: 4200,
-            chapters_count: 2,
-            created_at: new Date().toISOString()
-          },
-          {
-            id: 2,
-            title: "Jujutsu Kaisen (Manga)",
-            description: "Yuji Itadori lanatlangan sehrli ob'ektni yutib yuboradi va Sehrgarlar akademiyasiga qo'shilib, dahshatli lanatlarga qarshi kurashadi.",
-            cover_url: "https://m.media-amazon.com/images/M/MV5BNGY4MTg3NjgtMmFkYi00ZTNmLTgwAVtLTExNmI0MDI0U3M4XkEyXkFqcGc@._V1_.jpg",
-            banner_url: "https://images.alphacoders.com/113/1132688.jpg",
-            author: "Gege Akutami",
-            artist: "Gege Akutami",
-            janrlar: "Jangari, Mistika, G'ayritabiiy",
-            holati: "Davom etmoqda",
-            released_year: 2018,
-            rating: 9.7,
-            korishlar: 3100,
-            chapters_count: 1,
-            created_at: new Date().toISOString()
-          }
-        ],
-        manga_chapters: [
-          {
-            id: 1,
-            manga_id: 1,
-            chapter_number: 1,
-            title: "1-bob: Eng kuchsiz F-darajali ovchi",
-            pages: [
-              "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1000",
-              "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1000",
-              "https://images.unsplash.com/photo-1563089145-599997674d42?w=1000"
-            ],
-            views: 1200,
-            created_at: new Date().toISOString()
-          },
-          {
-            id: 2,
-            manga_id: 1,
-            chapter_number: 2,
-            title: "2-bob: Ikki karra ibodatxona siri",
-            pages: [
-              "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=1000",
-              "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=1000"
-            ],
-            views: 950,
-            created_at: new Date().toISOString()
-          },
-          {
-            id: 3,
-            manga_id: 2,
-            chapter_number: 1,
-            title: "1-bob: Sukuna barmog'i",
-            pages: [
-              "https://images.unsplash.com/photo-1563089145-599997674d42?w=1000",
-              "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1000"
-            ],
-            views: 800,
-            created_at: new Date().toISOString()
-          }
-        ]
+        mangas: [],
+        manga_chapters: [],
+        donations: []
       };
       fs.writeFileSync(LOCAL_STORE_PATH, JSON.stringify(defaultData, null, 2), "utf-8");
       return defaultData;
@@ -261,67 +191,13 @@ function loadLocalStore() {
     const raw = fs.readFileSync(LOCAL_STORE_PATH, "utf-8");
     const data = JSON.parse(raw);
     if (!data.mangas) {
-      data.mangas = [
-        {
-          id: 1,
-          title: "Solo Leveling (Manga)",
-          description: "Dunyoning eng kuchsiz F-darajali ovchisi Sung Jin-Woo kutilmaganda xavfli reyd paytida yagona va afsonaviy tizim orqali darajasini oshirish imkoniyatiga ega bo'ladi.",
-          cover_url: "https://m.media-amazon.com/images/M/MV5BODlhWOE5NjMtN2I0OC00NjA3LTkyM2YtM2I5Njg3MTBhYTY1XkEyXkFqcGc@._V1_.jpg",
-          banner_url: "https://images.alphacoders.com/134/1349072.png",
-          author: "Chugong",
-          artist: "DUBU (REDICE Studio)",
-          janrlar: "Jangari, Sarguzasht, Fantastika",
-          holati: "Tugallangan",
-          released_year: 2018,
-          rating: 9.9,
-          korishlar: 4200,
-          chapters_count: 2,
-          created_at: new Date().toISOString()
-        },
-        {
-          id: 2,
-          title: "Jujutsu Kaisen (Manga)",
-          description: "Yuji Itadori lanatlangan sehrli ob'ektni yutib yuboradi va Sehrgarlar akademiyasiga qo'shilib, dahshatli lanatlarga qarshi kurashadi.",
-          cover_url: "https://m.media-amazon.com/images/M/MV5BNGY4MTg3NjgtMmFkYi00ZTNmLTgwAVtLTExNmI0MDI0U3M4XkEyXkFqcGc@._V1_.jpg",
-          banner_url: "https://images.alphacoders.com/113/1132688.jpg",
-          author: "Gege Akutami",
-          artist: "Gege Akutami",
-          janrlar: "Jangari, Mistika, G'ayritabiiy",
-          holati: "Davom etmoqda",
-          released_year: 2018,
-          rating: 9.7,
-          korishlar: 3100,
-          chapters_count: 1,
-          created_at: new Date().toISOString()
-        }
-      ];
+      data.mangas = [];
     }
     if (!data.manga_chapters) {
-      data.manga_chapters = [
-        {
-          id: 1,
-          manga_id: 1,
-          chapter_number: 1,
-          title: "1-bob: Eng kuchsiz F-darajali ovchi",
-          pages: [
-            "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1000",
-            "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1000"
-          ],
-          views: 1200,
-          created_at: new Date().toISOString()
-        },
-        {
-          id: 2,
-          manga_id: 1,
-          chapter_number: 2,
-          title: "2-bob: Ikki karra ibodatxona siri",
-          pages: [
-            "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=1000"
-          ],
-          views: 950,
-          created_at: new Date().toISOString()
-        }
-      ];
+      data.manga_chapters = [];
+    }
+    if (!data.donations) {
+      data.donations = [];
     }
     return data;
   } catch (e) {
@@ -2761,6 +2637,222 @@ app.delete("/api/mangas/:mangaId/chapters/:chapterNumber", authenticateToken, as
   } catch (err) {
     console.error("Delete manga chapter error:", err);
     res.status(500).json({ error: "Bobni o'chirishda xatolik" });
+  }
+});
+
+// ==================== TEZCHECK DONATION API ENDPOINTS ====================
+
+// GET Public Donations (Only confirmed paid donations are displayed publicly)
+app.get("/api/donations", async (req, res) => {
+  try {
+    const store = loadLocalStore();
+    const allDonations = store.donations || [];
+    
+    // STRICT SECURITY & PRIVACY: Only show confirmed 'paid' donations publicly on the website
+    const paidDonations = allDonations.filter((d: any) => d.status === "paid");
+
+    const totalAmount = paidDonations.reduce((sum: number, d: any) => sum + (Number(d.amount) || 0), 0);
+    const monthlyGoal = 2000000;
+
+    res.json({
+      donations: paidDonations,
+      total_amount: totalAmount,
+      monthly_goal: monthlyGoal,
+      paid_count: paidDonations.length
+    });
+  } catch (err) {
+    console.error("Get donations error:", err);
+    res.status(500).json({ error: "Donatlarni olishda xatolik" });
+  }
+});
+
+// GET Admin All Donations (including pending and canceled for merchant tracking)
+app.get("/api/admin/donations", authenticateToken, async (req: any, res: any) => {
+  try {
+    if (req.user.role !== "admin") return res.sendStatus(403);
+    const store = loadLocalStore();
+    const donations = store.donations || [];
+    
+    const totalAmount = donations
+      .filter((d: any) => d.status === "paid")
+      .reduce((sum: number, d: any) => sum + (Number(d.amount) || 0), 0);
+
+    res.json({
+      donations,
+      total_amount: totalAmount
+    });
+  } catch (err) {
+    console.error("Get admin donations error:", err);
+    res.status(500).json({ error: "Donatlarni olishda xatolik" });
+  }
+});
+
+// POST Create Donation Invoice via Tezcheck.uz
+app.post("/api/donate/create-invoice", async (req, res) => {
+  try {
+    const { amount, donor_name, comment, payment_method } = req.body;
+    const numericAmount = Number(amount);
+    if (!numericAmount || isNaN(numericAmount) || numericAmount < 1000) {
+      return res.status(400).json({ error: "Xato to'lov miqdori kiritildi (kamida 1,000 UZS)" });
+    }
+
+    const apiKey = process.env.TEZCHECK_API_KEY || "1e6168537400f49a9a17ef2b91ce4eeb9e63185e";
+    const shopId = process.env.TEZCHECK_SHOP_ID || "86";
+
+    let payUrl = "";
+    let orderId = `86${Math.floor(1000 + Math.random() * 9000)}`;
+
+    try {
+      // Call Tezcheck.uz create_invoice endpoint
+      const tezResponse = await fetch("https://tezcheck.uz/api/create_invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          api_key: apiKey,
+          amount: numericAmount
+        })
+      });
+
+      const contentType = tezResponse.headers.get("content-type");
+      if (tezResponse.ok && contentType && contentType.includes("application/json")) {
+        const tezData = await tezResponse.json();
+        if (tezData && tezData.ok && tezData.pay_url) {
+          payUrl = tezData.pay_url;
+          if (tezData.order_id) {
+            orderId = String(tezData.order_id);
+          }
+        } else if (tezData && tezData.error) {
+          console.warn("Tezcheck API error response:", tezData.error);
+        }
+      } else {
+        const textResp = await tezResponse.text();
+        console.warn("Tezcheck non-JSON response:", tezResponse.status, textResp);
+      }
+    } catch (apiErr) {
+      console.error("Tezcheck API network call failed:", apiErr);
+    }
+
+    // Fallback if payUrl not directly returned
+    if (!payUrl) {
+      payUrl = `https://tezcheck.uz/merchant/pay?shop_id=${shopId}&order_id=${orderId}&amount=${numericAmount}`;
+    }
+
+    const donation = {
+      id: Date.now(),
+      order_id: String(orderId),
+      amount: numericAmount,
+      donor_name: (donor_name || "").trim() || "Saxiy otaku",
+      comment: (comment || "").trim() || "Animeuz va dublyaj rivoji uchun donat",
+      payment_method: payment_method || "Click / Payme (Tezcheck)",
+      status: "pending",
+      pay_url: payUrl,
+      created_at: new Date().toISOString()
+    };
+
+    const store = loadLocalStore();
+    store.donations = store.donations || [];
+    store.donations.unshift(donation);
+    saveLocalStore(store);
+
+    res.json({
+      ok: true,
+      order_id: String(orderId),
+      pay_url: payUrl,
+      donation
+    });
+  } catch (err) {
+    console.error("Create donation invoice error:", err);
+    res.status(500).json({ error: "Invoys yaratishda xatolik yuz berdi" });
+  }
+});
+
+// POST Check Donation Status via Tezcheck.uz
+app.post("/api/donate/check-status", async (req, res) => {
+  try {
+    const { order_id } = req.body;
+    if (!order_id) {
+      return res.status(400).json({ error: "order_id ko'rsatilmadi" });
+    }
+
+    const apiKey = process.env.TEZCHECK_API_KEY || "1e6168537400f49a9a17ef2b91ce4eeb9e63185e";
+    let status = "pending";
+    let paymentData: any = null;
+
+    try {
+      const tezResponse = await fetch("https://tezcheck.uz/api/status_invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          api_key: apiKey,
+          order_id: String(order_id)
+        })
+      });
+
+      if (tezResponse.ok) {
+        const tezData = await tezResponse.json();
+        if (tezData && tezData.ok && tezData.payment) {
+          paymentData = tezData.payment;
+          status = tezData.payment.status || "paid";
+        }
+      }
+    } catch (apiErr) {
+      console.error("Tezcheck status check error:", apiErr);
+    }
+
+    const store = loadLocalStore();
+    store.donations = store.donations || [];
+    const idx = store.donations.findIndex((d: any) => String(d.order_id) === String(order_id));
+    if (idx >= 0) {
+      if (status === "paid") {
+        store.donations[idx].status = "paid";
+        if (!store.donations[idx].paid_at) {
+          store.donations[idx].paid_at = new Date().toISOString();
+        }
+      }
+      saveLocalStore(store);
+      return res.json({ ok: true, donation: store.donations[idx], status, payment: paymentData });
+    }
+
+    res.json({ ok: true, status, payment: paymentData });
+  } catch (err) {
+    console.error("Check status error:", err);
+    res.status(500).json({ error: "Holatni tekshirishda xatolik" });
+  }
+});
+
+// Admin Route: Update Donation Status (Simulate/Confirm Paid)
+app.post("/api/admin/donate/update-status", authenticateToken, async (req: any, res: any) => {
+  try {
+    if (req.user.role !== "admin") return res.sendStatus(403);
+    const { order_id, status } = req.body;
+    const store = loadLocalStore();
+    store.donations = store.donations || [];
+    const idx = store.donations.findIndex((d: any) => String(d.order_id) === String(order_id) || String(d.id) === String(order_id));
+    if (idx >= 0) {
+      store.donations[idx].status = status || "paid";
+      if (status === "paid" && !store.donations[idx].paid_at) {
+        store.donations[idx].paid_at = new Date().toISOString();
+      }
+      saveLocalStore(store);
+      return res.json({ message: "Maqom yangilandi", donation: store.donations[idx] });
+    }
+    res.status(404).json({ error: "Donat topilmadi" });
+  } catch (err) {
+    res.status(500).json({ error: "Xatolik yuz berdi" });
+  }
+});
+
+// Admin Route: Delete Donation Entry
+app.delete("/api/admin/donate/:id", authenticateToken, async (req: any, res: any) => {
+  try {
+    if (req.user.role !== "admin") return res.sendStatus(403);
+    const { id } = req.params;
+    const store = loadLocalStore();
+    store.donations = (store.donations || []).filter((d: any) => String(d.id) !== String(id) && String(d.order_id) !== String(id));
+    saveLocalStore(store);
+    res.json({ message: "Donat yozuvi o'chirildi" });
+  } catch (err) {
+    res.status(500).json({ error: "Xatolik" });
   }
 });
 

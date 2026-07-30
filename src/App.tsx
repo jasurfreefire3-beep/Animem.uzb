@@ -25,6 +25,7 @@ import Sevimlilar from './pages/Sevimlilar';
 import Tarix from './pages/Tarix';
 import Sozlamalar from './pages/Sozlamalar';
 import Profil from './pages/Profil';
+import Donat from './pages/Donat';
 import NotFound from './pages/NotFound';
 
 export default function App() {
@@ -242,6 +243,7 @@ export default function App() {
             <Route path="/tarix" element={<Tarix />} />
             <Route path="/sozlamalar" element={<Sozlamalar />} />
             <Route path="/profil" element={<Profil />} />
+            <Route path="/donat" element={<Donat />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

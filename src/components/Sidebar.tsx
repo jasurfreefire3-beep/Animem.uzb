@@ -16,6 +16,7 @@ import {
   Sun,
   Shield,
   MessageSquare,
+  Gift,
   X
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -70,6 +71,7 @@ export default function Sidebar({ onClose, onGenreSelect }: SidebarProps) {
     { name: 'Bosh sahifa', path: '/', icon: Home },
     { name: 'Animelar', path: '/animelar', icon: Tv },
     { name: 'Mangalar', path: '/mangalar', icon: BookOpen },
+    { name: 'Donat (Qo\'llab-quvvatlash)', path: '/donat', icon: Gift },
     { name: 'Jadval', path: '/jadval', icon: Calendar },
     { name: 'Yangi chiqishlar', path: '/yangi-chiqishlar', icon: Clock },
     { name: 'Top 100', path: '/top100', icon: Star },
