@@ -301,6 +301,40 @@ async function testDbConnection() {
       console.log("Added phone column to users table.");
     }
 
+    // Create mangas table if not exists in MySQL
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS mangas (
+        id BIGINT PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        cover_url TEXT,
+        banner_url TEXT,
+        author VARCHAR(255),
+        artist VARCHAR(255),
+        janrlar VARCHAR(255),
+        holati VARCHAR(100),
+        released_year INT DEFAULT 2024,
+        rating FLOAT DEFAULT 9.5,
+        korishlar INT DEFAULT 0,
+        chapters_count INT DEFAULT 0,
+        created_at VARCHAR(255)
+      )
+    `);
+
+    // Create manga_chapters table if not exists in MySQL
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS manga_chapters (
+        id BIGINT PRIMARY KEY,
+        manga_id BIGINT NOT NULL,
+        chapter_number INT NOT NULL,
+        title VARCHAR(255),
+        pages LONGTEXT,
+        views INT DEFAULT 0,
+        created_at VARCHAR(255)
+      )
+    `);
+    console.log("Verified mangas and manga_chapters tables in MySQL.");
+
     connection.release();
   } catch (err) {
     console.error("Database connection/migration failed on startup:", err);
@@ -2416,8 +2450,20 @@ app.delete("/api/animes/:animeId/episodes/:episodeNumber", authenticateToken, as
 // GET All Mangas
 app.get("/api/mangas", async (req, res) => {
   try {
-    const store = loadLocalStore();
-    const mangas = store.mangas || [];
+    let mangas: any[] = [];
+    try {
+      const [rows]: any = await dbQuery(`SELECT * FROM mangas ORDER BY id DESC`);
+      if (Array.isArray(rows) && rows.length > 0) {
+        mangas = rows;
+      }
+    } catch (dbErr) {
+      console.warn("MySQL fetch mangas failed, falling back to local_store:", dbErr);
+    }
+
+    if (mangas.length === 0) {
+      const store = loadLocalStore();
+      mangas = store.mangas || [];
+    }
     res.json(mangas);
   } catch (err) {
     console.error("Get mangas error:", err);
@@ -2429,21 +2475,44 @@ app.get("/api/mangas", async (req, res) => {
 app.get("/api/mangas/:id", async (req, res) => {
   try {
     const id = req.params.id;
-    const store = loadLocalStore();
-    const mangas = store.mangas || [];
-    const mangaIndex = mangas.findIndex((m: any) => String(m.id) === String(id));
-    if (mangaIndex === -1) {
-      return res.status(404).json({ error: "Manga topilmadi" });
-    }
-    
-    // Increment view count
-    mangas[mangaIndex].korishlar = (mangas[mangaIndex].korishlar || 0) + 1;
-    saveLocalStore(store);
+    let manga: any = null;
+    let chapters: any[] = [];
 
-    const manga = mangas[mangaIndex];
-    const chapters = (store.manga_chapters || [])
-      .filter((c: any) => String(c.manga_id) === String(id))
-      .sort((a: any, b: any) => a.chapter_number - b.chapter_number);
+    try {
+      const [mangaRows]: any = await dbQuery(`SELECT * FROM mangas WHERE id = ?`, [id]);
+      if (Array.isArray(mangaRows) && mangaRows.length > 0) {
+        manga = mangaRows[0];
+        // Increment view count in DB
+        await dbQuery(`UPDATE mangas SET korishlar = korishlar + 1 WHERE id = ?`, [id]);
+        manga.korishlar = (manga.korishlar || 0) + 1;
+
+        const [chapRows]: any = await dbQuery(`SELECT * FROM manga_chapters WHERE manga_id = ? ORDER BY chapter_number ASC`, [id]);
+        if (Array.isArray(chapRows)) {
+          chapters = chapRows.map((c: any) => ({
+            ...c,
+            pages: typeof c.pages === 'string' ? JSON.parse(c.pages) : c.pages
+          }));
+        }
+      }
+    } catch (dbErr) {
+      console.warn("MySQL get manga detail failed, falling back to local_store:", dbErr);
+    }
+
+    if (!manga) {
+      const store = loadLocalStore();
+      const mangas = store.mangas || [];
+      const mangaIndex = mangas.findIndex((m: any) => String(m.id) === String(id));
+      if (mangaIndex === -1) {
+        return res.status(404).json({ error: "Manga topilmadi" });
+      }
+      mangas[mangaIndex].korishlar = (mangas[mangaIndex].korishlar || 0) + 1;
+      saveLocalStore(store);
+
+      manga = mangas[mangaIndex];
+      chapters = (store.manga_chapters || [])
+        .filter((c: any) => String(c.manga_id) === String(id))
+        .sort((a: any, b: any) => a.chapter_number - b.chapter_number);
+    }
 
     res.json({ ...manga, chapters });
   } catch (err) {
@@ -2456,26 +2525,57 @@ app.get("/api/mangas/:id", async (req, res) => {
 app.get("/api/mangas/:id/chapters/:chapterNumber", async (req, res) => {
   try {
     const { id, chapterNumber } = req.params;
-    const store = loadLocalStore();
-    const chapter = (store.manga_chapters || []).find(
-      (c: any) => String(c.manga_id) === String(id) && String(c.chapter_number) === String(chapterNumber)
-    );
-    if (!chapter) {
-      return res.status(404).json({ error: "Bob topilmadi" });
+    let chapter: any = null;
+    let mangaTitle = "Manga";
+    let allChapters: any[] = [];
+
+    try {
+      const [mangaRows]: any = await dbQuery(`SELECT title FROM mangas WHERE id = ?`, [id]);
+      if (Array.isArray(mangaRows) && mangaRows.length > 0) {
+        mangaTitle = mangaRows[0].title;
+      }
+
+      const [chapRows]: any = await dbQuery(`SELECT * FROM manga_chapters WHERE manga_id = ? AND chapter_number = ?`, [id, chapterNumber]);
+      if (Array.isArray(chapRows) && chapRows.length > 0) {
+        const rawChap = chapRows[0];
+        chapter = {
+          ...rawChap,
+          pages: typeof rawChap.pages === 'string' ? JSON.parse(rawChap.pages) : rawChap.pages
+        };
+
+        const [allChapRows]: any = await dbQuery(`SELECT id, chapter_number, title FROM manga_chapters WHERE manga_id = ? ORDER BY chapter_number ASC`, [id]);
+        if (Array.isArray(allChapRows)) {
+          allChapters = allChapRows;
+        }
+      }
+    } catch (dbErr) {
+      console.warn("MySQL get chapter failed, falling back to local_store:", dbErr);
     }
-    const manga = (store.mangas || []).find((m: any) => String(m.id) === String(id));
-    const allChapters = (store.manga_chapters || [])
-      .filter((c: any) => String(c.manga_id) === String(id))
-      .sort((a: any, b: any) => a.chapter_number - b.chapter_number);
+
+    if (!chapter) {
+      const store = loadLocalStore();
+      chapter = (store.manga_chapters || []).find(
+        (c: any) => String(c.manga_id) === String(id) && String(c.chapter_number) === String(chapterNumber)
+      );
+      if (!chapter) {
+        return res.status(404).json({ error: "Bob topilmadi" });
+      }
+      const manga = (store.mangas || []).find((m: any) => String(m.id) === String(id));
+      mangaTitle = manga?.title || "Manga";
+      allChapters = (store.manga_chapters || [])
+        .filter((c: any) => String(c.manga_id) === String(id))
+        .sort((a: any, b: any) => a.chapter_number - b.chapter_number)
+        .map((c: any) => ({
+          id: c.id,
+          chapter_number: c.chapter_number,
+          title: c.title
+        }));
+    }
 
     res.json({
       chapter,
-      manga_title: manga?.title || "Manga",
-      all_chapters: allChapters.map((c: any) => ({
-        id: c.id,
-        chapter_number: c.chapter_number,
-        title: c.title
-      }))
+      manga_title: mangaTitle,
+      all_chapters: allChapters
     });
   } catch (err) {
     console.error("Get chapter error:", err);
@@ -2510,10 +2610,38 @@ app.post("/api/mangas", authenticateToken, async (req: any, res) => {
       created_at: new Date().toISOString()
     };
 
+    // Save to local_store.json
     const store = loadLocalStore();
     store.mangas = store.mangas || [];
     store.mangas.unshift(newManga);
     saveLocalStore(store);
+
+    // Save to MySQL database
+    try {
+      await dbQuery(
+        `INSERT INTO mangas (id, title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, rating, korishlar, chapters_count, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newManga.id,
+          newManga.title,
+          newManga.description,
+          newManga.cover_url,
+          newManga.banner_url,
+          newManga.author,
+          newManga.artist,
+          newManga.janrlar,
+          newManga.holati,
+          newManga.released_year,
+          newManga.rating,
+          newManga.korishlar,
+          newManga.chapters_count,
+          newManga.created_at
+        ]
+      );
+      console.log(`[MySQL] Inserted manga #${newManga.id}`);
+    } catch (dbErr) {
+      console.error("[MySQL] Failed to insert manga:", dbErr);
+    }
 
     res.status(201).json({ message: "Manga muvaffaqiyatli qo'shildi", manga: newManga });
   } catch (err) {
@@ -2530,17 +2658,39 @@ app.put("/api/mangas/:id", authenticateToken, async (req: any, res) => {
     const store = loadLocalStore();
     store.mangas = store.mangas || [];
     const idx = store.mangas.findIndex((m: any) => String(m.id) === String(id));
-    if (idx < 0) {
-      return res.status(404).json({ error: "Manga topilmadi" });
+
+    const updatedData = req.body;
+    if (idx >= 0) {
+      store.mangas[idx] = {
+        ...store.mangas[idx],
+        ...updatedData
+      };
+      saveLocalStore(store);
     }
 
-    store.mangas[idx] = {
-      ...store.mangas[idx],
-      ...req.body
-    };
-    saveLocalStore(store);
+    // Update in MySQL database
+    try {
+      const { title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year } = updatedData;
+      await dbQuery(
+        `UPDATE mangas 
+         SET title = COALESCE(?, title),
+             description = COALESCE(?, description),
+             cover_url = COALESCE(?, cover_url),
+             banner_url = COALESCE(?, banner_url),
+             author = COALESCE(?, author),
+             artist = COALESCE(?, artist),
+             janrlar = COALESCE(?, janrlar),
+             holati = COALESCE(?, holati),
+             released_year = COALESCE(?, released_year)
+         WHERE id = ?`,
+        [title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, id]
+      );
+    } catch (dbErr) {
+      console.error("[MySQL] Failed to update manga:", dbErr);
+    }
 
-    res.json({ message: "Manga tahrirlandi", manga: store.mangas[idx] });
+    const resManga = idx >= 0 ? store.mangas[idx] : updatedData;
+    res.json({ message: "Manga tahrirlandi", manga: resManga });
   } catch (err) {
     console.error("Update manga error:", err);
     res.status(500).json({ error: "Manga tahrirlashda xatolik" });
@@ -2552,10 +2702,21 @@ app.delete("/api/mangas/:id", authenticateToken, async (req: any, res) => {
   try {
     if (req.user.role !== "admin") return res.sendStatus(403);
     const id = req.params.id;
+
+    // Delete from local_store.json
     const store = loadLocalStore();
     store.mangas = (store.mangas || []).filter((m: any) => String(m.id) !== String(id));
     store.manga_chapters = (store.manga_chapters || []).filter((c: any) => String(c.manga_id) !== String(id));
     saveLocalStore(store);
+
+    // Delete from MySQL database
+    try {
+      await dbQuery(`DELETE FROM mangas WHERE id = ?`, [id]);
+      await dbQuery(`DELETE FROM manga_chapters WHERE manga_id = ?`, [id]);
+      console.log(`[MySQL] Deleted manga #${id} and its chapters`);
+    } catch (dbErr) {
+      console.error("[MySQL] Failed to delete manga:", dbErr);
+    }
 
     res.json({ message: "Manga o'chirildi" });
   } catch (err) {
@@ -2575,6 +2736,9 @@ app.post("/api/mangas/:mangaId/chapters", authenticateToken, async (req: any, re
       return res.status(400).json({ error: "Bob raqami va kamida 1 ta rasm havolasi (pages) talab qilinadi!" });
     }
 
+    const cleanPages = pages.filter((p: string) => typeof p === 'string' && p.trim().length > 0);
+    const jsonPages = JSON.stringify(cleanPages);
+
     const store = loadLocalStore();
     store.manga_chapters = store.manga_chapters || [];
 
@@ -2587,7 +2751,7 @@ app.post("/api/mangas/:mangaId/chapters", authenticateToken, async (req: any, re
       manga_id: isNaN(Number(mangaId)) ? mangaId : Number(mangaId),
       chapter_number: Number(chapter_number),
       title: title || `${chapter_number}-bob`,
-      pages: pages.filter((p: string) => typeof p === 'string' && p.trim().length > 0),
+      pages: cleanPages,
       views: existingIdx >= 0 ? store.manga_chapters[existingIdx].views || 0 : 0,
       created_at: existingIdx >= 0 ? store.manga_chapters[existingIdx].created_at : new Date().toISOString()
     };
@@ -2598,7 +2762,7 @@ app.post("/api/mangas/:mangaId/chapters", authenticateToken, async (req: any, re
       store.manga_chapters.push(chapterObj);
     }
 
-    // Update manga chapter count
+    // Update manga chapter count in local store
     const mangaIdx = (store.mangas || []).findIndex((m: any) => String(m.id) === String(mangaId));
     if (mangaIdx >= 0) {
       const chapterCount = store.manga_chapters.filter((c: any) => String(c.manga_id) === String(mangaId)).length;
@@ -2606,6 +2770,37 @@ app.post("/api/mangas/:mangaId/chapters", authenticateToken, async (req: any, re
     }
 
     saveLocalStore(store);
+
+    // Save to MySQL database
+    try {
+      const [existingChapRows]: any = await dbQuery(
+        `SELECT id FROM manga_chapters WHERE manga_id = ? AND chapter_number = ?`,
+        [mangaId, chapter_number]
+      );
+
+      if (Array.isArray(existingChapRows) && existingChapRows.length > 0) {
+        await dbQuery(
+          `UPDATE manga_chapters SET title = ?, pages = ? WHERE manga_id = ? AND chapter_number = ?`,
+          [chapterObj.title, jsonPages, mangaId, chapter_number]
+        );
+      } else {
+        await dbQuery(
+          `INSERT INTO manga_chapters (id, manga_id, chapter_number, title, pages, views, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [chapterObj.id, chapterObj.manga_id, chapterObj.chapter_number, chapterObj.title, jsonPages, chapterObj.views, chapterObj.created_at]
+        );
+      }
+
+      // Update chapter count in MySQL mangas
+      const [allChapRows]: any = await dbQuery(`SELECT COUNT(*) as cnt FROM manga_chapters WHERE manga_id = ?`, [mangaId]);
+      if (Array.isArray(allChapRows) && allChapRows.length > 0) {
+        const count = allChapRows[0].cnt;
+        await dbQuery(`UPDATE mangas SET chapters_count = ? WHERE id = ?`, [count, mangaId]);
+      }
+      console.log(`[MySQL] Saved chapter #${chapter_number} for manga #${mangaId}`);
+    } catch (dbErr) {
+      console.error("[MySQL] Failed to save chapter:", dbErr);
+    }
 
     res.json({ message: "Bob muvaffaqiyatli saqlandi", chapter: chapterObj });
   } catch (err) {
@@ -2619,8 +2814,9 @@ app.delete("/api/mangas/:mangaId/chapters/:chapterNumber", authenticateToken, as
   try {
     if (req.user.role !== "admin") return res.sendStatus(403);
     const { mangaId, chapterNumber } = req.params;
-    const store = loadLocalStore();
 
+    // Delete from local_store.json
+    const store = loadLocalStore();
     store.manga_chapters = (store.manga_chapters || []).filter(
       (c: any) => !(String(c.manga_id) === String(mangaId) && String(c.chapter_number) === String(chapterNumber))
     );
@@ -2632,6 +2828,22 @@ app.delete("/api/mangas/:mangaId/chapters/:chapterNumber", authenticateToken, as
     }
 
     saveLocalStore(store);
+
+    // Delete from MySQL database
+    try {
+      await dbQuery(
+        `DELETE FROM manga_chapters WHERE manga_id = ? AND chapter_number = ?`,
+        [mangaId, chapterNumber]
+      );
+      const [allChapRows]: any = await dbQuery(`SELECT COUNT(*) as cnt FROM manga_chapters WHERE manga_id = ?`, [mangaId]);
+      if (Array.isArray(allChapRows) && allChapRows.length > 0) {
+        const count = allChapRows[0].cnt;
+        await dbQuery(`UPDATE mangas SET chapters_count = ? WHERE id = ?`, [count, mangaId]);
+      }
+      console.log(`[MySQL] Deleted chapter #${chapterNumber} of manga #${mangaId}`);
+    } catch (dbErr) {
+      console.error("[MySQL] Failed to delete chapter:", dbErr);
+    }
 
     res.json({ message: "Bob o'chirildi" });
   } catch (err) {
