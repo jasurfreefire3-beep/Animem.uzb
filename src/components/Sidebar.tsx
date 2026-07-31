@@ -70,7 +70,6 @@ export default function Sidebar({ onClose, onGenreSelect }: SidebarProps) {
   const menuItems = [
     { name: 'Bosh sahifa', path: '/', icon: Home },
     { name: 'Animelar', path: '/animelar', icon: Tv },
-    { name: 'Mangalar', path: '/mangalar', icon: BookOpen },
     { name: 'Donat (Qo\'llab-quvvatlash)', path: '/donat', icon: Gift },
     { name: 'Jadval', path: '/jadval', icon: Calendar },
     { name: 'Yangi chiqishlar', path: '/yangi-chiqishlar', icon: Clock },

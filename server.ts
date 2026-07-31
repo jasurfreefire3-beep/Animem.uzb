@@ -301,6 +301,22 @@ async function testDbConnection() {
       console.log("Added phone column to users table.");
     }
 
+    // Check if yandex_id column exists in users
+    const [yandexColumns]: any = await connection.query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_NAME = 'users' 
+        AND COLUMN_NAME = 'yandex_id' 
+        AND TABLE_SCHEMA = DATABASE()
+    `);
+
+    if (yandexColumns.length === 0) {
+      await connection.query(`
+        ALTER TABLE users ADD COLUMN yandex_id VARCHAR(255) DEFAULT NULL
+      `);
+      console.log("Added yandex_id column to users table.");
+    }
+
     // Create mangas table if not exists in MySQL
     await connection.query(`
       CREATE TABLE IF NOT EXISTS mangas (
@@ -3485,6 +3501,194 @@ app.post("/api/auth/telegram/simulate", async (req, res) => {
   } catch (err) {
     console.error("Simulation error:", err);
     res.status(500).json({ error: "Simulyatsiyada xatolik" });
+  }
+});
+
+// ==================== YANDEX OAUTH ENDPOINTS ====================
+const YANDEX_CLIENT_ID = process.env.YANDEX_CLIENT_ID || "044187259630401c9d14b33ac139d976";
+const YANDEX_CLIENT_SECRET = process.env.YANDEX_CLIENT_SECRET || "d7c5406e78114ca689c95ef030db9139";
+
+// 1. Get Yandex OAuth authorization URL
+app.get("/api/auth/yandex/url", (req, res) => {
+  try {
+    const rawRedirect = (req.query.redirect_uri as string) || "";
+    let redirectUri = rawRedirect;
+    if (!redirectUri) {
+      const appUrl = process.env.APP_URL || `https://${req.headers.host}`;
+      redirectUri = `${appUrl}/api/auth/yandex/callback`;
+    }
+    const params = new URLSearchParams({
+      response_type: "code",
+      client_id: YANDEX_CLIENT_ID,
+      redirect_uri: redirectUri,
+    });
+    const url = `https://oauth.yandex.ru/authorize?${params.toString()}`;
+    res.json({ url, client_id: YANDEX_CLIENT_ID, redirect_uri: redirectUri });
+  } catch (err: any) {
+    res.status(500).json({ error: "Yandex OAuth URL yaratishda xatolik" });
+  }
+});
+
+// Helper for Yandex OAuth verification & profile creation
+async function processYandexAuth(codeOrToken: string, isToken = false) {
+  let accessToken = codeOrToken;
+
+  if (!isToken) {
+    const tokenParams = new URLSearchParams({
+      grant_type: "authorization_code",
+      code: codeOrToken,
+      client_id: YANDEX_CLIENT_ID,
+      client_secret: YANDEX_CLIENT_SECRET
+    });
+
+    const tokenRes = await fetch("https://oauth.yandex.ru/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: tokenParams.toString()
+    });
+
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok || !tokenData.access_token) {
+      throw new Error(tokenData.error_description || tokenData.error || "Yandex kodi almashtirishda xatolik!");
+    }
+    accessToken = tokenData.access_token;
+  }
+
+  // Get Yandex Profile
+  const userRes = await fetch("https://login.yandex.ru/info?format=json", {
+    headers: { Authorization: `OAuth ${accessToken}` }
+  });
+
+  const yandexUser = await userRes.json();
+  if (!userRes.ok || !yandexUser.id) {
+    throw new Error(yandexUser.error_description || "Yandex profilingiz ma'lumotlarini olishda xatolik!");
+  }
+
+  const yandexId = String(yandexUser.id);
+  const email = yandexUser.default_email || (yandexUser.emails && yandexUser.emails[0]) || `${yandexUser.login || yandexId}@yandex.ru`;
+  const name = yandexUser.real_name || yandexUser.display_name || yandexUser.first_name || yandexUser.login || "Yandex User";
+
+  let avatarUrl: string | null = null;
+  if (yandexUser.default_avatar_id && !yandexUser.is_avatar_empty) {
+    avatarUrl = `https://avatars.yandex.net/get-yapic/${yandexUser.default_avatar_id}/islands-200`;
+  }
+
+  // Search in DB
+  let [users]: any = await dbQuery("SELECT * FROM users WHERE yandex_id = ? OR email = ?", [yandexId, email]);
+  let user = users[0];
+
+  if (!user) {
+    const role = email === "mosinjonovjasurbek28@gmail.com" ? "admin" : "user";
+    const randomPass = Math.random().toString(36).slice(-10);
+    const hashedPassword = await bcrypt.hash(randomPass, 10);
+
+    const [insertRes]: any = await dbQuery(
+      "INSERT INTO users (name, email, password, role, avatar_url, yandex_id) VALUES (?, ?, ?, ?, ?, ?)",
+      [name, email, hashedPassword, role, avatarUrl, yandexId]
+    );
+
+    user = {
+      id: insertRes.insertId,
+      name,
+      email,
+      role,
+      avatar_url: avatarUrl,
+      yandex_id: yandexId
+    };
+  } else {
+    if (!user.yandex_id || (avatarUrl && !user.avatar_url)) {
+      await dbQuery("UPDATE users SET yandex_id = COALESCE(yandex_id, ?), avatar_url = COALESCE(avatar_url, ?) WHERE id = ?", [yandexId, avatarUrl, user.id]);
+      user.yandex_id = yandexId;
+      if (avatarUrl) user.avatar_url = avatarUrl;
+    }
+  }
+
+  const userPayload = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    avatar_url: user.avatar_url,
+  };
+
+  const tokenPayload = {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+  };
+
+  const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "30d" });
+
+  return { token, user: userPayload };
+}
+
+// 2. Yandex Callback Redirect Route
+app.get(["/api/auth/yandex/callback", "/api/auth/yandex/callback/"], async (req, res) => {
+  try {
+    const code = req.query.code as string;
+    if (!code) {
+      return res.send(`
+        <html><body><script>
+          if (window.opener) {
+            window.opener.postMessage({ type: 'YANDEX_AUTH_ERROR', error: 'No code provided' }, '*');
+            window.close();
+          } else { window.location.href = '/login?error=yandex_no_code'; }
+        </script>
+        <p>Yandex avtorizatsiyasida kod topilmadi. Oyna yopilmoqda...</p></body></html>
+      `);
+    }
+
+    const { token, user } = await processYandexAuth(code, false);
+
+    res.send(`
+      <html>
+        <body>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({ type: 'YANDEX_AUTH_SUCCESS', token: ${JSON.stringify(token)}, user: ${JSON.stringify(user)} }, '*');
+              window.close();
+            } else {
+              window.location.href = '/?token=' + encodeURIComponent(${JSON.stringify(token)}) + '&user=' + encodeURIComponent(${JSON.stringify(JSON.stringify(user))});
+            }
+          </script>
+          <p style="text-align: center; font-family: sans-serif; margin-top: 20px;">
+            Yandex bilan tizimga muvaffaqiyatli kirildi. Oyna yopilmoqda...
+          </p>
+        </body>
+      </html>
+    `);
+  } catch (err: any) {
+    console.error("Yandex OAuth callback error:", err);
+    res.send(`
+      <html><body><script>
+        if (window.opener) {
+          window.opener.postMessage({ type: 'YANDEX_AUTH_ERROR', error: ${JSON.stringify(err.message)} }, '*');
+          window.close();
+        } else { window.location.href = '/login?error=' + encodeURIComponent(err.message); }
+      </script>
+      <p style="text-align: center; font-family: sans-serif; margin-top: 20px;">
+        Yandex kirishda xatolik: ${err.message}
+      </p></body></html>
+    `);
+  }
+});
+
+// 3. Direct verification endpoint (for token or code entry)
+app.post("/api/auth/yandex/verify", async (req, res) => {
+  try {
+    const { code, token: yToken } = req.body;
+    if (!code && !yToken) {
+      return res.status(400).json({ error: "Yandex tasdiqlash kodi yoki Token kiritilmadi!" });
+    }
+
+    const input = (code || yToken).trim();
+    const isToken = Boolean(yToken);
+
+    const result = await processYandexAuth(input, isToken);
+    res.json(result);
+  } catch (err: any) {
+    console.error("Yandex verify error:", err);
+    res.status(400).json({ error: err.message || "Yandex orqali kirishda xatolik yuz berdi" });
   }
 });
 

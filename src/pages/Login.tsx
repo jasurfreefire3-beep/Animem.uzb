@@ -87,6 +87,47 @@ export default function Login() {
   const [telegramStatus, setTelegramStatus] = useState<'pending' | 'pending_phone' | 'authorized' | 'expired' | ''>('');
   const [telegramProgress, setTelegramProgress] = useState(1);
 
+  // Listen for Yandex OAuth postMessage from popup callback
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'YANDEX_AUTH_SUCCESS') {
+        const { token: userToken, user: authUser } = event.data;
+        if (userToken && authUser) {
+          login(userToken, authUser);
+          navigate('/');
+        }
+      } else if (event.data?.type === 'YANDEX_AUTH_ERROR') {
+        setError(event.data.error || 'Yandex avtorizatsiyasida xatolik yuz berdi');
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [login, navigate]);
+
+  const handleYandexLoginStart = async () => {
+    try {
+      setError('');
+      const res = await fetch('/api/auth/yandex/url');
+      const data = await res.json();
+
+      if (data.url) {
+        const authWindow = window.open(
+          data.url,
+          'yandex_oauth_popup',
+          'width=600,height=700,top=100,left=100'
+        );
+
+        if (!authWindow) {
+          window.location.href = data.url;
+        }
+      } else {
+        throw new Error('Yandex avtorizatsiya havolasini olib bo\'lmadi');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Yandex orqali kirishda xatolik');
+    }
+  };
+
   // Poll Telegram auth session status
   useEffect(() => {
     if (!telegramSessionId || showTelegramModal === false || telegramStatus === 'authorized') return;
@@ -583,6 +624,22 @@ export default function Login() {
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.24-5.54 3.65-.52.36-.97.53-1.34.52-.41-.01-1.21-.23-1.8-.42-.73-.24-1.32-.37-1.27-.78.02-.21.31-.43.87-.67 3.42-1.49 5.71-2.48 6.86-2.96 3.27-1.37 3.95-1.61 4.4-.1.01.03.02.05.02.08.01.12.01.25-.01.37z" />
                 </svg>
                 Telegram bilan kirish
+              </button>
+
+              <button
+                type="button"
+                onClick={handleYandexLoginStart}
+                className="w-full bg-[#FC3F1D] hover:bg-[#e03415] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-3 flex items-center justify-center gap-3 cursor-pointer shadow-md"
+              >
+                <div className="w-5 h-5 bg-white rounded-full flex items-center justify-center shrink-0 overflow-hidden">
+                  <img
+                    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTrvMGpJrPT4DJ5TfWDgVIIdqcYH3dJpqWJ_HBpvpHw8Q&s=10"
+                    alt="Yandex"
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                Yandex bilan kirish
               </button>
             </div>
 

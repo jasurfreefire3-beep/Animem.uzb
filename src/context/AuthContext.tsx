@@ -15,6 +15,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check URL search parameters for OAuth redirect fallback
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    const urlUser = urlParams.get('user');
+
+    if (urlToken && urlUser) {
+      try {
+        const parsedUser = JSON.parse(decodeURIComponent(urlUser));
+        setToken(urlToken);
+        setUser(parsedUser);
+        localStorage.setItem('token', urlToken);
+        localStorage.setItem('user', JSON.stringify(parsedUser));
+        window.history.replaceState({}, '', window.location.pathname);
+        return;
+      } catch (e) {
+        console.error("URL user parsing error:", e);
+      }
+    }
+
     const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
     if (storedToken && storedUser) {

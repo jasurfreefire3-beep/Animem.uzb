@@ -547,18 +547,6 @@ export default function Admin() {
         </button>
         <button
           onClick={() => {
-            setActiveTab('mangas');
-            setMessage({ type: '', text: '' });
-          }}
-          className={`flex items-center space-x-2 px-3 sm:px-6 py-2 sm:py-2.5 rounded-sm text-xs sm:text-sm font-bold transition-colors flex-1 justify-center ${
-            activeTab === 'mangas' ? 'bg-[#ff006a] text-white' : 'text-white/50 hover:bg-[#222] hover:text-white'
-          }`}
-        >
-          <BookOpen size={16} />
-          <span>Mangalar</span>
-        </button>
-        <button
-          onClick={() => {
             setActiveTab('donations');
             setMessage({ type: '', text: '' });
           }}
@@ -1244,17 +1232,7 @@ export default function Admin() {
         </motion.div>
       )}
 
-      {/* Tab 5: Mangalar */}
-      {activeTab === 'mangas' && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <AdminMangalar token={token} />
-        </motion.div>
-      )}
-
-      {/* Tab 6: Donatlar */}
+      {/* Tab 5: Donatlar */}
       {activeTab === 'donations' && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}

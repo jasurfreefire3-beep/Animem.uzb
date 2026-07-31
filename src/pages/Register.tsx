@@ -91,6 +91,47 @@ export default function Register() {
   const [telegramStatus, setTelegramStatus] = useState<'pending' | 'pending_phone' | 'authorized' | 'expired' | ''>('');
   const [telegramProgress, setTelegramProgress] = useState(1);
 
+  // Listen for Yandex OAuth postMessage from popup callback
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'YANDEX_AUTH_SUCCESS') {
+        const { token: userToken, user: authUser } = event.data;
+        if (userToken && authUser) {
+          login(userToken, authUser);
+          navigate('/');
+        }
+      } else if (event.data?.type === 'YANDEX_AUTH_ERROR') {
+        setError(event.data.error || 'Yandex avtorizatsiyasida xatolik yuz berdi');
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [login, navigate]);
+
+  const handleYandexLoginStart = async () => {
+    try {
+      setError('');
+      const res = await fetch('/api/auth/yandex/url');
+      const data = await res.json();
+
+      if (data.url) {
+        const authWindow = window.open(
+          data.url,
+          'yandex_oauth_popup',
+          'width=600,height=700,top=100,left=100'
+        );
+
+        if (!authWindow) {
+          window.location.href = data.url;
+        }
+      } else {
+        throw new Error('Yandex avtorizatsiya havolasini olib bo\'lmadi');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Yandex orqali kirishda xatolik');
+    }
+  };
+
   // Poll Telegram auth session status
   useEffect(() => {
     if (!telegramSessionId || showTelegramModal === false || telegramStatus === 'authorized') return;
@@ -597,6 +638,29 @@ export default function Register() {
                 </div>
                 <div className="text-[11px] text-white/70">
                   Telegram bot orqali xavfsiz avtorizatsiya
+                </div>
+              </div>
+            </button>
+
+            {/* Option 4: Yandex */}
+            <button
+              onClick={handleYandexLoginStart}
+              className="w-full bg-[#FC3F1D] hover:bg-[#e03415] text-white p-4 rounded-sm transition-all text-left flex items-center gap-4 cursor-pointer shadow-md"
+            >
+              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shrink-0 overflow-hidden">
+                <img
+                  src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTrvMGpJrPT4DJ5TfWDgVIIdqcYH3dJpqWJ_HBpvpHw8Q&s=10"
+                  alt="Yandex"
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-black text-white">
+                  Yandex ID bilan kirish
+                </div>
+                <div className="text-[11px] text-white/80 font-normal">
+                  Yandex akkauntingiz orqali bir bosishda
                 </div>
               </div>
             </button>
