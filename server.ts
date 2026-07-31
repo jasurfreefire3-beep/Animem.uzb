@@ -317,6 +317,22 @@ async function testDbConnection() {
       console.log("Added yandex_id column to users table.");
     }
 
+    // Check if created_at column exists in users
+    const [createdAtCols]: any = await connection.query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_NAME = 'users' 
+        AND COLUMN_NAME = 'created_at' 
+        AND TABLE_SCHEMA = DATABASE()
+    `);
+
+    if (createdAtCols.length === 0) {
+      await connection.query(`
+        ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      `);
+      console.log("Added created_at column to users table.");
+    }
+
     // Create mangas table if not exists in MySQL
     await connection.query(`
       CREATE TABLE IF NOT EXISTS mangas (
@@ -2912,6 +2928,117 @@ app.get("/api/admin/donations", authenticateToken, async (req: any, res: any) =>
   } catch (err) {
     console.error("Get admin donations error:", err);
     res.status(500).json({ error: "Donatlarni olishda xatolik" });
+  }
+});
+
+// GET Admin All Users list with provider detection
+app.get("/api/admin/users", authenticateToken, async (req: any, res: any) => {
+  try {
+    if (req.user.role !== "admin") return res.sendStatus(403);
+
+    let users: any[] = [];
+    try {
+      const [rows]: any = await dbQuery("SELECT id, name, email, phone, role, avatar_url, telegram_id, yandex_id, created_at FROM users ORDER BY id DESC");
+      users = rows || [];
+    } catch (dbErr) {
+      console.warn("DB Query for users failed, falling back to local store:", dbErr);
+      const store = loadLocalStore();
+      users = store.users || [];
+    }
+
+    const processedUsers = users.map((u: any) => {
+      let provider = "email";
+      let provider_label = "Email / Parol";
+
+      if (u.telegram_id) {
+        provider = "telegram";
+        provider_label = "Telegram";
+      } else if (u.yandex_id) {
+        provider = "yandex";
+        provider_label = "Yandex ID";
+      } else if (u.email && u.email.toLowerCase().endsWith("@gmail.com")) {
+        provider = "google";
+        provider_label = "Google Email";
+      } else if (u.phone) {
+        provider = "phone";
+        provider_label = "Telefon (+SMS)";
+      }
+
+      return {
+        id: u.id,
+        name: u.name || "Nomsiz Foydalanuvchi",
+        email: u.email || "",
+        phone: u.phone || "",
+        role: u.role || "user",
+        avatar_url: u.avatar_url || null,
+        telegram_id: u.telegram_id || null,
+        yandex_id: u.yandex_id || null,
+        created_at: u.created_at || new Date().toISOString(),
+        provider,
+        provider_label
+      };
+    });
+
+    res.json({ users: processedUsers });
+  } catch (err) {
+    console.error("Get admin users error:", err);
+    res.status(500).json({ error: "Foydalanuvchilarni olishda xatolik" });
+  }
+});
+
+// DELETE User (Admin action)
+app.delete("/api/admin/users/:id", authenticateToken, async (req: any, res: any) => {
+  try {
+    if (req.user.role !== "admin") return res.sendStatus(403);
+    const userId = req.params.id;
+
+    if (String(req.user.id) === String(userId)) {
+      return res.status(400).json({ error: "O'z hisobingizni o'chira olmaysiz!" });
+    }
+
+    try {
+      await dbQuery("DELETE FROM users WHERE id = ?", [userId]);
+    } catch (e) {
+      const store = loadLocalStore();
+      store.users = (store.users || []).filter((u: any) => String(u.id) !== String(userId));
+      saveLocalStore(store);
+    }
+
+    res.json({ success: true, message: "Foydalanuvchi o'chirildi" });
+  } catch (err) {
+    console.error("Delete user error:", err);
+    res.status(500).json({ error: "Foydalanuvchini o'chirishda xatolik" });
+  }
+});
+
+// PUT Toggle User Role (Admin <-> User)
+app.put("/api/admin/users/:id/role", authenticateToken, async (req: any, res: any) => {
+  try {
+    if (req.user.role !== "admin") return res.sendStatus(403);
+    const userId = req.params.id;
+    const { role } = req.body;
+
+    if (!["admin", "user"].includes(role)) {
+      return res.status(400).json({ error: "Yaroqsiz rol" });
+    }
+
+    if (String(req.user.id) === String(userId)) {
+      return res.status(400).json({ error: "O'z rolingizni o'zgartira olmaysiz!" });
+    }
+
+    try {
+      await dbQuery("UPDATE users SET role = ? WHERE id = ?", [role, userId]);
+    } catch (e) {
+      const store = loadLocalStore();
+      const userObj = (store.users || []).find((u: any) => String(u.id) === String(userId));
+      if (userObj) userObj.role = role;
+      saveLocalStore(store);
+    }
+
+    res.json({ success: true, message: `Foydalanuvchi roli ${role} ga o'zgartirildi` });
+  } catch (err) {
+    console.error("Change user role error:", err);
+    res.status(500).json({ error: "Rolni o'zgartirishda xatolik" });
   }
 });
 
