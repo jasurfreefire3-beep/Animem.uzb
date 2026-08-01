@@ -1972,7 +1972,13 @@ app.get("/api/animes/:id/comments", async (req, res) => {
       [id]
     );
     if (Array.isArray(rows)) {
-      return res.json(rows);
+      const parsed = rows.map((r: any) => ({
+        ...r,
+        liked_users: typeof r.liked_users === 'string' ? JSON.parse(r.liked_users || '[]') : (r.liked_users || []),
+        disliked_users: typeof r.disliked_users === 'string' ? JSON.parse(r.disliked_users || '[]') : (r.disliked_users || []),
+        replies: typeof r.replies === 'string' ? JSON.parse(r.replies || '[]') : (r.replies || [])
+      }));
+      return res.json(parsed);
     }
   } catch (err) {
     console.warn("Comments fetch falling back to local store:", (err as any)?.message);
@@ -2162,11 +2168,19 @@ app.post("/api/comments/:commentId/reply", authenticateToken, async (req: any, r
     let replies = [];
     try { replies = typeof comment.replies === 'string' ? JSON.parse(comment.replies) : (comment.replies || []); } catch(e){}
 
+    let userAvatar = req.user.avatar_url || null;
+    try {
+      const [uRows]: any = await dbQuery("SELECT avatar_url FROM users WHERE id = ?", [userId]);
+      if (uRows && uRows.length > 0 && uRows[0].avatar_url) {
+        userAvatar = uRows[0].avatar_url;
+      }
+    } catch (e) {}
+
     const newReply = {
       id: Date.now(),
       user_id: userId,
       user_name: req.user.name,
-      user_avatar: req.user.avatar_url || null,
+      user_avatar: userAvatar,
       content: content.trim(),
       created_at: new Date().toISOString()
     };
