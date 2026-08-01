@@ -23,6 +23,7 @@ export default function AdminMangalar({ token }: AdminMangalarProps) {
   const [artist, setArtist] = useState('');
   const [holati, setHolati] = useState('Davom etmoqda');
   const [releasedYear, setReleasedYear] = useState(new Date().getFullYear().toString());
+  const [tags, setTags] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<string[]>(['Jangari']);
 
   // Chapter Form State
@@ -86,6 +87,7 @@ export default function AdminMangalar({ token }: AdminMangalarProps) {
     setArtist('');
     setHolati('Davom etmoqda');
     setReleasedYear(new Date().getFullYear().toString());
+    setTags('');
     setSelectedGenres(['Jangari']);
   };
 
@@ -99,6 +101,7 @@ export default function AdminMangalar({ token }: AdminMangalarProps) {
     setArtist(m.artist || '');
     setHolati(m.holati || 'Davom etmoqda');
     setReleasedYear((m.released_year || new Date().getFullYear()).toString());
+    setTags(m.tags || '');
     setSelectedGenres(m.janrlar ? m.janrlar.split(',').map(g => g.trim()) : ['Jangari']);
     setSubTab('add_manga');
   };
@@ -121,7 +124,8 @@ export default function AdminMangalar({ token }: AdminMangalarProps) {
       artist: artist || "Noma'lum",
       janrlar: selectedGenres.join(', '),
       holati,
-      released_year: parseInt(releasedYear) || new Date().getFullYear()
+      released_year: parseInt(releasedYear) || new Date().getFullYear(),
+      tags
     };
 
     try {
@@ -172,6 +176,28 @@ export default function AdminMangalar({ token }: AdminMangalarProps) {
       } else {
         const data = await res.json();
         throw new Error(data.error || "Manga o'chirishda xatolik");
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message });
+    }
+  };
+
+  const handleClearAllMangas = async () => {
+    if (!window.confirm("Barcha mangalarni va test uchun yuklangan mangalarni o'chirishni xohlaysizmi?")) return;
+    try {
+      const res = await fetch('/api/admin/mangas-clear', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage({ type: 'success', text: "Barcha test mangalar o'chirildi!" });
+        setMangas([]);
+        fetchMangas();
+      } else {
+        throw new Error(data.error || "Xatolik yuz berdi");
       }
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
@@ -309,9 +335,19 @@ export default function AdminMangalar({ token }: AdminMangalarProps) {
       {subTab === 'manga_list' && (
         <div className="bg-[#111] border border-[#222] p-5 rounded-lg space-y-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-              <BookOpen size={16} className="text-[#ff006a]" /> Barcha Mangalar
-            </h3>
+            <div className="flex items-center gap-3">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <BookOpen size={16} className="text-[#ff006a]" /> Barcha Mangalar
+              </h3>
+              {mangas.length > 0 && (
+                <button
+                  onClick={handleClearAllMangas}
+                  className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1.5 rounded text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Trash2 size={12} /> Barchasini o'chirish (Testlar)
+                </button>
+              )}
+            </div>
             
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
@@ -506,6 +542,17 @@ export default function AdminMangalar({ token }: AdminMangalarProps) {
                 <option value="Davom etmoqda">Davom etmoqda</option>
                 <option value="Tugallangan">Tugallangan</option>
               </select>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-white/70 mb-1 uppercase">Teglar (Vergul bilan ajratib yozing: masalan: jangari, sarguzasht)</label>
+              <input
+                type="text"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="jangari, sarguzasht, fantastika"
+                className="w-full bg-[#18181c] border border-[#333] rounded px-3 py-2 text-white text-xs focus:outline-none focus:border-[#ff006a]"
+              />
             </div>
           </div>
 

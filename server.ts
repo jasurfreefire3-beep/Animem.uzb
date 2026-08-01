@@ -365,7 +365,40 @@ async function testDbConnection() {
         created_at VARCHAR(255)
       )
     `);
-    console.log("Verified mangas and manga_chapters tables in MySQL.");
+
+    // Ensure tags column in animes & mangas
+    try {
+      const [aCols]: any = await connection.query(`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'animes' AND COLUMN_NAME = 'tags' AND TABLE_SCHEMA = DATABASE()`);
+      if (aCols.length === 0) {
+        await connection.query(`ALTER TABLE animes ADD COLUMN tags VARCHAR(255) DEFAULT NULL`);
+      }
+    } catch(e) {}
+
+    try {
+      const [mCols]: any = await connection.query(`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'mangas' AND COLUMN_NAME = 'tags' AND TABLE_SCHEMA = DATABASE()`);
+      if (mCols.length === 0) {
+        await connection.query(`ALTER TABLE mangas ADD COLUMN tags VARCHAR(255) DEFAULT NULL`);
+      }
+    } catch(e) {}
+
+    // Ensure comments table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS comments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        anime_id BIGINT DEFAULT NULL,
+        manga_id BIGINT DEFAULT NULL,
+        user_id INT NOT NULL,
+        content TEXT NOT NULL,
+        likes INT DEFAULT 0,
+        dislikes INT DEFAULT 0,
+        liked_users TEXT DEFAULT NULL,
+        disliked_users TEXT DEFAULT NULL,
+        replies LONGTEXT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    console.log("Verified mangas, manga_chapters, comments tables and tags columns in MySQL.");
 
     connection.release();
   } catch (err) {
@@ -1980,10 +2013,265 @@ app.post("/api/animes/:id/comments", authenticateToken, async (req: any, res) =>
       user_name: req.user.name,
       user_avatar: userAvatar,
       content,
+      likes: 0,
+      dislikes: 0,
+      liked_users: [],
+      disliked_users: [],
+      replies: [],
       created_at: new Date().toISOString(),
     });
   } catch (err) {
     console.error("Add comment error:", err);
+    res.status(500).json({ error: "Failed to post comment" });
+  }
+});
+
+// Helper to get comment by ID
+async function getCommentById(commentId: string | number) {
+  try {
+    const [rows]: any = await dbQuery("SELECT * FROM comments WHERE id = ?", [commentId]);
+    if (rows && rows.length > 0) return rows[0];
+  } catch (e) {}
+
+  const store = loadLocalStore();
+  store.comments = store.comments || [];
+  return store.comments.find((c: any) => String(c.id) === String(commentId)) || null;
+}
+
+// Like comment
+app.post("/api/comments/:commentId/like", authenticateToken, async (req: any, res) => {
+  const commentId = req.params.commentId;
+  const userId = req.user.id;
+  try {
+    let comment = await getCommentById(commentId);
+    if (!comment) return res.status(404).json({ error: "Izoh topilmadi" });
+
+    let likedUsers = [];
+    try { likedUsers = typeof comment.liked_users === 'string' ? JSON.parse(comment.liked_users) : (comment.liked_users || []); } catch(e){}
+    let dislikedUsers = [];
+    try { dislikedUsers = typeof comment.disliked_users === 'string' ? JSON.parse(comment.disliked_users) : (comment.disliked_users || []); } catch(e){}
+
+    let likes = Number(comment.likes) || 0;
+    let dislikes = Number(comment.dislikes) || 0;
+
+    const hasLiked = likedUsers.map(String).includes(String(userId));
+    const hasDisliked = dislikedUsers.map(String).includes(String(userId));
+
+    if (hasLiked) {
+      likedUsers = likedUsers.filter((id: any) => String(id) !== String(userId));
+      likes = Math.max(0, likes - 1);
+    } else {
+      likedUsers.push(userId);
+      likes += 1;
+      if (hasDisliked) {
+        dislikedUsers = dislikedUsers.filter((id: any) => String(id) !== String(userId));
+        dislikes = Math.max(0, dislikes - 1);
+      }
+    }
+
+    try {
+      await dbQuery(
+        "UPDATE comments SET likes = ?, dislikes = ?, liked_users = ?, disliked_users = ? WHERE id = ?",
+        [likes, dislikes, JSON.stringify(likedUsers), JSON.stringify(dislikedUsers), commentId]
+      );
+    } catch(e) {}
+
+    const store = loadLocalStore();
+    store.comments = (store.comments || []).map((c: any) => {
+      if (String(c.id) === String(commentId)) {
+        return { ...c, likes, dislikes, liked_users: likedUsers, disliked_users: dislikedUsers };
+      }
+      return c;
+    });
+    saveLocalStore(store);
+
+    res.json({ likes, dislikes, liked_users: likedUsers, disliked_users: dislikedUsers });
+  } catch (err) {
+    console.error("Like error:", err);
+    res.status(500).json({ error: "Failed to like comment" });
+  }
+});
+
+// Dislike comment
+app.post("/api/comments/:commentId/dislike", authenticateToken, async (req: any, res) => {
+  const commentId = req.params.commentId;
+  const userId = req.user.id;
+  try {
+    let comment = await getCommentById(commentId);
+    if (!comment) return res.status(404).json({ error: "Izoh topilmadi" });
+
+    let likedUsers = [];
+    try { likedUsers = typeof comment.liked_users === 'string' ? JSON.parse(comment.liked_users) : (comment.liked_users || []); } catch(e){}
+    let dislikedUsers = [];
+    try { dislikedUsers = typeof comment.disliked_users === 'string' ? JSON.parse(comment.disliked_users) : (comment.disliked_users || []); } catch(e){}
+
+    let likes = Number(comment.likes) || 0;
+    let dislikes = Number(comment.dislikes) || 0;
+
+    const hasLiked = likedUsers.map(String).includes(String(userId));
+    const hasDisliked = dislikedUsers.map(String).includes(String(userId));
+
+    if (hasDisliked) {
+      dislikedUsers = dislikedUsers.filter((id: any) => String(id) !== String(userId));
+      dislikes = Math.max(0, dislikes - 1);
+    } else {
+      dislikedUsers.push(userId);
+      dislikes += 1;
+      if (hasLiked) {
+        likedUsers = likedUsers.filter((id: any) => String(id) !== String(userId));
+        likes = Math.max(0, likes - 1);
+      }
+    }
+
+    try {
+      await dbQuery(
+        "UPDATE comments SET likes = ?, dislikes = ?, liked_users = ?, disliked_users = ? WHERE id = ?",
+        [likes, dislikes, JSON.stringify(likedUsers), JSON.stringify(dislikedUsers), commentId]
+      );
+    } catch(e) {}
+
+    const store = loadLocalStore();
+    store.comments = (store.comments || []).map((c: any) => {
+      if (String(c.id) === String(commentId)) {
+        return { ...c, likes, dislikes, liked_users: likedUsers, disliked_users: dislikedUsers };
+      }
+      return c;
+    });
+    saveLocalStore(store);
+
+    res.json({ likes, dislikes, liked_users: likedUsers, disliked_users: dislikedUsers });
+  } catch (err) {
+    console.error("Dislike error:", err);
+    res.status(500).json({ error: "Failed to dislike comment" });
+  }
+});
+
+// Reply to comment
+app.post("/api/comments/:commentId/reply", authenticateToken, async (req: any, res) => {
+  const commentId = req.params.commentId;
+  const userId = req.user.id;
+  const { content } = req.body;
+  if (!content || !content.trim()) {
+    return res.status(400).json({ error: "Javob matni bo'sh bo'lishi mumkin emas" });
+  }
+
+  try {
+    let comment = await getCommentById(commentId);
+    if (!comment) return res.status(404).json({ error: "Izoh topilmadi" });
+
+    let replies = [];
+    try { replies = typeof comment.replies === 'string' ? JSON.parse(comment.replies) : (comment.replies || []); } catch(e){}
+
+    const newReply = {
+      id: Date.now(),
+      user_id: userId,
+      user_name: req.user.name,
+      user_avatar: req.user.avatar_url || null,
+      content: content.trim(),
+      created_at: new Date().toISOString()
+    };
+
+    replies.push(newReply);
+
+    try {
+      await dbQuery(
+        "UPDATE comments SET replies = ? WHERE id = ?",
+        [JSON.stringify(replies), commentId]
+      );
+    } catch(e) {}
+
+    const store = loadLocalStore();
+    store.comments = (store.comments || []).map((c: any) => {
+      if (String(c.id) === String(commentId)) {
+        return { ...c, replies };
+      }
+      return c;
+    });
+    saveLocalStore(store);
+
+    res.status(201).json(newReply);
+  } catch (err) {
+    console.error("Reply error:", err);
+    res.status(500).json({ error: "Failed to post reply" });
+  }
+});
+
+// Get manga comments
+app.get("/api/mangas/:id/comments", async (req, res) => {
+  const id = req.params.id;
+  try {
+    const [rows]: any = await dbQuery(
+      `SELECT c.*, u.name AS user_name, u.avatar_url AS user_avatar 
+       FROM comments c 
+       LEFT JOIN users u ON c.user_id = u.id 
+       WHERE c.manga_id = ? 
+       ORDER BY c.id DESC`,
+      [id]
+    );
+    if (Array.isArray(rows)) {
+      const parsed = rows.map((r: any) => ({
+        ...r,
+        liked_users: typeof r.liked_users === 'string' ? JSON.parse(r.liked_users || '[]') : (r.liked_users || []),
+        disliked_users: typeof r.disliked_users === 'string' ? JSON.parse(r.disliked_users || '[]') : (r.disliked_users || []),
+        replies: typeof r.replies === 'string' ? JSON.parse(r.replies || '[]') : (r.replies || [])
+      }));
+      return res.json(parsed);
+    }
+  } catch (err) {
+    console.warn("Manga comments fetch fallback:", (err as any)?.message);
+  }
+  const store = loadLocalStore();
+  const comms = (store.comments || []).filter((c: any) => String(c.manga_id) === String(id));
+  res.json(comms);
+});
+
+// Post manga comment
+app.post("/api/mangas/:id/comments", authenticateToken, async (req: any, res) => {
+  try {
+    const mangaId = req.params.id;
+    const userId = req.user.id;
+    const { content } = req.body;
+
+    if (!content) {
+      return res.status(400).json({ error: "Izoh matni bo'sh bo'lishi mumkin emas" });
+    }
+
+    const [result]: any = await dbQuery(
+      "INSERT INTO comments (manga_id, user_id, content, likes, dislikes, liked_users, disliked_users, replies) VALUES (?, ?, ?, 0, 0, '[]', '[]', '[]')",
+      [mangaId, userId, content]
+    );
+
+    let userAvatar = req.user.avatar_url || null;
+    try {
+      const [uRows]: any = await dbQuery("SELECT avatar_url FROM users WHERE id = ?", [userId]);
+      if (uRows && uRows.length > 0 && uRows[0].avatar_url) {
+        userAvatar = uRows[0].avatar_url;
+      }
+    } catch (e) {}
+
+    const newComment = {
+      id: result.insertId,
+      manga_id: Number(mangaId),
+      user_id: userId,
+      user_name: req.user.name,
+      user_avatar: userAvatar,
+      content,
+      likes: 0,
+      dislikes: 0,
+      liked_users: [],
+      disliked_users: [],
+      replies: [],
+      created_at: new Date().toISOString(),
+    };
+
+    const store = loadLocalStore();
+    store.comments = store.comments || [];
+    store.comments.unshift(newComment);
+    saveLocalStore(store);
+
+    res.status(201).json(newComment);
+  } catch (err) {
+    console.error("Add manga comment error:", err);
     res.status(500).json({ error: "Failed to post comment" });
   }
 });
@@ -2182,14 +2470,15 @@ app.post("/api/animes", authenticateToken, async (req: any, res) => {
       video_url,
       tavsiya,
       is_banner,
+      tags,
     } = req.body;
 
     let insertId = Date.now();
     try {
       const [result]: any = await dbQuery(
         `INSERT INTO animes 
-        (title, description, image_url, banner_url, rating, rating_count, holati, yil, studiyasi, qismlar_soni, korishlar, janrlar, video_url, tavsiya, is_banner) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (title, description, image_url, banner_url, rating, rating_count, holati, yil, studiyasi, qismlar_soni, korishlar, janrlar, video_url, tavsiya, is_banner, tags) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           title || "",
           description || "",
@@ -2206,6 +2495,7 @@ app.post("/api/animes", authenticateToken, async (req: any, res) => {
           video_url || "",
           tavsiya ? 1 : 0,
           is_banner ? 1 : 0,
+          tags || "",
         ]
       );
       if (result && result.insertId) {
@@ -2232,7 +2522,8 @@ app.post("/api/animes", authenticateToken, async (req: any, res) => {
       janrlar: janrlar || "",
       video_url: video_url || "",
       tavsiya: Boolean(tavsiya),
-      is_banner: Boolean(is_banner)
+      is_banner: Boolean(is_banner),
+      tags: tags || ""
     };
     store.animes = store.animes || [];
     store.animes.unshift(newObj);
@@ -2267,6 +2558,7 @@ app.put("/api/animes/:id", authenticateToken, async (req: any, res) => {
       video_url,
       tavsiya,
       is_banner,
+      tags,
     } = req.body;
 
     // Fetch existing record to prevent overwriting missing values like korishlar or rating
@@ -2305,12 +2597,13 @@ app.put("/api/animes/:id", authenticateToken, async (req: any, res) => {
     const finalVideoUrl = video_url !== undefined ? video_url : (existing?.video_url || "");
     const finalTavsiya = tavsiya !== undefined ? (tavsiya ? 1 : 0) : (existing?.tavsiya ? 1 : 0);
     const finalIsBanner = is_banner !== undefined ? (is_banner ? 1 : 0) : (existing?.is_banner ? 1 : 0);
+    const finalTags = tags !== undefined ? tags : (existing?.tags || "");
 
     try {
       await dbQuery(
         `UPDATE animes SET 
         title = ?, description = ?, image_url = ?, banner_url = ?, rating = ?, rating_count = ?, 
-        holati = ?, yil = ?, studiyasi = ?, qismlar_soni = ?, korishlar = ?, janrlar = ?, video_url = ?, tavsiya = ?, is_banner = ? 
+        holati = ?, yil = ?, studiyasi = ?, qismlar_soni = ?, korishlar = ?, janrlar = ?, video_url = ?, tavsiya = ?, is_banner = ?, tags = ? 
         WHERE id = ?`,
         [
           finalTitle,
@@ -2328,6 +2621,7 @@ app.put("/api/animes/:id", authenticateToken, async (req: any, res) => {
           finalVideoUrl,
           finalTavsiya,
           finalIsBanner,
+          finalTags,
           id,
         ]
       );
@@ -2354,7 +2648,8 @@ app.put("/api/animes/:id", authenticateToken, async (req: any, res) => {
       janrlar: finalJanrlar,
       video_url: finalVideoUrl,
       tavsiya: Boolean(finalTavsiya),
-      is_banner: Boolean(finalIsBanner)
+      is_banner: Boolean(finalIsBanner),
+      tags: finalTags
     };
 
     if (idx >= 0) {
@@ -2619,7 +2914,7 @@ app.get("/api/mangas/:id/chapters/:chapterNumber", async (req, res) => {
 app.post("/api/mangas", authenticateToken, async (req: any, res) => {
   try {
     if (req.user.role !== "admin") return res.sendStatus(403);
-    const { title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year } = req.body;
+    const { title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, tags } = req.body;
 
     if (!title || !description || !cover_url) {
       return res.status(400).json({ error: "Sarlavha, tavsif va muqova havola (cover_url) kiritilishi shart!" });
@@ -2636,6 +2931,7 @@ app.post("/api/mangas", authenticateToken, async (req: any, res) => {
       janrlar: janrlar || "Jangari",
       holati: holati || "Davom etmoqda",
       released_year: released_year ? parseInt(released_year) : new Date().getFullYear(),
+      tags: tags || "",
       rating: 9.5,
       korishlar: 0,
       chapters_count: 0,
@@ -2651,8 +2947,8 @@ app.post("/api/mangas", authenticateToken, async (req: any, res) => {
     // Save to MySQL database
     try {
       await dbQuery(
-        `INSERT INTO mangas (id, title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, rating, korishlar, chapters_count, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO mangas (id, title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, tags, rating, korishlar, chapters_count, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newManga.id,
           newManga.title,
@@ -2664,6 +2960,7 @@ app.post("/api/mangas", authenticateToken, async (req: any, res) => {
           newManga.janrlar,
           newManga.holati,
           newManga.released_year,
+          newManga.tags,
           newManga.rating,
           newManga.korishlar,
           newManga.chapters_count,
@@ -2702,7 +2999,7 @@ app.put("/api/mangas/:id", authenticateToken, async (req: any, res) => {
 
     // Update in MySQL database
     try {
-      const { title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year } = updatedData;
+      const { title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, tags } = updatedData;
       await dbQuery(
         `UPDATE mangas 
          SET title = COALESCE(?, title),
@@ -2713,9 +3010,10 @@ app.put("/api/mangas/:id", authenticateToken, async (req: any, res) => {
              artist = COALESCE(?, artist),
              janrlar = COALESCE(?, janrlar),
              holati = COALESCE(?, holati),
-             released_year = COALESCE(?, released_year)
+             released_year = COALESCE(?, released_year),
+             tags = COALESCE(?, tags)
          WHERE id = ?`,
-        [title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, id]
+        [title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, tags, id]
       );
     } catch (dbErr) {
       console.error("[MySQL] Failed to update manga:", dbErr);
@@ -2754,6 +3052,30 @@ app.delete("/api/mangas/:id", authenticateToken, async (req: any, res) => {
   } catch (err) {
     console.error("Delete manga error:", err);
     res.status(500).json({ error: "Manga o'chirishda xatolik" });
+  }
+});
+
+// Admin Route: Clear all mangas (test mangas removal)
+app.delete("/api/admin/mangas-clear", authenticateToken, async (req: any, res) => {
+  try {
+    if (req.user.role !== "admin") return res.sendStatus(403);
+    const store = loadLocalStore();
+    store.mangas = [];
+    store.manga_chapters = [];
+    saveLocalStore(store);
+
+    try {
+      await dbQuery(`DELETE FROM manga_chapters`);
+      await dbQuery(`DELETE FROM mangas`);
+      console.log("[MySQL] Cleared all mangas and chapters");
+    } catch (dbErr) {
+      console.error("[MySQL] Failed to clear mangas:", dbErr);
+    }
+
+    res.json({ message: "Barcha test mangalar o'chirildi" });
+  } catch (err) {
+    console.error("Clear mangas error:", err);
+    res.status(500).json({ error: "Mangalarni o'chirishda xatolik" });
   }
 });
 

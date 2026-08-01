@@ -198,41 +198,9 @@ export default function Register() {
     try {
       setError('');
       googleProvider.setCustomParameters({ prompt: 'select_account' });
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      
-      const API_BASE = '';
-      const res = await fetch(`${API_BASE}/api/auth/google`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          email: user.email, 
-          name: user.displayName || 'Google User', 
-          uid: user.uid,
-          avatar_url: user.photoURL
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Google login failed');
-      }
-
-      login(data.token, data.user);
-      navigate('/');
+      await signInWithRedirect(auth, googleProvider);
     } catch (err: any) {
-      console.error("Google login popup error:", err);
-      if (err.code === 'auth/popup-closed-by-user') return;
-      if (err.code === 'auth/popup-blocked') {
-        try {
-          await signInWithRedirect(auth, googleProvider);
-          return;
-        } catch (redirectErr) {
-          console.error("Redirect fallback error:", redirectErr);
-        }
-      }
+      console.error("Google login redirect error:", err);
       setError(err.message || 'Google orqali kirishda xatolik');
     }
   };

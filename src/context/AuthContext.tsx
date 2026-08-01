@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
+import { getRedirectResult } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 interface AuthContextType {
   user: User | null;
@@ -15,6 +17,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check Google redirect result
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result && result.user) {
+          const firebaseUser = result.user;
+          try {
+            const res = await fetch('/api/auth/google', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: firebaseUser.email,
+                name: firebaseUser.displayName || 'Google User',
+                uid: firebaseUser.uid,
+                avatar_url: firebaseUser.photoURL
+              }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+              setToken(data.token);
+              setUser(data.user);
+              localStorage.setItem('token', data.token);
+              localStorage.setItem('user', JSON.stringify(data.user));
+              window.location.href = '/';
+            }
+          } catch (e) {
+            console.error("Google redirect backend error:", e);
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn("getRedirectResult error:", err);
+      });
+
     // Check URL search parameters for OAuth redirect fallback
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get('token');

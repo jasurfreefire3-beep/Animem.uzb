@@ -20,6 +20,7 @@ export interface Anime {
   studiyasi: string;
   qismlar_soni: number;
   janrlar: string;
+  tags?: string;
   video_url: string;
   tavsiya: boolean;
   is_banner?: boolean | number;
@@ -36,6 +37,7 @@ export interface Manga {
   author?: string;
   artist?: string;
   janrlar: string;
+  tags?: string;
   holati: string;
   released_year?: number;
   rating?: number;
@@ -62,14 +64,29 @@ export interface Notification {
   isRead?: boolean;
 }
 
+export interface CommentReply {
+  id: string | number;
+  user_id: string | number;
+  user_name: string;
+  user_avatar?: string;
+  content: string;
+  created_at: string;
+}
+
 export interface Comment {
-  id: string;
-  anime_id: string;
-  user_id: string;
+  id: string | number;
+  anime_id?: string | number;
+  manga_id?: string | number;
+  user_id: string | number;
   user_name: string;
   user_avatar?: string;
   avatar_url?: string;
   content: string;
+  likes?: number;
+  dislikes?: number;
+  liked_users?: string[] | number[];
+  disliked_users?: string[] | number[];
+  replies?: CommentReply[];
   created_at: string;
 }
 

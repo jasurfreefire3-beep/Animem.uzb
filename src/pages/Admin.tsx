@@ -16,7 +16,7 @@ import AdminUsers from '../components/AdminUsers';
 export default function Admin() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'manage_animes' | 'add_anime' | 'episodes' | 'notifications' | 'users' | 'donations'>('manage_animes');
+  const [activeTab, setActiveTab] = useState<'manage_animes' | 'add_anime' | 'episodes' | 'notifications' | 'mangas' | 'users' | 'donations'>('manage_animes');
   
   // Anime Form States
   const [title, setTitle] = useState('');
@@ -27,6 +27,7 @@ export default function Admin() {
   const [yil, setYil] = useState('');
   const [studiyasi, setStudiyasi] = useState('');
   const [qismlarSoni, setQismlarSoni] = useState('');
+  const [tags, setTags] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [tavsiya, setTavsiya] = useState(false);
   const [isBanner, setIsBanner] = useState(false);
@@ -545,6 +546,18 @@ export default function Admin() {
         >
           <Bell size={16} />
           <span>Bildirishnomalar</span>
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('mangas');
+            setMessage({ type: '', text: '' });
+          }}
+          className={`flex items-center space-x-2 px-3 sm:px-6 py-2 sm:py-2.5 rounded-sm text-xs sm:text-sm font-bold transition-colors flex-1 justify-center ${
+            activeTab === 'mangas' ? 'bg-[#ff006a] text-white' : 'text-white/50 hover:bg-[#222] hover:text-white'
+          }`}
+        >
+          <BookOpen size={16} />
+          <span>Mangalar</span>
         </button>
         <button
           onClick={() => {
@@ -1245,7 +1258,17 @@ export default function Admin() {
         </motion.div>
       )}
 
-      {/* Tab 5: Foydalanuvchilar */}
+      {/* Tab 5: Mangalar */}
+      {activeTab === 'mangas' && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <AdminMangalar token={token || ''} />
+        </motion.div>
+      )}
+
+      {/* Tab 6: Foydalanuvchilar */}
       {activeTab === 'users' && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}

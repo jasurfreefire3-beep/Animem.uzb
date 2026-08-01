@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Anime, Comment, translateGenre, toSlug } from '../types';
-import { Star, MessageSquare, Send, Clock, Play, Plus, Calendar, Building, ListOrdered, Share2, Heart, Flag, PlayCircle, Eye, Shield, Moon, Sun, Trash2, Trophy, X } from 'lucide-react';
+import { Star, MessageSquare, Send, Clock, Play, Plus, Calendar, Building, ListOrdered, Share2, Heart, Flag, PlayCircle, Eye, Shield, Moon, Sun, Trash2, Trophy, X, ThumbsUp, ThumbsDown, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import VideoPlayer from '../components/VideoPlayer';
 
@@ -28,6 +28,8 @@ export default function AnimeDetails() {
   const [ratingStatus, setRatingStatus] = useState<string | null>(null);
   const [ratingSummary, setRatingSummary] = useState<{ average: number; total: number; distribution: Record<number, number> } | null>(null);
   const [similarAnimes, setSimilarAnimes] = useState<Anime[]>([]);
+  const [replyingCommentId, setReplyingCommentId] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState<{ [key: number]: string }>({});
 
   const fetchRatingSummary = async (animeId: number) => {
     try {
@@ -326,6 +328,63 @@ export default function AnimeDetails() {
     }
   };
 
+  const handleLikeComment = async (commentId: number) => {
+    if (!user) { setShowLoginPrompt(true); return; }
+    try {
+      const res = await fetch(`${API_BASE}/api/comments/${commentId}/like`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setComments(comments.map(c => c.id === commentId ? { ...c, likes: data.likes, dislikes: data.dislikes, liked_users: data.liked_users, disliked_users: data.disliked_users } : c));
+      }
+    } catch(e) {}
+  };
+
+  const handleDislikeComment = async (commentId: number) => {
+    if (!user) { setShowLoginPrompt(true); return; }
+    try {
+      const res = await fetch(`${API_BASE}/api/comments/${commentId}/dislike`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setComments(comments.map(c => c.id === commentId ? { ...c, likes: data.likes, dislikes: data.dislikes, liked_users: data.liked_users, disliked_users: data.disliked_users } : c));
+      }
+    } catch(e) {}
+  };
+
+  const handleReplySubmit = async (commentId: number, e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) { setShowLoginPrompt(true); return; }
+    const text = replyText[commentId];
+    if (!text || !text.trim()) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/comments/${commentId}/reply`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ content: text })
+      });
+      if (res.ok) {
+        const newReply = await res.json();
+        setComments(comments.map(c => {
+          if (c.id === commentId) {
+            return { ...c, replies: [...(c.replies || []), newReply] };
+          }
+          return c;
+        }));
+        setReplyText({ ...replyText, [commentId]: '' });
+        setReplyingCommentId(null);
+      }
+    } catch(e) {}
+  };
+
   if (!anime) return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(139,92,246,0.5)]" />
@@ -442,13 +501,23 @@ export default function AnimeDetails() {
                 
                 <div className="text-white/40 text-xs font-medium mb-5">Original nomi · TV Serial</div>
                 
-                <div className="flex flex-wrap justify-center md:justify-start gap-1.5 mb-6">
+                <div className="flex flex-wrap justify-center md:justify-start gap-1.5 mb-4">
                   {genres.map(g => (
                     <span key={g} className="bg-[#18181b] hover:bg-[#ff006a] text-white/70 hover:text-white text-xs font-bold px-3 py-1.5 rounded-sm transition-colors cursor-pointer border border-[#27272a] hover:border-[#ff006a] shadow-xs">
                       {translateGenre(g)}
                     </span>
                   ))}
                 </div>
+
+                {anime.tags && (
+                  <div className="flex flex-wrap justify-center md:justify-start gap-1.5 mb-6">
+                    {anime.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => (
+                      <span key={tag} className="bg-white/5 border border-white/10 text-white/60 hover:text-white text-[11px] font-medium px-2.5 py-0.5 rounded-sm transition-colors">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* Rating Stars */}
                 <div className="flex items-center gap-0.5 ml-2">
@@ -815,9 +884,15 @@ export default function AnimeDetails() {
                   </div>
                )}
 
-               <div className="space-y-3">
+               <div className="space-y-4">
                   {comments.map((comment, idx) => {
                      const avatarSrc = comment.user_avatar || comment.avatar_url;
+                     const likedUsers = Array.isArray(comment.liked_users) ? comment.liked_users : [];
+                     const dislikedUsers = Array.isArray(comment.disliked_users) ? comment.disliked_users : [];
+                     const isLiked = user ? likedUsers.includes(user.id) : false;
+                     const isDisliked = user ? dislikedUsers.includes(user.id) : false;
+                     const replies = Array.isArray(comment.replies) ? comment.replies : [];
+
                      return (
                         <motion.div 
                            initial={{ opacity: 0, y: 5 }}
@@ -838,24 +913,93 @@ export default function AnimeDetails() {
                               </div>
                            )}
                            <div className="flex-1 min-w-0">
-                           <div className="flex items-center gap-2 mb-1.5">
-                              <span className="text-white/90 font-medium text-xs">{comment.user_name}</span>
-                               {user && (comment.user_id === user.id || user.role === 'admin') && (
-                                  <button
-                                     onClick={() => handleCommentDelete(comment.id)}
-                                     className="text-white/30 hover:text-red-500 p-1 rounded hover:bg-white/5 transition-all opacity-0 group-hover:opacity-100 cursor-pointer ml-auto"
-                                     title="O'chirish"
-                                  >
-                                     <Trash2 size={13} />
-                                  </button>
-                               )}
-                              <span className="text-white/30 text-[10px]">{new Date(comment.created_at).toLocaleDateString()}</span>
+                              <div className="flex items-center gap-2 mb-1.5">
+                                 <span className="text-white/90 font-medium text-xs">{comment.user_name}</span>
+                                 {user && (comment.user_id === user.id || user.role === 'admin') && (
+                                    <button
+                                       onClick={() => handleCommentDelete(comment.id)}
+                                       className="text-white/30 hover:text-red-500 p-1 rounded hover:bg-white/5 transition-all opacity-0 group-hover:opacity-100 cursor-pointer ml-auto"
+                                       title="O'chirish"
+                                    >
+                                       <Trash2 size={13} />
+                                    </button>
+                                 )}
+                                 <span className="text-white/30 text-[10px] ml-auto">
+                                    {new Date(comment.created_at).toLocaleDateString()}
+                                 </span>
+                              </div>
+                              <p className="text-white/70 text-sm leading-relaxed mb-3">{comment.content}</p>
+
+                              {/* Action buttons: Like, Dislike, Reply */}
+                              <div className="flex items-center gap-4 text-xs text-white/50">
+                                 <button 
+                                    onClick={() => handleLikeComment(comment.id)}
+                                    className={`flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer ${isLiked ? 'text-emerald-400 font-bold' : ''}`}
+                                 >
+                                    <ThumbsUp size={13} className={isLiked ? 'fill-emerald-400' : ''} />
+                                    <span>{comment.likes || 0}</span>
+                                 </button>
+                                 <button 
+                                    onClick={() => handleDislikeComment(comment.id)}
+                                    className={`flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer ${isDisliked ? 'text-red-400 font-bold' : ''}`}
+                                 >
+                                    <ThumbsDown size={13} className={isDisliked ? 'fill-red-400' : ''} />
+                                    <span>{comment.dislikes || 0}</span>
+                                 </button>
+                                 <button 
+                                    onClick={() => setReplyingCommentId(replyingCommentId === comment.id ? null : comment.id)}
+                                    className="flex items-center gap-1.5 hover:text-[#ff006a] transition-colors cursor-pointer"
+                                 >
+                                    <MessageCircle size={13} />
+                                    <span>Javob yozish</span>
+                                 </button>
+                              </div>
+
+                              {/* Replies list */}
+                              {replies.length > 0 && (
+                                 <div className="mt-4 pl-4 border-l-2 border-[#333] space-y-3">
+                                    {replies.map((rep: any) => (
+                                       <div key={rep.id} className="bg-[#141414] p-3 rounded-sm border border-[#222]">
+                                          <div className="flex items-center gap-2 mb-1">
+                                             <span className="text-white/90 text-xs font-bold">{rep.user_name}</span>
+                                             <span className="text-white/35 text-[9px] ml-auto">{new Date(rep.created_at).toLocaleDateString()}</span>
+                                          </div>
+                                          <p className="text-white/70 text-xs leading-relaxed">{rep.content}</p>
+                                       </div>
+                                    ))}
+                                 </div>
+                              )}
+
+                              {/* Reply input form */}
+                              {replyingCommentId === comment.id && (
+                                 <form onSubmit={(e) => handleReplySubmit(comment.id, e)} className="mt-3 pt-3 border-t border-[#222]">
+                                    <textarea
+                                       value={replyText[comment.id] || ''}
+                                       onChange={(e) => setReplyText({ ...replyText, [comment.id]: e.target.value })}
+                                       placeholder="Javob yozish..."
+                                       className="w-full bg-[#000] border border-[#222] rounded-sm p-2 text-white text-xs focus:outline-none focus:border-[#ff006a]/50 resize-none h-16 mb-2 placeholder:text-white/30"
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                       <button 
+                                          type="button" 
+                                          onClick={() => setReplyingCommentId(null)}
+                                          className="px-3 py-1 rounded bg-[#222] hover:bg-[#333] text-white/70 text-xs font-bold transition-colors"
+                                       >
+                                          Bekor qilish
+                                       </button>
+                                       <button 
+                                          type="submit" 
+                                          className="px-3 py-1 rounded bg-[#ff006a] hover:bg-[#d40058] text-white text-xs font-bold transition-colors flex items-center gap-1"
+                                       >
+                                          <Send size={11} /> Yuborish
+                                       </button>
+                                    </div>
+                                 </form>
+                              )}
                            </div>
-                           <p className="text-white/70 text-sm leading-relaxed">{comment.content}</p>
-                        </div>
-                     </motion.div>
-                  );
-               })}
+                        </motion.div>
+                     );
+                  })}
                   {comments.length === 0 && (
                      <div className="text-center text-white/40 text-sm py-8 bg-[#1a1a1a] rounded-sm border border-[#222]">
                         No comments yet.
