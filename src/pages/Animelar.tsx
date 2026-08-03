@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Anime, translateGenre, getEnglishGenre, toSlug } from '../types';
-import { Star, Play, Grid, List, Film, Calendar, Eye } from 'lucide-react';
+import { Star, Play, Grid, List, Film, Calendar, Eye, Search, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import AnimeCard from '../components/AnimeCard';
 
@@ -13,14 +13,21 @@ export default function Animelar() {
   const [animes, setAnimes] = useState<Anime[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [localSearch, setLocalSearch] = useState(searchFilter);
+
+  useEffect(() => {
+    setLocalSearch(searchFilter);
+  }, [searchFilter]);
 
   useEffect(() => {
     if (genreFilter && genreFilter !== 'Barchasi') {
       document.title = `${genreFilter} animelar - O'zbek tilida ko'rish | Animem.uz`;
+    } else if (searchFilter) {
+      document.title = `"${searchFilter}" qidiruvi - Animem.uz`;
     } else {
       document.title = "Barcha Animelar - O'zbek tilida tomosha qilish | Animem.uz";
     }
-  }, [genreFilter]);
+  }, [genreFilter, searchFilter]);
 
   useEffect(() => {
     const fetchAnimes = async () => {
@@ -55,7 +62,7 @@ export default function Animelar() {
     'Supernatural',
   ];
 
-  // Filtering logic
+  // Enhanced Filtering logic
   const filteredAnimes = animes.filter((anime) => {
     let matchesGenre = true;
     if (genreFilter && genreFilter !== 'Barchasi') {
@@ -64,7 +71,17 @@ export default function Animelar() {
       const animeJanrlar = anime.janrlar ? anime.janrlar.toLowerCase() : '';
       matchesGenre = animeJanrlar.includes(engFilter) || animeJanrlar.includes(uzbFilter);
     }
-    const matchesSearch = !searchFilter || anime.title.toLowerCase().includes(searchFilter.toLowerCase()) || (anime.description && anime.description.toLowerCase().includes(searchFilter.toLowerCase()));
+
+    let matchesSearch = true;
+    if (searchFilter.trim()) {
+      const q = searchFilter.trim().toLowerCase();
+      const title = (anime.title || '').toLowerCase();
+      const desc = (anime.description || '').toLowerCase();
+      const janrlar = (anime.janrlar || '').toLowerCase();
+      const tags = (anime.tags || '').toLowerCase();
+      matchesSearch = title.includes(q) || desc.includes(q) || janrlar.includes(q) || tags.includes(q);
+    }
+
     return matchesGenre && matchesSearch;
   });
 
@@ -74,6 +91,22 @@ export default function Animelar() {
     } else {
       searchParams.set('genre', genre);
     }
+    setSearchParams(searchParams);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (localSearch.trim()) {
+      searchParams.set('search', localSearch.trim());
+    } else {
+      searchParams.delete('search');
+    }
+    setSearchParams(searchParams);
+  };
+
+  const clearSearch = () => {
+    setLocalSearch('');
+    searchParams.delete('search');
     setSearchParams(searchParams);
   };
 
@@ -87,29 +120,56 @@ export default function Animelar() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Title & Stats */}
+      {/* Title & Stats & Page Search Input */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#222] pb-4">
         <div>
-          <h1 className="text-2xl font-bold uppercase tracking-wide">
-            {genreFilter ? `${translateGenre(genreFilter)} Animelar` : 'Barcha Animelar'}
+          <h1 className="text-2xl font-bold uppercase tracking-wide flex items-center gap-2">
+            {searchFilter ? (
+              <span>Qidiruv: <span className="text-[#ff006a]">"{searchFilter}"</span></span>
+            ) : genreFilter ? (
+              `${translateGenre(genreFilter)} Animelar`
+            ) : (
+              'Barcha Animelar'
+            )}
           </h1>
           <p className="text-white/40 text-xs mt-1">Katalogda jami {filteredAnimes.length} ta anime mavjud</p>
         </div>
 
-        {/* Grid/List View Toggles */}
-        <div className="flex items-center gap-2 self-start md:self-auto">
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2 rounded-sm transition-colors ${viewMode === 'grid' ? 'bg-[#ff006a] text-white' : 'bg-[#111] border border-[#222] text-white/50 hover:text-white'}`}
-          >
-            <Grid size={16} />
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-2 rounded-sm transition-colors ${viewMode === 'list' ? 'bg-[#ff006a] text-white' : 'bg-[#111] border border-[#222] text-white/50 hover:text-white'}`}
-          >
-            <List size={16} />
-          </button>
+        {/* Search input + Grid/List View Toggles */}
+        <div className="flex flex-wrap items-center gap-3">
+          <form onSubmit={handleSearchSubmit} className="relative min-w-[200px] sm:min-w-[260px]">
+            <input
+              type="text"
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              placeholder="Katalogdan qidirish..."
+              className="w-full bg-[#111113] border border-[#222] focus:border-[#ff006a] text-white text-xs rounded-sm pl-3 pr-8 py-2 font-bold placeholder:text-white/30 focus:outline-none transition-all"
+            />
+            {localSearch ? (
+              <button type="button" onClick={clearSearch} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
+                <X size={14} />
+              </button>
+            ) : (
+              <button type="submit" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-[#ff006a]">
+                <Search size={14} />
+              </button>
+            )}
+          </form>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-sm transition-colors ${viewMode === 'grid' ? 'bg-[#ff006a] text-white' : 'bg-[#111] border border-[#222] text-white/50 hover:text-white'}`}
+            >
+              <Grid size={16} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-sm transition-colors ${viewMode === 'list' ? 'bg-[#ff006a] text-white' : 'bg-[#111] border border-[#222] text-white/50 hover:text-white'}`}
+            >
+              <List size={16} />
+            </button>
+          </div>
         </div>
       </div>
 

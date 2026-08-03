@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { MessageCircle, X, Send, Maximize2, Minimize2, Trash2, CornerUpLeft, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -13,6 +14,7 @@ export default function ChatWidget() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [activeMsgId, setActiveMsgId] = useState<string | number | null>(null);
   
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -171,43 +173,58 @@ export default function ChatWidget() {
                 messages.map((msg) => {
                   const isMe = msg.user_id === user?.id;
                   const avatarSrc = msg.user_avatar || msg.avatar_url;
+                  const isActive = activeMsgId === msg.id;
+
                   return (
-                    <div key={msg.id} className="flex flex-col space-y-1 group">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          {avatarSrc ? (
-                            <img
-                              src={avatarSrc}
-                              alt={msg.user_name}
-                              className="w-5 h-5 rounded-full object-cover border border-[#ff006a]/30 shrink-0"
-                            />
-                          ) : (
-                            <div className="w-5 h-5 rounded-full bg-[#1c1c1e] border border-[#ff006a]/20 flex items-center justify-center text-[10px] text-[#ff006a] font-bold uppercase shrink-0">
-                              {msg.user_name.charAt(0)}
-                            </div>
-                          )}
-                          <span className={`font-bold text-xs ${isMe ? 'text-[#ff006a]' : 'text-[#4fd1c5]'}`}>{msg.user_name}</span>
+                    <div 
+                      key={msg.id} 
+                      onClick={() => setActiveMsgId(isActive ? null : msg.id)}
+                      className="flex items-start gap-2.5 group my-1 cursor-pointer"
+                    >
+                      <Link to={`/user/${msg.user_id}`} onClick={(e) => e.stopPropagation()} className="shrink-0 mt-0.5">
+                        {avatarSrc ? (
+                          <img
+                            src={avatarSrc}
+                            alt={msg.user_name}
+                            className="w-9 h-9 rounded-full object-cover border-2 border-[#ff006a]/30 shrink-0 hover:border-[#ff006a] transition-all"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#2a2a2e] to-[#151518] border-2 border-[#ff006a]/30 flex items-center justify-center text-xs text-[#ff006a] font-extrabold uppercase shrink-0">
+                            {msg.user_name.charAt(0)}
+                          </div>
+                        )}
+                      </Link>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Link to={`/user/${msg.user_id}`} onClick={(e) => e.stopPropagation()} className={`font-bold text-xs hover:underline ${isMe ? 'text-[#ff006a]' : 'text-[#4fd1c5]'}`}>
+                            {msg.user_name}
+                          </Link>
                           <span className="text-white/30 text-[9px]">
                             {format(new Date(msg.created_at), 'HH:mm')}
                           </span>
+                          
+                          {user && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setReplyingTo(msg);
+                              }}
+                              className={`text-[#ff006a] hover:bg-[#ff006a]/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 transition-all border border-[#ff006a]/20 ml-auto cursor-pointer ${
+                                isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                              }`}
+                              title="Javob berish"
+                            >
+                              <CornerUpLeft size={10} />
+                              <span>Reply</span>
+                            </button>
+                          )}
                         </div>
 
-                        {user && (
-                          <button
-                            onClick={() => setReplyingTo(msg)}
-                            className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-[#ff006a] transition-all p-0.5 rounded"
-                            title="Javob berish"
-                          >
-                            <CornerUpLeft size={12} />
-                          </button>
-                        )}
-                      </div>
-                      
-                      <div className="pl-7">
-                        <div className={`px-3 py-2 text-white/90 text-xs inline-block leading-relaxed max-w-[90%] shadow rounded-sm border ${
+                        <div className={`px-3 py-2 text-white/90 text-xs inline-block leading-relaxed max-w-full shadow rounded-lg border ${
                           isMe 
-                            ? 'bg-[#111113] border-[#ff006a]/20 text-white rounded-tr-none' 
-                            : 'bg-[#161619] border-white/5 text-white/90 rounded-tl-none'
+                            ? 'bg-[#111113] border-[#ff006a]/20 text-white' 
+                            : 'bg-[#161619] border-white/10 text-white/90'
                         }`}>
                           {msg.reply_to_id && (
                             <div className="mb-1.5 text-[10px] bg-black/40 border-l-2 border-[#ff006a] p-1.5 rounded-sm text-left opacity-80">

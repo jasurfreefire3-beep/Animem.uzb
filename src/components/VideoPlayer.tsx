@@ -1,21 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import Artplayer from 'artplayer';
 import Hls from 'hls.js';
-import { 
-  Play, 
-  Pause, 
-  Volume2, 
-  Volume1, 
-  VolumeX, 
-  RotateCcw, 
-  RotateCw, 
-  Gauge, 
-  PictureInPicture, 
-  Maximize, 
-  Minimize,
-  Loader2,
-  Settings,
-  AlertCircle
-} from 'lucide-react';
 
 interface VideoPlayerProps {
   url: string;
@@ -23,13 +8,12 @@ interface VideoPlayerProps {
   animeTitle?: string;
 }
 
-function getEmbedUrl(url: string): { isEmbed: boolean; embedUrl: string } {
-  if (!url) return { isEmbed: false, embedUrl: '' };
+function parseEmbedUrl(rawUrl: string): { isEmbed: boolean; embedUrl: string } {
+  if (!rawUrl) return { isEmbed: false, embedUrl: '' };
 
-  const trimmed = url.trim();
+  const trimmed = rawUrl.trim();
   const lowerUrl = trimmed.toLowerCase();
 
-  // If it is an HTML iframe tag, extract the src URL
   if (lowerUrl.includes('<iframe')) {
     const srcMatch = trimmed.match(/src=["']([^"']+)["']/i);
     if (srcMatch) {
@@ -39,18 +23,6 @@ function getEmbedUrl(url: string): { isEmbed: boolean; embedUrl: string } {
     }
   }
 
-  // Mover.uz links -> Use fast native iframe embed for instant CDN playback!
-  if (lowerUrl.includes('mover.uz')) {
-    const moverMatch = trimmed.match(/(?:v\.mover\.uz\/|mover\.uz\/(?:watch|video\/embed|video|v)\/)([A-Za-z0-9_-]+)/i);
-    if (moverMatch && moverMatch[1]) {
-      let rawId = moverMatch[1].replace(/\.mp4$/i, "").replace(/_(?:m|h|s|q)$/i, "");
-      if (rawId) {
-        return { isEmbed: true, embedUrl: `https://mover.uz/video/embed/${rawId}/` };
-      }
-    }
-  }
-
-  // YouTube checks
   let youtubeId = '';
   const ytMatch1 = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\s\?]+)/i);
   if (ytMatch1) {
@@ -65,1327 +37,247 @@ function getEmbedUrl(url: string): { isEmbed: boolean; embedUrl: string } {
   if (youtubeId) {
     return {
       isEmbed: true,
-      embedUrl: `https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`
+      embedUrl: `https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0`
     };
   }
 
-  // Known third-party embed hosts
-  const hasEmbedPattern = (
-    lowerUrl.includes('/embed/') ||
-    lowerUrl.includes('/video/embed/') ||
-    lowerUrl.includes('/player/') ||
-    lowerUrl.includes('player.vimeo.com') ||
-    lowerUrl.includes('sibnet.ru') || 
-    lowerUrl.includes('myvi.tv') ||
-    lowerUrl.includes('myvi.ru') ||
-    lowerUrl.includes('ok.ru/videoembed') ||
-    lowerUrl.includes('vk.com/video_ext') ||
-    lowerUrl.includes('yandex.ru/video/preview') ||
-    lowerUrl.includes('rutube.ru/play/embed') ||
-    lowerUrl.includes('drive.google.com') ||
-    lowerUrl.includes('kodik.') ||
-    lowerUrl.includes('allplay.uz/embed')
-  );
+  const embedHosts = [
+    'player.vimeo.com',
+    'sibnet.ru',
+    'myvi.tv',
+    'myvi.ru',
+    'ok.ru/videoembed',
+    'vk.com/video_ext',
+    'yandex.ru/video/preview',
+    'rutube.ru/play/embed',
+    'drive.google.com',
+    'kodik.',
+    'allplay.uz/embed'
+  ];
 
-  if (hasEmbedPattern) {
+  if (embedHosts.some(host => lowerUrl.includes(host)) || lowerUrl.includes('/embed/') || lowerUrl.includes('/video/embed/')) {
     let finalUrl = trimmed;
     if (finalUrl.startsWith('//')) finalUrl = 'https:' + finalUrl;
     return { isEmbed: true, embedUrl: finalUrl };
   }
 
-  // Direct video/stream URLs (.mp4, .webm, .m3u8, etc.) in custom player
   return { isEmbed: false, embedUrl: '' };
 }
 
-const PUBLIC_ADS = [
-  '/ANIMEM_UZ_UZS_CASINO_103.mp4',
-  '/ANIMEM_UZ_UZS_CASINO_105.mp4',
-  '/ANIMEM_UZ_UZS_SPORT_137.mp4',
-  '/ANIMEM_UZ_UZS_SPORT_54.mp4',
-  '/ANIMEM_UZ_UZS_SPORT_61.mp4',
-  '/ANIMEM_UZ_UZS_SPORT_67.mp4',
-  '/ANIMEM_UZ_UZS_SPORT_82.mp4',
-  '/ANIMEM_UZ_UZS_UNIVERSAL_15.mp4',
-];
-const AD_TARGET_URL = 'https://velzom.com/323v?p=%2Fregistration%2F';
-
 export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const timelineRef = useRef<HTMLDivElement>(null);
-  const hlsRef = useRef<Hls | null>(null);
+  const artRef = useRef<HTMLDivElement>(null);
+  const artInstanceRef = useRef<Artplayer | null>(null);
 
-  const { isEmbed, embedUrl } = getEmbedUrl(url);
-  const [useFallbackEmbed, setUseFallbackEmbed] = useState<string | null>(null);
-  const [hasPlaybackError, setHasPlaybackError] = useState(false);
+  const [useProxy, setUseProxy] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
+  const { isEmbed, embedUrl } = parseEmbedUrl(url);
+
+  // Reset proxy and error states when URL prop changes
   useEffect(() => {
-    setUseFallbackEmbed(null);
-    setHasPlaybackError(false);
+    setUseProxy(false);
+    setHasError(false);
   }, [url]);
 
-  // Ad states
-  const [showAd, setShowAd] = useState(false);
-  const [currentAdUrl, setCurrentAdUrl] = useState('');
-  const [adTimeLeft, setAdTimeLeft] = useState(0);
-  const [canSkipAd, setCanSkipAd] = useState(true);
-  const [isAdMuted, setIsAdMuted] = useState(false);
-  const [adErrorIndex, setAdErrorIndex] = useState(0);
-  const adVideoRef = useRef<HTMLVideoElement>(null);
+  const rawVideoUrl = url || '/assets/sample/video.mp4';
+  const effectiveUrl = (useProxy && rawVideoUrl.startsWith('http'))
+    ? `/api/proxy-video?url=${encodeURIComponent(rawVideoUrl)}`
+    : rawVideoUrl;
 
-  // Quality states (720p HD / 360p SD)
-  const [videoQuality, setVideoQuality] = useState<'720' | '360'>('720');
-  const [showQualityOptions, setShowQualityOptions] = useState(false);
+  const isHls = effectiveUrl.toLowerCase().includes('.m3u8');
 
-  // Initialize ad when URL changes
+  // Initialize ArtPlayer for native media files
   useEffect(() => {
-    if (!url) return;
-    setShowAd(false);
-  }, [url]);
+    if (isEmbed || !artRef.current) return;
 
-  // Guaranteed interval timer for ad countdown
-  useEffect(() => {
-    if (!showAd) return;
-
-    const timer = setInterval(() => {
-      setAdTimeLeft((prev) => {
-        if (prev <= 1) {
-          setCanSkipAd(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [showAd]);
-
-  // Handle ad time update
-  const handleAdTimeUpdate = () => {
-    if (adVideoRef.current && adVideoRef.current.duration > 0) {
-      const current = adVideoRef.current.currentTime;
-      const remaining = Math.max(0, Math.ceil(10 - current));
-      setAdTimeLeft((prev) => (remaining < prev ? remaining : prev));
-      if (current >= 10 || remaining === 0) {
-        setCanSkipAd(true);
-      }
-    }
-  };
-
-  // Try to play ad video automatically
-  useEffect(() => {
-    if (showAd && currentAdUrl && adVideoRef.current) {
-      adVideoRef.current.play().catch(() => {
-        if (adVideoRef.current) {
-          adVideoRef.current.muted = true;
-          setIsAdMuted(true);
-          adVideoRef.current.play().catch(() => {});
-        }
-      });
-    }
-  }, [showAd, currentAdUrl]);
-
-  // When ad finishes or gets skipped, start main video
-  useEffect(() => {
-    if (!showAd && !isEmbed && videoRef.current) {
-      const isAutoplay = localStorage.getItem('anime_settings_autoplay') !== 'false';
-      if (isAutoplay) {
-        videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
-      }
-    }
-  }, [showAd, isEmbed]);
-
-  const handleAdClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    window.open(AD_TARGET_URL, '_blank', 'noopener,noreferrer');
-  };
-
-  const handleSkipAd = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowAd(false);
-  };
-
-  const handleAdEnded = () => {
-    if (adTimeLeft > 0 && adVideoRef.current) {
-      adVideoRef.current.currentTime = 0;
-      adVideoRef.current.play().catch(() => {});
-    } else {
-      setCanSkipAd(true);
-    }
-  };
-
-  const handleAdError = () => {
-    console.warn("Ad video load error, switching fallback ad...");
-    setAdErrorIndex((prev) => {
-      const nextIdx = prev + 1;
-      if (nextIdx < PUBLIC_ADS.length) {
-        const nextAd = PUBLIC_ADS[(PUBLIC_ADS.indexOf(currentAdUrl) + 1) % PUBLIC_ADS.length];
-        setCurrentAdUrl(nextAd);
-      } else {
-        // Fallback to static banner ad mode so ad overlay stays active for full 15s
-        setCurrentAdUrl('');
-      }
-      return nextIdx;
-    });
-  };
-
-  // Player States
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.8);
-  const [isMuted, setIsMuted] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState(1);
-  const [showSpeedOptions, setShowSpeedOptions] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
-  
-  // Controls UI visibility
-  const [showControls, setShowControls] = useState(true);
-  const controlsTimeoutRef = useRef<any>(null);
-
-  // Progress Bar Hover/Drag states
-  const [hoverLeft, setHoverLeft] = useState(0);
-  const [hoverTime, setHoverTime] = useState('00:00');
-  const [showHoverTime, setShowHoverTime] = useState(false);
-  const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
-
-  // Reset controls visibility timer
-  const resetControlsTimeout = () => {
-    setShowControls(true);
-    if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current);
-    }
-    if (videoRef.current && !videoRef.current.paused) {
-      controlsTimeoutRef.current = setTimeout(() => {
-        setShowControls(false);
-      }, 3000);
-    }
-  };
-
-  useEffect(() => {
-    resetControlsTimeout();
-    return () => {
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
-    };
-  }, [isPlaying]);
-
-  const handleMouseMove = () => {
-    resetControlsTimeout();
-  };
-
-  // Keyboard controls handler
-  useEffect(() => {
-    if (isEmbed) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const active = document.activeElement;
-      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.getAttribute('contenteditable') === 'true')) {
-        return;
-      }
-
-      switch (e.key.toLowerCase()) {
-        case ' ':
-        case 'k':
-          e.preventDefault();
-          togglePlay();
-          break;
-        case 'f':
-          e.preventDefault();
-          toggleFullscreen();
-          break;
-        case 'm':
-          e.preventDefault();
-          toggleMute();
-          break;
-        case 'j':
-        case 'arrowleft':
-          e.preventDefault();
-          skipBackward();
-          break;
-        case 'l':
-        case 'arrowright':
-          e.preventDefault();
-          skipForward();
-          break;
-        case 'arrowup':
-          e.preventDefault();
-          if (videoRef.current) {
-            const nv = Math.min(1, videoRef.current.volume + 0.05);
-            videoRef.current.volume = nv;
-            setVolume(nv);
-          }
-          break;
-        case 'arrowdown':
-          e.preventDefault();
-          if (videoRef.current) {
-            const nv = Math.max(0, videoRef.current.volume - 0.05);
-            videoRef.current.volume = nv;
-            setVolume(nv);
-          }
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isPlaying, isMuted, volume, isFullscreen, isEmbed]);
-
-  // Handle source changes, settings, and HLS support
-  useEffect(() => {
-    if (isEmbed) {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-      return;
-    }
-    
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    setPlaybackRate(1);
-
-    const video = videoRef.current;
-    if (!video) return;
-
-    // Clean up previous HLS instance
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
+    if (artInstanceRef.current) {
+      try {
+        artInstanceRef.current.destroy(false);
+      } catch (e) {}
+      artInstanceRef.current = null;
     }
 
-    // Always clear src attribute first so React/browser doesn't interfere with HLS media attachment
-    video.removeAttribute('src');
+    let art: Artplayer | null = null;
 
-    let streamUrl = (url || '').trim();
-    if (window.location.protocol === 'https:' && streamUrl.startsWith('http://')) {
-      streamUrl = streamUrl.replace('http://', 'https://');
-    }
-
-    const lowerUrl = streamUrl.toLowerCase();
-    const isM3U8 = lowerUrl.includes('.m3u8') || lowerUrl.includes('format=m3u8') || lowerUrl.includes('/m3u8');
-
-    if (isM3U8 && Hls.isSupported()) {
-      const hls = new Hls({
-        maxMaxBufferLength: 60,
-        enableWorker: true,
-        lowLatencyMode: false,
-        backBufferLength: 90,
-      });
-      hlsRef.current = hls;
-
-      hls.loadSource(streamUrl);
-      hls.attachMedia(video);
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        setIsBuffering(false);
-        const isAutoplay = localStorage.getItem('anime_settings_autoplay') !== 'false';
-        if (isAutoplay && !showAd) {
-          video.play()
-            .then(() => setIsPlaying(true))
-            .catch((err) => {
-              console.log("Autoplay blocked:", err);
-              setIsPlaying(false);
-            });
-        }
-      });
-
-      hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              console.warn("HLS network error, attempting recovery...");
-              hls.startLoad();
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              console.warn("HLS media error, attempting recovery...");
-              hls.recoverMediaError();
-              break;
-            default:
-              console.error("Fatal HLS error, destroying and falling back:");
-              hls.destroy();
-              hlsRef.current = null;
-              video.src = streamUrl;
-              video.load();
-              break;
-          }
-        }
-      });
-    } else if (isM3U8 && video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native Safari / iOS HLS
-      video.src = streamUrl;
-      video.load();
-      const isAutoplay = localStorage.getItem('anime_settings_autoplay') !== 'false';
-      if (isAutoplay && !showAd) {
-        video.play()
-          .then(() => setIsPlaying(true))
-          .catch((err) => {
-            console.log("Autoplay blocked:", err);
-            setIsPlaying(false);
-          });
-      }
-    } else {
-      // Standard video direct play
-      let finalSrc = streamUrl;
-      // Proxy videos that require referer headers (animem.uz, mover.uz, telegram) or cross-origin headers
-      if (
-        streamUrl.includes('animem.uz') ||
-        streamUrl.includes('mover.uz') ||
-        streamUrl.includes('t.me') ||
-        streamUrl.includes('telegram')
-      ) {
-        finalSrc = `/api/proxy-video?url=${encodeURIComponent(streamUrl)}&quality=${videoQuality}`;
-      }
-
-      video.src = finalSrc;
-      video.load();
-      const isAutoplay = localStorage.getItem('anime_settings_autoplay') !== 'false';
-      if (isAutoplay && !showAd) {
-        video.play()
-          .then(() => setIsPlaying(true))
-          .catch((err) => {
-            console.log("Autoplay blocked:", err);
-            setIsPlaying(false);
-          });
-      }
-    }
-
-    // sync volume & muted & speed states
-    video.volume = volume;
-    video.muted = isMuted;
-    video.playbackRate = 1; // Start at normal speed when url changes
-
-    return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-    };
-  }, [url, videoQuality, isEmbed]);
-
-  // Click outside speed options menu to close it
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('.playback-content')) {
-        setShowSpeedOptions(false);
-        setShowQualityOptions(false);
-      }
-    };
-    document.addEventListener('click', handleClickOutside);
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, []);
-
-  // Fullscreen sync
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
-  }, []);
-
-  const isTelegram = url && (url.toLowerCase().includes('t.me') || url.toLowerCase().includes('telegram'));
-
-  if (isTelegram) {
-    return (
-      <div className="w-full relative rounded-2xl overflow-hidden min-h-[320px] sm:aspect-video bg-gradient-to-br from-[#f4f7fa] to-[#e8edf4] dark:from-[#0a1120] dark:to-[#03060c] border border-gray-200 dark:border-white/5 shadow-2xl flex flex-col justify-center items-center text-center p-4 sm:p-8 md:p-12 group transition-all duration-300">
-        
-        {/* Glow effect in background */}
-        <div className="absolute inset-0 bg-radial-gradient from-blue-500/10 via-transparent to-transparent pointer-events-none transition-transform duration-1000 group-hover:scale-110" />
-
-        {/* Floating background dots or icons */}
-        <div className="absolute top-6 left-6 w-20 h-20 sm:w-32 sm:h-32 bg-blue-500/5 rounded-full blur-2xl sm:blur-3xl pointer-events-none animate-pulse" />
-        <div className="absolute bottom-6 right-6 w-20 h-20 sm:w-32 sm:h-32 bg-pink-500/5 rounded-full blur-2xl sm:blur-3xl pointer-events-none animate-pulse delay-700" />
-
-        <div className="max-w-md w-full relative z-10 flex flex-col items-center space-y-4 sm:space-y-6">
-          {/* Circular Pulse Logo Container */}
-          <div className="relative">
-            {/* Pulsing ring 1 */}
-            <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping duration-1000" />
-            {/* Pulsing ring 2 */}
-            <div className="absolute -inset-2 sm:-inset-3 rounded-full bg-blue-400/10 animate-pulse duration-2000" />
-            
-            {/* Actual Icon Wrapper */}
-            <div className="relative w-12 h-12 sm:w-16 md:w-20 sm:h-16 md:h-20 bg-gradient-to-tr from-blue-500 to-sky-400 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 transform transition-transform duration-500 group-hover:scale-105">
-              <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-8 md:w-10 text-white fill-current transform -translate-x-0.5 translate-y-0.5">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.24-5.54 3.65-.52.36-.97.53-1.34.52-.41-.01-1.21-.23-1.8-.42-.73-.24-1.32-.37-1.27-.78.02-.21.31-.43.87-.67 3.42-1.49 5.71-2.48 6.86-2.96 3.27-1.37 3.95-1.61 4.4-.1.01.03.02.05.02.08.01.12.01.25-.01.37z" />
-              </svg>
-            </div>
-          </div>
-
-          {/* Typography */}
-          <div className="space-y-2 sm:space-y-3 px-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-              TELEGRAM BOT
-            </span>
-            <h2 className="text-base sm:text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase leading-snug">
-              {animeTitle || 'Anime'} Telegram Botda!
-            </h2>
-            <p className="text-[11px] sm:text-xs md:text-sm text-slate-600 dark:text-white/60 leading-relaxed max-w-[280px] sm:max-w-sm mx-auto">
-              Ushbu qismni telegram botimiz orqali bepul, yuqori tezlikda va HD sifatda tomosha qiling!
-            </p>
-          </div>
-
-          {/* CTA Action */}
-          <div className="w-full pt-1 sm:pt-2 px-4">
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-6 py-2.5 sm:px-8 sm:py-3.5 bg-gradient-to-r from-blue-500 to-sky-400 hover:from-blue-600 hover:to-sky-500 text-white font-bold text-[11px] sm:text-xs md:text-sm rounded-lg sm:rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300 transform hover:-translate-y-0.5 hover:scale-105 cursor-pointer uppercase tracking-wider w-full sm:w-auto"
-            >
-              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current">
-                <path d="M1.101,21.757L23.899,12L1.101,2.243C0.373,1.932-0.347,2.584-0.12,3.313L3,12L-0.12,20.687C-0.347,21.416,0.373,22.068,1.101,21.757z" />
-              </svg>
-              Telegram Botga Kirish
-            </a>
-            
-            <p className="text-[9px] sm:text-[10px] text-slate-400 dark:text-white/30 mt-2 sm:mt-3 select-none">
-              Botga o'tgandan so'ng pastdagi <strong className="text-blue-500 dark:text-blue-400 font-bold">"Start" (Boshlash)</strong> tugmasini bosing.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Time formatting helper
-  const formatTime = (time: number) => {
-    if (isNaN(time) || !isFinite(time)) return '00:00';
-    let seconds = Math.floor(time % 60);
-    let minutes = Math.floor(time / 60) % 60;
-    let hours = Math.floor(time / 3600);
-
-    const secStr = seconds < 10 ? `0${seconds}` : seconds.toString();
-    const minStr = minutes < 10 ? `0${minutes}` : minutes.toString();
-    const hrStr = hours < 10 ? `0${hours}` : hours.toString();
-
-    if (hours === 0) {
-      return `${minStr}:${secStr}`;
-    }
-    return `${hrStr}:${minStr}:${secStr}`;
-  };
-
-  // Play Pause controls
-  const togglePlay = () => {
-    if (!videoRef.current || showAd) return;
-    if (videoRef.current.paused) {
-      videoRef.current.play()
-        .then(() => setIsPlaying(true))
-        .catch(err => console.log("Play error:", err));
-    } else {
-      videoRef.current.pause();
-      setIsPlaying(false);
-    }
-  };
-
-  // Mute volume control
-  const toggleMute = () => {
-    if (!videoRef.current) return;
-    const nextMuted = !isMuted;
-    videoRef.current.muted = nextMuted;
-    setIsMuted(nextMuted);
-    if (nextMuted) {
-      videoRef.current.volume = 0;
-    } else {
-      videoRef.current.volume = volume > 0 ? volume : 0.8;
-    }
-  };
-
-  // Slider volume action
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!videoRef.current) return;
-    const val = parseFloat(e.target.value);
-    videoRef.current.volume = val;
-    setVolume(val);
-    if (val === 0) {
-      videoRef.current.muted = true;
-      setIsMuted(true);
-    } else {
-      videoRef.current.muted = false;
-      setIsMuted(false);
-    }
-  };
-
-  // Skip buttons
-  const skipBackward = () => {
-    if (!videoRef.current) return;
-    videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 5);
-    resetControlsTimeout();
-  };
-
-  const skipForward = () => {
-    if (!videoRef.current) return;
-    videoRef.current.currentTime = Math.min(videoRef.current.duration || 0, videoRef.current.currentTime + 5);
-    resetControlsTimeout();
-  };
-
-  // Speed adjust
-  const changePlaybackRate = (rate: number) => {
-    if (!videoRef.current) return;
-    videoRef.current.playbackRate = rate;
-    setPlaybackRate(rate);
-    setShowSpeedOptions(false);
-    resetControlsTimeout();
-  };
-
-  // Picture in picture
-  const togglePip = async () => {
-    if (!videoRef.current) return;
     try {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
+      art = new Artplayer({
+        container: artRef.current,
+        url: effectiveUrl,
+        poster: poster || '',
+        type: isHls ? 'm3u8' : 'mp4',
+        volume: 0.8,
+        isLive: false,
+        muted: false,
+        autoplay: false,
+        pip: false,
+        autoSize: false,
+        autoMini: false,
+        screenshot: false,
+        setting: true,
+        loop: false,
+        flip: false,
+        playbackRate: true,
+        aspectRatio: true,
+        fullscreen: true,
+        fullscreenWeb: false,
+        miniProgressBar: true,
+        mutex: true,
+        backdrop: true,
+        playsInline: true,
+        autoPlayback: true,
+        airplay: true,
+        moreVideoAttr: {
+          playsInline: true,
+        },
+        theme: '#ff006a',
+        lang: 'uz',
+        customType: {
+          m3u8: function (video: HTMLVideoElement, url: string, artInstance: any) {
+            if (Hls.isSupported()) {
+              if (artInstance.hls) artInstance.hls.destroy();
+              const hls = new Hls({
+                enableWorker: true,
+                lowLatencyMode: true,
+              });
+              hls.loadSource(url);
+              hls.attachMedia(video);
+              artInstance.hls = hls;
+
+              hls.on(Hls.Events.ERROR, (_, data) => {
+                if (data.fatal) {
+                  if (!useProxy && rawVideoUrl.startsWith('http')) {
+                    setUseProxy(true);
+                  } else {
+                    setHasError(true);
+                  }
+                }
+              });
+
+              artInstance.on('destroy', () => hls.destroy());
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+              video.src = url;
+            }
+          },
+        },
+      });
+
+      artInstanceRef.current = art;
+
+      art.on('error', (err) => {
+        console.warn("Artplayer error event caught:", err);
+        if (!useProxy && rawVideoUrl.startsWith('http')) {
+          console.warn("Trying video proxy...");
+          setUseProxy(true);
+        } else {
+          setHasError(true);
+        }
+      });
+    } catch (e) {
+      console.error("Artplayer initialization error caught:", e);
+      if (!useProxy && rawVideoUrl.startsWith('http')) {
+        setUseProxy(true);
       } else {
-        await videoRef.current.requestPictureInPicture();
+        setHasError(true);
       }
-    } catch (err) {
-      console.warn("PiP not supported or error:", err);
     }
-  };
 
-  // Fullscreen trigger
-  const toggleFullscreen = async () => {
-    if (!containerRef.current) return;
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-        setIsFullscreen(false);
-      } else {
-        await containerRef.current.requestFullscreen();
-        setIsFullscreen(true);
-      }
-    } catch (err) {
-      console.warn("Fullscreen error:", err);
-    }
-  };
-
-  // Timeline Seeker Interactions
-  const handleTimelineMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!timelineRef.current || !videoRef.current) return;
-    const rect = timelineRef.current.getBoundingClientRect();
-    const offsetX = e.clientX - rect.left;
-    const percent = offsetX / rect.width;
-    const targetTime = percent * (videoRef.current.duration || 0);
-
-    const timelineWidth = rect.width;
-    let hoverPos = offsetX;
-    hoverPos = hoverPos < 20 ? 20 : hoverPos > timelineWidth - 20 ? timelineWidth - 20 : hoverPos;
-
-    setHoverLeft(hoverPos);
-    setHoverTime(formatTime(targetTime));
-    setShowHoverTime(true);
-  };
-
-  const handleTimelineMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    setIsDraggingTimeline(true);
-    scrub(e.clientX);
-  };
-
-  const scrub = (clientX: number) => {
-    if (!timelineRef.current || !videoRef.current) return;
-    const rect = timelineRef.current.getBoundingClientRect();
-    const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const newTime = percent * (videoRef.current.duration || 0);
-    videoRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-  };
-
-  useEffect(() => {
-    if (!isDraggingTimeline) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      scrub(e.clientX);
-    };
-
-    const handleMouseUp = () => {
-      setIsDraggingTimeline(false);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      if (artInstanceRef.current) {
+        try {
+          artInstanceRef.current.destroy(false);
+        } catch (e) {}
+        artInstanceRef.current = null;
+      }
     };
-  }, [isDraggingTimeline]);
-
-  // Video Events Sync
-  const handleTimeUpdate = () => {
-    if (isDraggingTimeline) return;
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
-    }
-  };
-
-  const handleLoadedMetadata = () => {
-    if (videoRef.current) {
-      setDuration(videoRef.current.duration || 0);
-    }
-  };
-
-  const handleVideoClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('.wrapper') || target.closest('.video-controls')) return;
-    togglePlay();
-  };
-
-  const handleVideoDoubleClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('.wrapper') || target.closest('.video-controls')) return;
-    toggleFullscreen();
-  };
-
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  }, [effectiveUrl, isEmbed, poster, isHls, useProxy, rawVideoUrl]);
 
   return (
-    <div className="chirag-player-root w-full flex flex-col gap-3">
-      {/* Scope Style Block */}
+    <div className="relative w-full max-w-5xl mx-auto rounded-none sm:rounded-2xl overflow-hidden shadow-2xl bg-[#0a0a0c] border-y sm:border border-white/10 group select-none">
+      
+      {/* Title bar */}
+      {animeTitle && (
+        <div className="bg-[#121214] px-4 py-2.5 border-b border-white/10 flex items-center justify-between text-xs text-white/80">
+          <div className="flex items-center gap-2 truncate">
+            <span className="w-2 h-2 rounded-full bg-[#ff006a] animate-pulse shrink-0" />
+            <span className="font-bold text-white uppercase tracking-wider text-[11px] truncate">
+              {animeTitle}
+            </span>
+          </div>
+          <span className="text-[10px] text-white/40 uppercase font-semibold">
+            {isEmbed ? 'Embed Player' : 'Animem Player'}
+          </span>
+        </div>
+      )}
+
+      {/* Main Video Display Area */}
+      <div className="relative w-full aspect-video min-h-[190px] xs:min-h-[220px] sm:min-h-[360px] md:min-h-[480px] bg-black flex items-center justify-center overflow-hidden">
+        {isEmbed ? (
+          <iframe
+            src={embedUrl}
+            title={animeTitle || 'Video Player'}
+            className="w-full h-full border-0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        ) : (
+          <div className="w-full h-full relative bg-black">
+            <div ref={artRef} className="artplayer-app absolute inset-0 w-full h-full" />
+            {hasError && (
+              <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center z-20">
+                <p className="text-white font-semibold text-sm mb-2">Videoni yuklashda muammo yuz berdi</p>
+                <p className="text-xs text-white/60 max-w-md mb-4">Video manbasi yoki proxy javob bermadi.</p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <button
+                    onClick={() => { setHasError(false); setUseProxy(!useProxy); }}
+                    className="px-4 py-2 bg-[#ff006a] hover:bg-[#e0005d] text-white text-xs font-semibold rounded-lg transition shadow-lg"
+                  >
+                    Qayta yuklash
+                  </button>
+                  {rawVideoUrl.startsWith('http') && (
+                    <a
+                      href={rawVideoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-lg transition"
+                    >
+                      To'g'ridan-to'g me'yoriy manzilda ochish
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Artplayer Mobile Styles */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
-        
-        .chirag-player-root {
-          font-family: 'Poppins', sans-serif;
+        .artplayer-app .art-controls {
+          padding: 0 8px !important;
         }
-
-        .chirag-player-root .container {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 100%;
-          user-select: none;
-          overflow: hidden;
-          border-radius: 8px;
-          background: #000;
-          aspect-ratio: 16 / 9;
-          position: relative;
-          box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
-        }
-
-        .chirag-player-root .container.fullscreen {
-          position: fixed !important;
-          top: 0 !important;
-          left: 0 !important;
-          right: 0 !important;
-          bottom: 0 !important;
-          width: 100vw !important;
-          height: 100vh !important;
-          max-width: 100vw !important;
-          max-height: 100vh !important;
-          border-radius: 0px !important;
-          aspect-ratio: auto !important;
-          z-index: 99999 !important;
-        }
-
-        .chirag-player-root .wrapper {
-          position: absolute;
-          left: 0;
-          right: 0;
-          z-index: 10;
-          opacity: 0;
-          bottom: -15px;
-          transition: all 0.08s ease;
-          padding: 0;
-        }
-
-        .chirag-player-root .container.show-controls .wrapper {
-          opacity: 1;
-          bottom: 0;
-          transition: all 0.13s ease;
-        }
-
-        .chirag-player-root .wrapper::before {
-          content: "";
-          bottom: 0;
-          width: 100%;
-          z-index: -1;
-          position: absolute;
-          height: calc(100% + 45px);
-          pointer-events: none;
-          background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
-        }
-
-        .chirag-player-root .video-timeline {
-          height: 7px;
-          width: 100%;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          padding: 0 10px;
-        }
-
-        .chirag-player-root .video-timeline .progress-area {
-          height: 3px;
-          width: 100%;
-          position: relative;
-          background: rgba(255, 255, 255, 0.35);
-          transition: height 0.1s ease;
-        }
-
-        .chirag-player-root .video-timeline:hover .progress-area {
-          height: 5px;
-        }
-
-        .chirag-player-root .progress-area span {
-          position: absolute;
-          top: -28px;
-          font-size: 12px;
-          color: #fff;
-          pointer-events: none;
-          transform: translateX(-50%);
-          background: rgba(0, 0, 0, 0.85);
-          padding: 2px 6px;
-          border-radius: 4px;
-          border: 1px solid rgba(255,255,255,0.15);
-          font-family: monospace;
-          display: none;
-        }
-
-        .chirag-player-root .progress-area .progress-bar {
-          width: 0%;
-          height: 100%;
-          position: relative;
-          background: #2289ff;
-        }
-
-        .chirag-player-root .progress-bar::before {
-          content: "";
-          right: -6px;
-          top: 50%;
-          height: 12px;
-          width: 12px;
-          position: absolute;
-          border-radius: 50%;
-          background: #2289ff;
-          transform: translateY(-50%);
-          box-shadow: 0 0 5px rgba(0,0,0,0.5);
-          display: none;
-        }
-
-        .chirag-player-root .video-timeline:hover .progress-bar::before,
-        .chirag-player-root .video-timeline:hover .progress-area span {
-          display: block;
-        }
-
-        .chirag-player-root .wrapper .video-controls {
-          padding: 5px 20px 10px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          list-style: none;
-          margin: 0;
-          background: transparent;
-        }
-
-        .chirag-player-root .video-controls .options {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .chirag-player-root .video-controls .options.left {
-          justify-content: flex-start;
-          width: 35%;
-        }
-
-        .chirag-player-root .video-controls .options.center {
-          justify-content: center;
-          width: 30%;
-        }
-
-        .chirag-player-root .video-controls .options.right {
-          justify-content: flex-end;
-          width: 35%;
-        }
-
-        .chirag-player-root .options button {
-          height: 40px;
-          width: 40px;
-          border: none;
-          cursor: pointer;
-          background: none;
-          color: #efefef;
-          border-radius: 3px;
-          transition: all 0.2s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 0;
-          outline: none;
-        }
-
-        .chirag-player-root .options button:hover {
-          color: #fff;
-          background: rgba(255, 255, 255, 0.1);
-        }
-
-        .chirag-player-root .options button:active {
-          transform: scale(0.9);
-        }
-
-        .chirag-player-root .options button svg {
-          width: 18px;
-          height: 18px;
-          transition: color 0.15s ease;
-        }
-
-        .chirag-player-root .options input {
-          height: 4px;
-          margin-left: 5px;
-          width: 75px;
-          accent-color: #0078FF;
-          outline: none;
-          cursor: pointer;
-        }
-
-        .chirag-player-root .options .video-timer {
-          color: #efefef;
-          margin-left: 15px;
-          font-size: 13px;
-          font-family: monospace;
-          display: flex;
-          align-items: center;
-          user-select: none;
-        }
-
-        .chirag-player-root .video-timer .separator {
-          margin: 0 4px;
-          font-size: 14px;
-          color: rgba(255, 255, 255, 0.5);
-        }
-
-        .chirag-player-root .playback-content {
-          display: flex;
-          position: relative;
-        }
-
-        .chirag-player-root .playback-content .speed-options {
-          position: absolute;
-          list-style: none;
-          left: -20px;
-          bottom: 45px;
-          width: 95px;
-          overflow: hidden;
-          opacity: 0;
-          border-radius: 4px;
-          pointer-events: none;
-          background: rgba(18, 18, 18, 0.95);
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-          transition: opacity 0.15s ease, transform 0.15s ease;
-          transform: translateY(10px);
-          z-index: 100;
-          padding: 4px 0;
-          margin: 0;
-        }
-
-        .chirag-player-root .playback-content .speed-options.show {
-          opacity: 1;
-          pointer-events: auto;
-          transform: translateY(0);
-        }
-
-        .chirag-player-root .speed-options li {
-          cursor: pointer;
-          color: #fff;
-          font-size: 13px;
-          padding: 6px 14px;
-          transition: all 0.15s ease;
-          text-align: left;
-        }
-
-        .chirag-player-root .speed-options li:hover {
-          background: rgba(255, 255, 255, 0.1);
-        }
-
-        .chirag-player-root .speed-options li.active {
-          color: #fff;
-          background: #0078FF;
-          font-weight: 600;
-        }
-
-        .chirag-player-root container video {
-          width: 100%;
-          height: 100%;
-          display: block;
-        }
-
-        @media screen and (max-width: 540px) {
-          .chirag-player-root .wrapper .video-controls {
-            padding: 3px 10px 7px;
+        @media (max-width: 640px) {
+          .artplayer-app .art-controls {
+            padding: 0 4px !important;
+            height: 42px !important;
           }
-          .chirag-player-root .options input, 
-          .chirag-player-root .progress-area span {
-            display: none !important;
+          .artplayer-app .art-control {
+            padding: 0 3px !important;
+            margin: 0 !important;
           }
-          .chirag-player-root .options button {
-            height: 32px;
-            width: 32px;
+          .artplayer-app .art-control-time {
+            font-size: 11px !important;
+            padding: 0 4px !important;
           }
-          .chirag-player-root .options button svg {
-            width: 15px;
-            height: 15px;
+          .artplayer-app .art-control-volume {
+            padding: 0 2px !important;
           }
-          .chirag-player-root .options .video-timer {
-            margin-left: 6px;
-            font-size: 11px;
-          }
-          .chirag-player-root .video-timer .separator {
-            font-size: 12px;
-            margin: 0 2px;
-          }
-          .chirag-player-root .options .video-timer, 
-          .chirag-player-root .progress-area span, 
-          .chirag-player-root .speed-options li {
-            font-size: 11px;
-          }
-          .chirag-player-root .playback-content .speed-options {
-            width: 80px;
-            left: -20px;
-            bottom: 38px;
-          }
-          .chirag-player-root .speed-options li {
-            padding: 4px 10px;
-          }
-          .chirag-player-root .right .pic-in-pic {
+          .artplayer-app .art-control-pip,
+          .artplayer-app .art-control-screenshot {
             display: none !important;
           }
         }
       `}</style>
-
-
-      <div 
-        onContextMenu={(e) => e.preventDefault()}
-        className="relative w-full aspect-video rounded-2xl overflow-hidden shadow-2xl bg-black border border-white/10 group select-none"
-      >
-        {(isEmbed || useFallbackEmbed) ? (
-          <iframe
-            src={useFallbackEmbed || embedUrl}
-            title="Video Player"
-            className="w-full h-full absolute inset-0 border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            referrerPolicy="no-referrer"
-            onContextMenu={(e) => e.preventDefault()}
-          />
-        ) : (
-          <div 
-            ref={containerRef}
-            className={`container ${showControls ? 'show-controls' : ''} ${isFullscreen ? 'fullscreen' : ''}`}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={() => isPlaying && setShowControls(false)}
-            onContextMenu={(e) => e.preventDefault()}
-          >
-            <div className="wrapper">
-              {/* Timeline */}
-              <div 
-                ref={timelineRef}
-                className="video-timeline"
-                onMouseMove={handleTimelineMouseMove}
-                onMouseLeave={() => setShowHoverTime(false)}
-                onMouseDown={handleTimelineMouseDown}
-              >
-                <div className="progress-area">
-                  <span style={{ left: hoverLeft, display: showHoverTime ? 'block' : 'none' }}>
-                    {hoverTime}
-                  </span>
-                  <div 
-                    className="progress-bar" 
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Controls list */}
-              <ul className="video-controls">
-                <li className="options left">
-                  <button className="volume" onClick={toggleMute}>
-                    {isMuted || volume === 0 ? (
-                      <VolumeX />
-                    ) : volume < 0.5 ? (
-                      <Volume1 />
-                    ) : (
-                      <Volume2 />
-                    )}
-                  </button>
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max="1" 
-                    step="any"
-                    value={isMuted ? 0 : volume}
-                    onChange={handleVolumeChange}
-                  />
-                  <div className="video-timer">
-                    <p className="current-time">{formatTime(currentTime)}</p>
-                    <p className="separator"> / </p>
-                    <p className="video-duration">{formatTime(duration)}</p>
-                  </div>
-                </li>
-
-                <li className="options center">
-                  <button className="skip-backward" onClick={skipBackward}>
-                    <RotateCcw />
-                  </button>
-                  <button className="play-pause" onClick={togglePlay}>
-                    {isPlaying ? <Pause /> : <Play className="translate-x-0.5" />}
-                  </button>
-                  <button className="skip-forward" onClick={skipForward}>
-                    <RotateCw />
-                  </button>
-                </li>
-
-                <li className="options right">
-                  {/* Quality options menu */}
-                  <div className="playback-content relative">
-                    <button 
-                      className="text-white hover:text-blue-400 transition-colors text-xs font-bold px-2 py-1 rounded bg-white/10 hover:bg-white/20 border border-white/10 flex items-center gap-1"
-                      onClick={() => {
-                        setShowQualityOptions(!showQualityOptions);
-                        setShowSpeedOptions(false);
-                      }}
-                      title="Sifatni tanlash (Quality)"
-                    >
-                      <Settings className="w-3.5 h-3.5" />
-                      <span>{videoQuality === '720' ? '720p' : '360p'}</span>
-                    </button>
-                    <ul className={`speed-options ${showQualityOptions ? 'show' : ''}`}>
-                      <li 
-                        className={videoQuality === '720' ? 'active' : ''}
-                        onClick={() => {
-                          setVideoQuality('720');
-                          setShowQualityOptions(false);
-                        }}
-                      >
-                        720p HD
-                      </li>
-                      <li 
-                        className={videoQuality === '360' ? 'active' : ''}
-                        onClick={() => {
-                          setVideoQuality('360');
-                          setShowQualityOptions(false);
-                        }}
-                      >
-                        360p SD
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div className="playback-content">
-                    <button 
-                      className="playback-speed"
-                      onClick={() => {
-                        setShowSpeedOptions(!showSpeedOptions);
-                        setShowQualityOptions(false);
-                      }}
-                    >
-                      <Gauge />
-                    </button>
-                    <ul className={`speed-options ${showSpeedOptions ? 'show' : ''}`}>
-                      {[2, 1.5, 1, 0.75, 0.5].map((rate) => (
-                        <li 
-                          key={rate}
-                          data-speed={rate}
-                          className={playbackRate === rate ? 'active' : ''}
-                          onClick={() => changePlaybackRate(rate)}
-                        >
-                          {rate === 1 ? 'Normal' : `${rate}x`}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <button className="pic-in-pic" onClick={togglePip}>
-                    <PictureInPicture />
-                  </button>
-                  <button className="fullscreen" onClick={toggleFullscreen}>
-                    {isFullscreen ? <Minimize /> : <Maximize />}
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            {/* Video Tag */}
-            <video 
-              ref={videoRef}
-              poster={poster}
-              className="w-full h-full object-contain cursor-pointer"
-              playsInline
-              preload="auto"
-              referrerPolicy="no-referrer"
-              controlsList="nodownload noremoteplayback"
-              disablePictureInPicture
-              onContextMenu={(e) => e.preventDefault()}
-              onClick={handleVideoClick}
-              onDoubleClick={handleVideoDoubleClick}
-              onTimeUpdate={handleTimeUpdate}
-              onLoadedMetadata={handleLoadedMetadata}
-              onCanPlay={() => setIsBuffering(false)}
-              onCanPlayThrough={() => setIsBuffering(false)}
-              onLoadedData={() => setIsBuffering(false)}
-              onStalled={() => setIsBuffering(false)}
-              onWaiting={() => {
-                if (!showAd) setIsBuffering(true);
-              }}
-              onSeeking={() => {
-                if (!showAd) setIsBuffering(true);
-              }}
-              onSeeked={() => setIsBuffering(false)}
-              onPlaying={() => {
-                setIsBuffering(false);
-                setIsPlaying(true);
-              }}
-              onPause={() => {
-                setIsBuffering(false);
-                setIsPlaying(false);
-              }}
-              onPlay={() => {
-                if (showAd && videoRef.current) {
-                  videoRef.current.pause();
-                  setIsPlaying(false);
-                  setIsBuffering(false);
-                } else {
-                  setIsPlaying(true);
-                }
-              }}
-              onError={() => {
-                setIsBuffering(false);
-                const moverMatch = (url || '').match(/(?:v\.mover\.uz\/|mover\.uz\/(?:watch|video\/embed|video|v)\/)([A-Za-z0-9_-]+)/i);
-                if (moverMatch && moverMatch[1]) {
-                  let rawId = moverMatch[1].replace(/\.mp4$/i, '').replace(/_(?:m|h|s|q)$/i, '');
-                  setUseFallbackEmbed(`https://mover.uz/video/embed/${rawId}/`);
-                } else if (videoRef.current && url && !videoRef.current.src.includes('/api/proxy-video')) {
-                  // Try proxy video fallback
-                  videoRef.current.src = `/api/proxy-video?url=${encodeURIComponent(url)}`;
-                  videoRef.current.load();
-                } else {
-                  setHasPlaybackError(true);
-                }
-              }}
-            />
-
-            {/* Playback Error Overlay */}
-            {hasPlaybackError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 text-white p-6 text-center z-30">
-                <AlertCircle className="w-12 h-12 text-rose-500 mb-3 animate-pulse" />
-                <h3 className="text-lg font-bold mb-1">Videoni yuklashda xatolik yuz berdi</h3>
-                <p className="text-xs text-white/60 mb-4 max-w-md">
-                  Ushbu video manbasi vaqtincha mavjud emas yoki brauzer uni qo'llab-quvvatlamaydi. Telegram botimiz orqali ham tomosha qilishingiz mumkin.
-                </p>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => {
-                      setHasPlaybackError(false);
-                      setIsBuffering(true);
-                      if (videoRef.current) {
-                        videoRef.current.src = url;
-                        videoRef.current.load();
-                      }
-                    }}
-                    className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
-                  >
-                    Qayta urinish
-                  </button>
-                  <a
-                    href="https://t.me/Animem_uz_bot"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 bg-[#0088cc] hover:bg-[#0077bb] text-white rounded-lg text-xs font-bold transition-colors"
-                  >
-                    Telegram Botda ko'rish
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {/* Loading/Buffering feedback */}
-            {isBuffering && !hasPlaybackError && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-20 pointer-events-none">
-                <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Video Pre-roll Ad Overlay */}
-        {showAd && (
-          <div 
-            className="absolute inset-0 z-50 bg-black flex items-center justify-center overflow-hidden cursor-pointer select-none"
-            onClick={handleAdClick}
-          >
-            {currentAdUrl ? (
-              <video
-                ref={adVideoRef}
-                src={currentAdUrl}
-                autoPlay
-                muted={isAdMuted}
-                playsInline
-                className="w-full h-full object-contain pointer-events-none"
-                onEnded={handleAdEnded}
-                onError={handleAdError}
-                onTimeUpdate={handleAdTimeUpdate}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-purple-900/40 via-black to-blue-900/40 w-full h-full pointer-events-none">
-                <img src="/logo.png" alt="Animem Uz" className="w-24 h-24 mb-4 object-contain animate-pulse" />
-                <p className="text-white font-bold text-lg mb-2">Animem.uz Homiylik Reklamasi</p>
-                <p className="text-gray-300 text-sm max-w-md">Eng yaxshi animelar va so'nggi chiqishlarni biz bilan tomosha qiling!</p>
-              </div>
-            )}
-
-            {/* Top Left Reklama Badge */}
-            <div className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-black/70 text-white text-[11px] sm:text-xs px-2.5 py-1 rounded backdrop-blur border border-white/10 flex items-center gap-1.5 pointer-events-none z-10">
-              <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-              <span className="font-semibold tracking-wider">REKLAMA</span>
-            </div>
-
-            {/* Top Right Mute / Unmute Button */}
-            {currentAdUrl && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsAdMuted((prev) => !prev);
-                }}
-                className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-black/70 hover:bg-black/90 text-white p-2 rounded-full backdrop-blur border border-white/10 z-20 cursor-pointer pointer-events-auto transition-all"
-                title={isAdMuted ? "Ovozni yoqish" : "Ovozni o'chirish"}
-              >
-                {isAdMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-green-400" />}
-              </button>
-            )}
-
-            {/* Skip / Timer Button */}
-            <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20">
-              {canSkipAd ? (
-                <button
-                  type="button"
-                  onClick={handleSkipAd}
-                  className="opacity-100 scale-100 bg-[#ff006a] hover:bg-[#e0005d] active:scale-95 text-white font-bold text-xs sm:text-sm px-4 py-2 rounded-lg shadow-2xl border border-white/20 transition-all flex items-center gap-2 cursor-pointer pointer-events-auto"
-                >
-                  <span>O'tkazib yuborish</span>
-                  <span className="text-base">→</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="opacity-50 scale-90 bg-black/60 text-gray-300 text-xs px-3 py-1.5 rounded-md border border-white/10 backdrop-blur cursor-not-allowed flex items-center gap-1.5 transition-all pointer-events-none"
-                >
-                  <span>O'tkazib yuborish ({adTimeLeft}s)</span>
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
+

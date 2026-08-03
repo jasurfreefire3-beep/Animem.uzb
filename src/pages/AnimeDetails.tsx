@@ -337,7 +337,7 @@ export default function AnimeDetails() {
       });
       if (res.ok) {
         const data = await res.json();
-        setComments(comments.map(c => c.id === commentId ? { ...c, likes: data.likes, dislikes: data.dislikes, liked_users: data.liked_users, disliked_users: data.disliked_users } : c));
+        setComments(comments.map(c => String(c.id) === String(commentId) ? { ...c, likes: data.likes, dislikes: data.dislikes, liked_users: data.liked_users, disliked_users: data.disliked_users } : c));
       }
     } catch(e) {}
   };
@@ -351,7 +351,7 @@ export default function AnimeDetails() {
       });
       if (res.ok) {
         const data = await res.json();
-        setComments(comments.map(c => c.id === commentId ? { ...c, likes: data.likes, dislikes: data.dislikes, liked_users: data.liked_users, disliked_users: data.disliked_users } : c));
+        setComments(comments.map(c => String(c.id) === String(commentId) ? { ...c, likes: data.likes, dislikes: data.dislikes, liked_users: data.liked_users, disliked_users: data.disliked_users } : c));
       }
     } catch(e) {}
   };
@@ -374,7 +374,7 @@ export default function AnimeDetails() {
       if (res.ok) {
         const newReply = await res.json();
         setComments(comments.map(c => {
-          if (c.id === commentId) {
+          if (String(c.id) === String(commentId)) {
             return { ...c, replies: [...(c.replies || []), newReply] };
           }
           return c;
@@ -405,13 +405,16 @@ export default function AnimeDetails() {
   });
 
   const handleEpisodeClick = (ep: any) => {
-    if (!user) {
-      setShowLoginPrompt(true);
-      return;
-    }
     setActiveEpisode(ep.number);
-    setCurrentVideoUrl(ep.video_url || '');
-    window.scrollTo({ top: document.getElementById('player-section')?.offsetTop || 0, behavior: 'smooth' });
+    if (ep.video_url) {
+      setCurrentVideoUrl(ep.video_url);
+    } else {
+      setCurrentVideoUrl(anime?.video_url || '/assets/sample/video.mp4');
+    }
+    const playerEl = document.getElementById('player-section');
+    if (playerEl) {
+      playerEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   const jsonLd = {
@@ -633,21 +636,12 @@ export default function AnimeDetails() {
                  </div>
                </div>
 
-               <div className="mb-4 md:mb-6">
-                  {currentVideoUrl ? (
-                    <VideoPlayer url={currentVideoUrl} poster={anime.banner_url || anime.image_url} animeTitle={anime.title} />
-                  ) : (
-                    <div className="aspect-video bg-[#000] rounded-none md:rounded-sm shadow-xl overflow-hidden border-y md:border border-[#222] relative">
-                      <img src={anime.banner_url || anime.image_url} className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm" />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90">
-                        <div className="z-10 bg-[#111]/80 backdrop-blur-md p-6 rounded-sm text-center border border-[#333] max-w-sm mx-4">
-                           <Shield className="w-6 h-6 text-white/30 mx-auto mb-3" />
-                           <div className="text-white font-bold text-sm mb-1">Episode {activeEpisode} unavailable</div>
-                           <div className="text-white/40 text-xs">Video content not found on server.</div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+               <div className="-mx-4 sm:mx-0 mb-4 md:mb-6">
+                  <VideoPlayer 
+                    url={currentVideoUrl || anime.video_url || '/assets/sample/video.mp4'} 
+                    poster={anime.banner_url || anime.image_url} 
+                    animeTitle={anime.title} 
+                  />
                </div>
 
                {/* Episode Selector */}
@@ -901,20 +895,38 @@ export default function AnimeDetails() {
                            key={comment.id} 
                            className="bg-[#1a1a1a] p-4 rounded-sm border border-[#222] flex gap-3 relative group"
                         >
-                           {avatarSrc ? (
-                              <img 
-                                 src={avatarSrc} 
-                                 alt={comment.user_name} 
-                                 className="shrink-0 w-8 h-8 rounded-full object-cover border border-[#ff006a]/30" 
-                              />
-                           ) : (
-                              <div className="shrink-0 w-8 h-8 bg-[#333] rounded-sm flex items-center justify-center text-white/50 text-xs font-bold">
-                                 {comment.user_name.charAt(0).toUpperCase()}
-                              </div>
-                           )}
+                           <Link to={`/user/${comment.user_id}`} className="shrink-0">
+                              {avatarSrc ? (
+                                 <img 
+                                    src={avatarSrc} 
+                                    alt={comment.user_name} 
+                                    className="shrink-0 w-11 h-11 rounded-full object-cover border-2 border-[#ff006a]/40 hover:border-[#ff006a] shadow-md transition-all" 
+                                 />
+                              ) : (
+                                 <div className="shrink-0 w-11 h-11 bg-gradient-to-br from-[#2a2a2e] to-[#151518] rounded-full border-2 border-[#ff006a]/30 flex items-center justify-center text-[#ff006a] text-sm font-extrabold shadow-md hover:text-white transition-colors">
+                                    {comment.user_name.charAt(0).toUpperCase()}
+                                 </div>
+                              )}
+                           </Link>
                            <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1.5">
-                                 <span className="text-white/90 font-medium text-xs">{comment.user_name}</span>
+                                 <Link to={`/user/${comment.user_id}`} className="text-white/90 font-bold text-xs hover:text-[#ff006a] hover:underline transition-colors">
+                                    {comment.user_name}
+                                 </Link>
+                                 <span className="text-white/30 text-[10px]">
+                                    {new Date(comment.created_at).toLocaleDateString()}
+                                 </span>
+
+                                 {/* Quick Reply button right next to name/header */}
+                                 <button 
+                                    onClick={() => setReplyingCommentId(replyingCommentId === comment.id ? null : comment.id)}
+                                    className="px-2 py-0.5 rounded-full bg-white/5 hover:bg-[#ff006a]/20 text-[#ff006a] text-[10px] font-bold flex items-center gap-1 transition-all border border-[#ff006a]/20"
+                                    title="Javob qaytarish"
+                                 >
+                                    <MessageCircle size={11} />
+                                    <span>Javob berish</span>
+                                 </button>
+
                                  {user && (comment.user_id === user.id || user.role === 'admin') && (
                                     <button
                                        onClick={() => handleCommentDelete(comment.id)}
@@ -924,11 +936,8 @@ export default function AnimeDetails() {
                                        <Trash2 size={13} />
                                     </button>
                                  )}
-                                 <span className="text-white/30 text-[10px] ml-auto">
-                                    {new Date(comment.created_at).toLocaleDateString()}
-                                 </span>
                               </div>
-                              <p className="text-white/70 text-sm leading-relaxed mb-3">{comment.content}</p>
+                              <p className="text-white/80 text-sm leading-relaxed mb-3">{comment.content}</p>
 
                               {/* Action buttons: Like, Dislike, Reply */}
                               <div className="flex items-center gap-4 text-xs text-white/50">
@@ -948,7 +957,7 @@ export default function AnimeDetails() {
                                  </button>
                                  <button 
                                     onClick={() => setReplyingCommentId(replyingCommentId === comment.id ? null : comment.id)}
-                                    className="flex items-center gap-1.5 hover:text-[#ff006a] transition-colors cursor-pointer"
+                                    className="flex items-center gap-1.5 hover:text-[#ff006a] text-white/60 transition-colors cursor-pointer"
                                  >
                                     <MessageCircle size={13} />
                                     <span>Javob yozish</span>
@@ -957,14 +966,23 @@ export default function AnimeDetails() {
 
                               {/* Replies list */}
                               {replies.length > 0 && (
-                                 <div className="mt-4 pl-4 border-l-2 border-[#333] space-y-3">
+                                 <div className="mt-4 pl-4 border-l-2 border-[#ff006a]/30 space-y-3">
                                     {replies.map((rep: any) => (
-                                       <div key={rep.id} className="bg-[#141414] p-3 rounded-sm border border-[#222]">
-                                          <div className="flex items-center gap-2 mb-1">
-                                             <span className="text-white/90 text-xs font-bold">{rep.user_name}</span>
-                                             <span className="text-white/35 text-[9px] ml-auto">{new Date(rep.created_at).toLocaleDateString()}</span>
+                                       <div key={rep.id} className="bg-[#141414] p-3 rounded-lg border border-[#222] flex gap-2.5 items-start">
+                                          {rep.user_avatar ? (
+                                             <img src={rep.user_avatar} alt={rep.user_name} className="w-8 h-8 rounded-full object-cover shrink-0 border border-white/10" />
+                                          ) : (
+                                             <div className="w-8 h-8 rounded-full bg-[#222] text-[#ff006a] font-bold text-xs flex items-center justify-center shrink-0 border border-white/10">
+                                                {rep.user_name?.charAt(0).toUpperCase() || 'U'}
+                                             </div>
+                                          )}
+                                          <div className="flex-1 min-w-0">
+                                             <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-white/90 text-xs font-bold">{rep.user_name}</span>
+                                                <span className="text-white/35 text-[9px] ml-auto">{new Date(rep.created_at).toLocaleDateString()}</span>
+                                             </div>
+                                             <p className="text-white/70 text-xs leading-relaxed">{rep.content}</p>
                                           </div>
-                                          <p className="text-white/70 text-xs leading-relaxed">{rep.content}</p>
                                        </div>
                                     ))}
                                  </div>

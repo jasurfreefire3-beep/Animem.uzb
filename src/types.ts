@@ -1,10 +1,23 @@
 export interface User {
-  id: string;
+  id: string | number;
   name: string;
   role: 'user' | 'admin';
   email?: string;
   phone?: string;
   avatar_url?: string;
+  banner_url?: string;
+  bio?: string;
+  telegram?: string;
+  instagram?: string;
+  tiktok?: string;
+  youtube?: string;
+  discord?: string;
+  facebook?: string;
+  vk?: string;
+  favorites?: any[];
+  comments_count?: number;
+  created_at?: string;
+  last_seen?: string;
 }
 
 export interface Anime {

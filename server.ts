@@ -233,6 +233,9 @@ const authenticateToken = (req: any, res: any, next: any) => {
   jwt.verify(token, JWT_SECRET, (err: any, decoded: any) => {
     if (err) return res.sendStatus(403);
     req.user = decoded;
+    if (decoded && decoded.id) {
+      dbQuery("UPDATE users SET last_seen = NOW() WHERE id = ?", [decoded.id]).catch(() => {});
+    }
     next();
   });
 };
@@ -333,6 +336,39 @@ async function testDbConnection() {
       console.log("Added created_at column to users table.");
     }
 
+    // Ensure profile & social columns exist in users table
+    const profileColumns = [
+      { name: "bio", type: "TEXT DEFAULT NULL" },
+      { name: "banner_url", type: "MEDIUMTEXT DEFAULT NULL" },
+      { name: "telegram", type: "VARCHAR(255) DEFAULT NULL" },
+      { name: "instagram", type: "VARCHAR(255) DEFAULT NULL" },
+      { name: "tiktok", type: "VARCHAR(255) DEFAULT NULL" },
+      { name: "youtube", type: "VARCHAR(255) DEFAULT NULL" },
+      { name: "discord", type: "VARCHAR(255) DEFAULT NULL" },
+      { name: "facebook", type: "VARCHAR(255) DEFAULT NULL" },
+      { name: "vk", type: "VARCHAR(255) DEFAULT NULL" },
+      { name: "favorites", type: "LONGTEXT DEFAULT NULL" },
+      { name: "last_seen", type: "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" }
+    ];
+
+    for (const col of profileColumns) {
+      try {
+        const [cCols]: any = await connection.query(`
+          SELECT COLUMN_NAME 
+          FROM INFORMATION_SCHEMA.COLUMNS 
+          WHERE TABLE_NAME = 'users' 
+            AND COLUMN_NAME = ? 
+            AND TABLE_SCHEMA = DATABASE()
+        `, [col.name]);
+        if (cCols.length === 0) {
+          await connection.query(`ALTER TABLE users ADD COLUMN ${col.name} ${col.type}`);
+          console.log(`Added ${col.name} column to users table.`);
+        }
+      } catch (e) {
+        console.warn(`Migration check for ${col.name} failed:`, e);
+      }
+    }
+
     // Create mangas table if not exists in MySQL
     await connection.query(`
       CREATE TABLE IF NOT EXISTS mangas (
@@ -398,7 +434,27 @@ async function testDbConnection() {
       )
     `);
 
-    console.log("Verified mangas, manga_chapters, comments tables and tags columns in MySQL.");
+    try {
+      const [cCols]: any = await connection.query(`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'comments' AND TABLE_SCHEMA = DATABASE()`);
+      const colNames = (cCols || []).map((c: any) => c.COLUMN_NAME);
+      if (!colNames.includes('liked_users')) {
+        await connection.query(`ALTER TABLE comments ADD COLUMN liked_users TEXT DEFAULT NULL`);
+      }
+      if (!colNames.includes('disliked_users')) {
+        await connection.query(`ALTER TABLE comments ADD COLUMN disliked_users TEXT DEFAULT NULL`);
+      }
+      if (!colNames.includes('replies')) {
+        await connection.query(`ALTER TABLE comments ADD COLUMN replies LONGTEXT DEFAULT NULL`);
+      }
+      if (!colNames.includes('likes')) {
+        await connection.query(`ALTER TABLE comments ADD COLUMN likes INT DEFAULT 0`);
+      }
+      if (!colNames.includes('dislikes')) {
+        await connection.query(`ALTER TABLE comments ADD COLUMN dislikes INT DEFAULT 0`);
+      }
+    } catch(e) {}
+
+    console.log("Verified mangas, manga_chapters, comments tables and columns in MySQL.");
 
     connection.release();
   } catch (err) {
@@ -1697,6 +1753,109 @@ app.post("/api/upload-archive-proxy", authenticateToken, upload.single("file"), 
   }
 });
 
+// GET public or own user profile by ID
+app.get("/api/user/:id", async (req, res) => {
+  try {
+    const userId = req.params.id;
+    let requestingUserId: any = null;
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+    if (token) {
+      try {
+        const decoded: any = jwt.verify(token, JWT_SECRET);
+        requestingUserId = decoded?.id;
+      } catch (e) {}
+    }
+
+    const isOwner = Boolean(requestingUserId && String(requestingUserId) === String(userId));
+
+    let userData: any = null;
+    try {
+      const [rows]: any = await dbQuery("SELECT * FROM users WHERE id = ?", [userId]);
+      if (rows && rows[0]) userData = rows[0];
+    } catch (e) {}
+
+    if (!userData) {
+      const store = loadLocalStore();
+      userData = store.users?.find((u: any) => String(u.id) === String(userId));
+    }
+
+    if (!userData) {
+      return res.status(404).json({ error: "Foydalanuvchi topilmadi" });
+    }
+
+    // Get comments count
+    let commentsCount = 0;
+    try {
+      const [cRows]: any = await dbQuery("SELECT COUNT(*) as cnt FROM comments WHERE user_id = ?", [userId]);
+      if (cRows && cRows[0]) commentsCount = cRows[0].cnt;
+    } catch (e) {}
+
+    // Resolve favorites to anime objects
+    let favoritesAnimes: any[] = [];
+    try {
+      if (userData.favorites) {
+        let favIds: any[] = [];
+        if (typeof userData.favorites === 'string') {
+          favIds = JSON.parse(userData.favorites);
+        } else if (Array.isArray(userData.favorites)) {
+          favIds = userData.favorites;
+        }
+
+        if (Array.isArray(favIds) && favIds.length > 0) {
+          const [aRows]: any = await dbQuery("SELECT * FROM animes");
+          const allAnimes = Array.isArray(aRows) && aRows.length > 0 ? aRows : loadLocalStore().animes || [];
+          favoritesAnimes = allAnimes.filter((a: any) => favIds.some((f: any) => String(f) === String(a.id)));
+        }
+      }
+    } catch (e) {
+      console.warn("Parsing user favorites error:", e);
+    }
+
+    const responseUser: any = {
+      id: userData.id,
+      name: userData.name,
+      role: userData.role || 'user',
+      avatar_url: userData.avatar_url || null,
+      banner_url: userData.banner_url || null,
+      bio: userData.bio || null,
+      telegram: userData.telegram || null,
+      instagram: userData.instagram || null,
+      tiktok: userData.tiktok || null,
+      youtube: userData.youtube || null,
+      discord: userData.discord || null,
+      facebook: userData.facebook || null,
+      vk: userData.vk || null,
+      favorites: favoritesAnimes,
+      comments_count: commentsCount,
+      created_at: userData.created_at || null,
+      last_seen: userData.last_seen || null,
+    };
+
+    // EMAIL PRIVACY: Email is strictly visible ONLY to the owner themselves
+    if (isOwner) {
+      responseUser.email = userData.email;
+      responseUser.phone = userData.phone;
+    }
+
+    return res.json({ user: responseUser, isOwner });
+  } catch (err: any) {
+    console.error("Get user profile error:", err);
+    res.status(500).json({ error: "Serverda xatolik yuz berdi" });
+  }
+});
+
+// Ping endpoint to update user active timestamp
+app.post("/api/user/ping", authenticateToken, async (req: any, res) => {
+  try {
+    const userId = req.user.id;
+    await dbQuery("UPDATE users SET last_seen = NOW() WHERE id = ?", [userId]);
+    res.json({ success: true, timestamp: new Date().toISOString() });
+  } catch (e) {
+    res.status(500).json({ error: "Ping failed" });
+  }
+});
+
 // Update user profile photo (Avatar) as base64 string in MySQL
 app.post("/api/user/avatar", authenticateToken, async (req: any, res) => {
   try {
@@ -1710,7 +1869,7 @@ app.post("/api/user/avatar", authenticateToken, async (req: any, res) => {
     await dbQuery("UPDATE users SET avatar_url = ? WHERE id = ?", [avatar_url, userId]);
 
     // Get updated user details
-    const [rows]: any = await dbQuery("SELECT id, name, email, role, avatar_url FROM users WHERE id = ?", [userId]);
+    const [rows]: any = await dbQuery("SELECT id, name, email, role, avatar_url, banner_url, bio, telegram, instagram, tiktok, youtube, discord, facebook, vk FROM users WHERE id = ?", [userId]);
     const updatedUser = rows[0];
 
     res.json({ message: "Profil rasmi muvaffaqiyatli yangilandi", user: updatedUser });
@@ -1720,23 +1879,80 @@ app.post("/api/user/avatar", authenticateToken, async (req: any, res) => {
   }
 });
 
-// Update user profile name
+// Update user profile details (name, bio, banner, social links)
 app.put("/api/user/profile", authenticateToken, async (req: any, res) => {
   try {
     const userId = req.user.id;
-    const { name } = req.body;
+    const { name, bio, banner_url, avatar_url, telegram, instagram, tiktok, youtube, discord, facebook, vk, favorites } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: "Ism bo'sh bo'lishi mumkin emas" });
     }
 
-    await dbQuery("UPDATE users SET name = ? WHERE id = ?", [name.trim(), userId]);
+    const cleanName = name.trim();
+    let favsJson: string | null = null;
+    if (favorites) {
+      favsJson = typeof favorites === 'string' ? favorites : JSON.stringify(favorites);
+    }
 
-    // Get updated user details
-    const [rows]: any = await dbQuery("SELECT id, name, email, role, avatar_url FROM users WHERE id = ?", [userId]);
-    const updatedUser = rows[0];
+    try {
+      await dbQuery(
+        `UPDATE users SET 
+          name = ?, 
+          bio = ?, 
+          banner_url = ?, 
+          avatar_url = COALESCE(?, avatar_url),
+          telegram = ?, 
+          instagram = ?, 
+          tiktok = ?, 
+          youtube = ?, 
+          discord = ?, 
+          facebook = ?,
+          vk = ?,
+          favorites = COALESCE(?, favorites)
+         WHERE id = ?`,
+        [
+          cleanName,
+          bio || null,
+          banner_url || null,
+          avatar_url || null,
+          telegram || null,
+          instagram || null,
+          tiktok || null,
+          youtube || null,
+          discord || null,
+          facebook || null,
+          vk || null,
+          favsJson,
+          userId
+        ]
+      );
+    } catch (dbErr) {
+      console.warn("DB update user profile warning:", dbErr);
+    }
 
-    // Generate new token with updated user details
+    // Local store fallback
+    const store = loadLocalStore();
+    const storeUser = store.users?.find((u: any) => String(u.id) === String(userId));
+    if (storeUser) {
+      storeUser.name = cleanName;
+      if (bio !== undefined) storeUser.bio = bio;
+      if (banner_url !== undefined) storeUser.banner_url = banner_url;
+      if (avatar_url !== undefined) storeUser.avatar_url = avatar_url;
+      if (telegram !== undefined) storeUser.telegram = telegram;
+      if (instagram !== undefined) storeUser.instagram = instagram;
+      if (tiktok !== undefined) storeUser.tiktok = tiktok;
+      if (youtube !== undefined) storeUser.youtube = youtube;
+      if (discord !== undefined) storeUser.discord = discord;
+      if (facebook !== undefined) storeUser.facebook = facebook;
+      if (vk !== undefined) storeUser.vk = vk;
+      if (favorites !== undefined) storeUser.favorites = favorites;
+      saveLocalStore(store);
+    }
+
+    const [rows]: any = await dbQuery("SELECT * FROM users WHERE id = ?", [userId]);
+    const updatedUser = rows && rows[0] ? rows[0] : (storeUser || { id: userId, name: cleanName });
+
     const tokenPayload = {
       id: updatedUser.id,
       email: updatedUser.email,
@@ -1745,9 +1961,33 @@ app.put("/api/user/profile", authenticateToken, async (req: any, res) => {
     const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "30d" });
 
     res.json({ message: "Profil yangilandi", user: updatedUser, token });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Update profile error:", err);
     res.status(500).json({ error: "Serverda xatolik yuz berdi" });
+  }
+});
+
+// Sync user favorites array
+app.post("/api/user/favorites", authenticateToken, async (req: any, res) => {
+  try {
+    const userId = req.user.id;
+    const { favorites } = req.body;
+    const favsJson = JSON.stringify(favorites || []);
+
+    try {
+      await dbQuery("UPDATE users SET favorites = ? WHERE id = ?", [favsJson, userId]);
+    } catch (e) {}
+
+    const store = loadLocalStore();
+    const storeUser = store.users?.find((u: any) => String(u.id) === String(userId));
+    if (storeUser) {
+      storeUser.favorites = favorites;
+      saveLocalStore(store);
+    }
+
+    res.json({ success: true, favorites });
+  } catch (err) {
+    res.status(500).json({ error: "Favorites sync failed" });
   }
 });
 
@@ -1959,6 +2199,18 @@ app.get("/api/animes/:id/episodes", async (req, res) => {
   res.json(eps);
 });
 
+// Helper function for safe JSON parsing
+function safeJsonParse(val: any, fallback: any = []) {
+  if (!val) return fallback;
+  if (typeof val !== 'string') return Array.isArray(val) ? val : fallback;
+  try {
+    const parsed = JSON.parse(val);
+    return parsed !== null ? parsed : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
 // Get comments of an anime
 app.get("/api/animes/:id/comments", async (req, res) => {
   const id = req.params.id;
@@ -1974,9 +2226,9 @@ app.get("/api/animes/:id/comments", async (req, res) => {
     if (Array.isArray(rows)) {
       const parsed = rows.map((r: any) => ({
         ...r,
-        liked_users: typeof r.liked_users === 'string' ? JSON.parse(r.liked_users || '[]') : (r.liked_users || []),
-        disliked_users: typeof r.disliked_users === 'string' ? JSON.parse(r.disliked_users || '[]') : (r.disliked_users || []),
-        replies: typeof r.replies === 'string' ? JSON.parse(r.replies || '[]') : (r.replies || [])
+        liked_users: safeJsonParse(r.liked_users, []),
+        disliked_users: safeJsonParse(r.disliked_users, []),
+        replies: safeJsonParse(r.replies, [])
       }));
       return res.json(parsed);
     }
@@ -1999,10 +2251,18 @@ app.post("/api/animes/:id/comments", authenticateToken, async (req: any, res) =>
       return res.status(400).json({ error: "Izoh matni bo'sh bo'lishi mumkin emas" });
     }
 
-    const [result]: any = await dbQuery(
-      "INSERT INTO comments (anime_id, user_id, content) VALUES (?, ?, ?)",
-      [animeId, userId, content]
-    );
+    let insertId = Date.now();
+    try {
+      const [result]: any = await dbQuery(
+        "INSERT INTO comments (anime_id, user_id, content, likes, dislikes, liked_users, disliked_users, replies) VALUES (?, ?, ?, 0, 0, '[]', '[]', '[]')",
+        [animeId, userId, content]
+      );
+      if (result && result.insertId) {
+        insertId = result.insertId;
+      }
+    } catch (dbErr) {
+      console.warn("DB insert comment error:", dbErr);
+    }
 
     let userAvatar = req.user.avatar_url || null;
     try {
@@ -2012,8 +2272,8 @@ app.post("/api/animes/:id/comments", authenticateToken, async (req: any, res) =>
       }
     } catch (e) {}
 
-    res.status(201).json({
-      id: result.insertId,
+    const newComment = {
+      id: insertId,
       anime_id: Number(animeId),
       user_id: userId,
       user_name: req.user.name,
@@ -2025,7 +2285,14 @@ app.post("/api/animes/:id/comments", authenticateToken, async (req: any, res) =>
       disliked_users: [],
       replies: [],
       created_at: new Date().toISOString(),
-    });
+    };
+
+    const store = loadLocalStore();
+    store.comments = store.comments || [];
+    store.comments.unshift(newComment);
+    saveLocalStore(store);
+
+    res.status(201).json(newComment);
   } catch (err) {
     console.error("Add comment error:", err);
     res.status(500).json({ error: "Failed to post comment" });
@@ -2052,10 +2319,8 @@ app.post("/api/comments/:commentId/like", authenticateToken, async (req: any, re
     let comment = await getCommentById(commentId);
     if (!comment) return res.status(404).json({ error: "Izoh topilmadi" });
 
-    let likedUsers = [];
-    try { likedUsers = typeof comment.liked_users === 'string' ? JSON.parse(comment.liked_users) : (comment.liked_users || []); } catch(e){}
-    let dislikedUsers = [];
-    try { dislikedUsers = typeof comment.disliked_users === 'string' ? JSON.parse(comment.disliked_users) : (comment.disliked_users || []); } catch(e){}
+    let likedUsers = safeJsonParse(comment.liked_users, []);
+    let dislikedUsers = safeJsonParse(comment.disliked_users, []);
 
     let likes = Number(comment.likes) || 0;
     let dislikes = Number(comment.dislikes) || 0;
@@ -2106,10 +2371,8 @@ app.post("/api/comments/:commentId/dislike", authenticateToken, async (req: any,
     let comment = await getCommentById(commentId);
     if (!comment) return res.status(404).json({ error: "Izoh topilmadi" });
 
-    let likedUsers = [];
-    try { likedUsers = typeof comment.liked_users === 'string' ? JSON.parse(comment.liked_users) : (comment.liked_users || []); } catch(e){}
-    let dislikedUsers = [];
-    try { dislikedUsers = typeof comment.disliked_users === 'string' ? JSON.parse(comment.disliked_users) : (comment.disliked_users || []); } catch(e){}
+    let likedUsers = safeJsonParse(comment.liked_users, []);
+    let dislikedUsers = safeJsonParse(comment.disliked_users, []);
 
     let likes = Number(comment.likes) || 0;
     let dislikes = Number(comment.dislikes) || 0;
@@ -2165,8 +2428,7 @@ app.post("/api/comments/:commentId/reply", authenticateToken, async (req: any, r
     let comment = await getCommentById(commentId);
     if (!comment) return res.status(404).json({ error: "Izoh topilmadi" });
 
-    let replies = [];
-    try { replies = typeof comment.replies === 'string' ? JSON.parse(comment.replies) : (comment.replies || []); } catch(e){}
+    let replies = safeJsonParse(comment.replies, []);
 
     let userAvatar = req.user.avatar_url || null;
     try {
@@ -2225,9 +2487,9 @@ app.get("/api/mangas/:id/comments", async (req, res) => {
     if (Array.isArray(rows)) {
       const parsed = rows.map((r: any) => ({
         ...r,
-        liked_users: typeof r.liked_users === 'string' ? JSON.parse(r.liked_users || '[]') : (r.liked_users || []),
-        disliked_users: typeof r.disliked_users === 'string' ? JSON.parse(r.disliked_users || '[]') : (r.disliked_users || []),
-        replies: typeof r.replies === 'string' ? JSON.parse(r.replies || '[]') : (r.replies || [])
+        liked_users: safeJsonParse(r.liked_users, []),
+        disliked_users: safeJsonParse(r.disliked_users, []),
+        replies: safeJsonParse(r.replies, [])
       }));
       return res.json(parsed);
     }

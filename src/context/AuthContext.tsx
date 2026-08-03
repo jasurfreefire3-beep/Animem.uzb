@@ -90,6 +90,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  useEffect(() => {
+    if (!token) return;
+    const sendPing = () => {
+      fetch('/api/user/ping', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(() => {});
+    };
+    sendPing();
+    const interval = setInterval(sendPing, 40000);
+    return () => clearInterval(interval);
+  }, [token]);
+
   const login = (newToken: string, newUser: User) => {
     setToken(newToken);
     setUser(newUser);

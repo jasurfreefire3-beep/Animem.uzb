@@ -164,6 +164,7 @@ export default function App() {
             <Route path="/tarix" element={<Tarix />} />
             <Route path="/sozlamalar" element={<Sozlamalar />} />
             <Route path="/profil" element={<Profil />} />
+            <Route path="/user/:id" element={<Profil />} />
             <Route path="/donat" element={<Donat />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

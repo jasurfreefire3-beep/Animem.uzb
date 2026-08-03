@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Message } from '../types';
 import { io, Socket } from 'socket.io-client';
@@ -10,6 +11,7 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [activeMsgId, setActiveMsgId] = useState<string | number | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -174,85 +176,88 @@ export default function Chat() {
           messages.map((msg, i) => {
             const isMe = msg.user_id === user.id;
             const avatarSrc = msg.user_avatar || msg.avatar_url;
+            const isActive = activeMsgId === msg.id;
+
             return (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 key={msg.id || i}
-                className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'}`}
+                onClick={() => setActiveMsgId(isActive ? null : msg.id)}
+                className={`flex flex-col group cursor-pointer ${isMe ? 'items-end' : 'items-start'}`}
               >
-                <div className="flex items-center space-x-2 mb-1">
-                  {avatarSrc ? (
-                    <img 
-                      src={avatarSrc} 
-                      alt={msg.user_name} 
-                      className="w-5 h-5 rounded-full object-cover border border-[#ff006a]/30 shrink-0" 
-                    />
-                  ) : (
-                    <div className="w-5 h-5 rounded-full bg-[#1c1c1e] border border-[#ff006a]/20 flex items-center justify-center text-[10px] text-[#ff006a] font-bold uppercase shrink-0">
-                      {msg.user_name.charAt(0)}
-                    </div>
-                  )}
-                  <span className={`text-xs font-bold ${isMe ? 'text-[#ff006a]' : 'text-[#4fd1c5]'}`}>{msg.user_name}</span>
-                  <span className="text-[9px] text-white/30">{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                </div>
-                
-                <div className="flex items-center gap-2 max-w-[85%]">
-                  {isMe && (
-                    <div className="flex items-center gap-1">
-                      <button 
-                        onClick={() => setReplyingTo(msg)}
-                        className="p-1 text-white/50 md:text-white/20 hover:text-[#ff006a] hover:bg-white/5 rounded md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-all shrink-0"
-                        title="Javob berish"
-                      >
-                        <CornerUpLeft size={14} />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteMessage(msg.id)}
-                        className="p-1 text-white/50 md:text-white/20 hover:text-red-500 hover:bg-white/5 rounded md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-all shrink-0"
-                        title="O'chirish"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  )}
-                  
-                  <div
-                    className={`px-4 py-2.5 text-[13px] leading-relaxed shadow relative ${
-                      isMe
-                        ? 'bg-[#111113] border border-[#ff006a]/20 text-white rounded-l-md rounded-br-md'
-                        : 'bg-[#161619] border border-white/5 text-white/90 rounded-r-md rounded-bl-md'
-                    }`}
-                  >
-                    {msg.reply_to_id && (
-                      <div className="mb-2 text-xs bg-black/40 border-l-2 border-[#ff006a] p-1.5 rounded-sm text-left opacity-80">
-                        <span className="font-bold text-[#ff006a] text-[9px]">@{msg.reply_to_name}</span>
-                        <p className="text-white/60 text-[10px] truncate max-w-[240px] mt-0.5">{msg.reply_to_content}</p>
+                <div className={`flex items-start gap-3 max-w-[85%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <Link to={`/user/${msg.user_id}`} onClick={(e) => e.stopPropagation()} className="shrink-0 mt-0.5">
+                    {avatarSrc ? (
+                      <img 
+                        src={avatarSrc} 
+                        alt={msg.user_name} 
+                        className="w-10 h-10 rounded-full object-cover border-2 border-[#ff006a]/30 hover:border-[#ff006a] transition-all shadow-md" 
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#2a2a2e] to-[#151518] border-2 border-[#ff006a]/30 flex items-center justify-center text-xs text-[#ff006a] font-extrabold shadow-md hover:text-white transition-colors">
+                        {msg.user_name.charAt(0).toUpperCase()}
                       </div>
                     )}
-                    {msg.content}
-                  </div>
-                  
-                  {!isMe && (
-                    <div className="flex items-center gap-1">
-                      <button 
-                        onClick={() => setReplyingTo(msg)}
-                        className="p-1 text-white/50 md:text-white/20 hover:text-[#ff006a] hover:bg-white/5 rounded md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-all shrink-0"
-                        title="Javob berish"
+                  </Link>
+
+                  <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Link to={`/user/${msg.user_id}`} onClick={(e) => e.stopPropagation()} className={`text-xs font-bold hover:underline ${isMe ? 'text-[#ff006a]' : 'text-[#4fd1c5]'}`}>
+                        {msg.user_name}
+                      </Link>
+                      <span className="text-[9px] text-white/30">{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {isMe && (
+                        <div className={`flex items-center gap-1 transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setReplyingTo(msg); }}
+                            className="p-1.5 text-white/50 hover:text-[#ff006a] hover:bg-white/10 rounded-full transition-all shrink-0 cursor-pointer"
+                            title="Javob berish"
+                          >
+                            <CornerUpLeft size={14} />
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }}
+                            className="p-1.5 text-white/50 hover:text-red-500 hover:bg-white/10 rounded-full transition-all shrink-0 cursor-pointer"
+                            title="O'chirish"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )}
+
+                      <div
+                        className={`px-4 py-2.5 text-[13px] leading-relaxed shadow relative ${
+                          isMe
+                            ? 'bg-[#111113] border border-[#ff006a]/30 text-white rounded-l-xl rounded-br-xl'
+                            : 'bg-[#161619] border border-white/10 text-white/90 rounded-r-xl rounded-bl-xl'
+                        }`}
                       >
-                        <CornerUpLeft size={14} />
-                      </button>
-                      {user.role === 'admin' && (
-                        <button 
-                          onClick={() => handleDeleteMessage(msg.id)}
-                          className="p-1 text-white/50 md:text-white/20 hover:text-red-500 hover:bg-white/5 rounded md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-all shrink-0"
-                          title="O'chirish"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {msg.reply_to_id && (
+                          <div className="mb-2 text-xs bg-black/40 border-l-2 border-[#ff006a] p-1.5 rounded-md text-left opacity-80">
+                            <span className="font-bold text-[#ff006a] text-[9px]">@{msg.reply_to_name}</span>
+                            <p className="text-white/60 text-[10px] truncate max-w-[240px] mt-0.5">{msg.reply_to_content}</p>
+                          </div>
+                        )}
+                        {msg.content}
+                      </div>
+
+                      {!isMe && (
+                        <div className={`flex items-center gap-1 transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setReplyingTo(msg); }}
+                            className="p-1.5 text-white/50 hover:text-[#ff006a] hover:bg-white/10 rounded-full transition-all shrink-0 cursor-pointer"
+                            title="Javob berish"
+                          >
+                            <CornerUpLeft size={14} />
+                          </button>
+                        </div>
                       )}
                     </div>
-                  )}
+                  </div>
                 </div>
               </motion.div>
             );

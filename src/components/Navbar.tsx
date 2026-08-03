@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Notification } from '../types';
-import { Search, LogOut, User, Bell, Menu, PlusCircle, Heart, Settings, X, Shield } from 'lucide-react';
+import { Notification, Anime, toSlug } from '../types';
+import { Search, LogOut, User, Bell, Menu, PlusCircle, Heart, Settings, X, Shield, Star, Film } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import logoImg from '../logo.png';
 
@@ -13,11 +13,13 @@ interface NavbarProps {
 export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [searchValue, setSearchValue] = useState(searchParams.get('search') || '');
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [allAnimes, setAllAnimes] = useState<Anime[]>([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [lastReadId, setLastReadId] = useState<number>(() => {
     return Number(localStorage.getItem('last_read_notif_id') || '0');
   });
@@ -25,6 +27,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const notifCount = notifications.filter(n => Number(n.id) > lastReadId).length;
   const [showMobileSearch, setShowMobileSearch] = useState(false);
 
+  // Fetch notifications & animes on mount
   useEffect(() => {
     let isMounted = true;
     const controller = new AbortController();
@@ -42,12 +45,26 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
         }
       } catch (err: any) {
         if (err.name !== 'AbortError') {
-          // Ignore transient fetch errors in silent background polling
+          // Ignore transient fetch errors
         }
       }
     };
 
+    const fetchAnimes = async () => {
+      try {
+        const res = await fetch('/api/animes', { signal: controller.signal });
+        if (res.ok && isMounted) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setAllAnimes(data);
+          }
+        }
+      } catch (err) {}
+    };
+
     fetchNotifications();
+    fetchAnimes();
+
     const interval = setInterval(fetchNotifications, 15000);
     return () => {
       isMounted = false;
@@ -58,6 +75,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSearchValue(searchParams.get('search') || '');
@@ -72,19 +90,36 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
       }
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsSearchFocused(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Compute live search results
+  const searchResults = useMemo(() => {
+    if (!searchValue.trim()) return [];
+    const q = searchValue.trim().toLowerCase();
+    return allAnimes.filter(anime => {
+      const title = (anime.title || '').toLowerCase();
+      const janrlar = (anime.janrlar || '').toLowerCase();
+      const tags = (anime.tags || '').toLowerCase();
+      const desc = (anime.description || '').toLowerCase();
+      return title.includes(q) || janrlar.includes(q) || tags.includes(q) || desc.includes(q);
+    });
+  }, [searchValue, allAnimes]);
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsSearchFocused(false);
+    setShowMobileSearch(false);
     if (searchValue.trim()) {
       navigate(`/animelar?search=${encodeURIComponent(searchValue.trim())}`);
     } else {
       navigate('/animelar');
     }
-    setShowMobileSearch(false);
   };
 
   const handleLogout = () => {
@@ -103,28 +138,80 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute inset-0 bg-[#09090b] px-4 flex items-center gap-3 z-40 sm:hidden"
+            className="absolute inset-x-0 top-0 bg-[#09090b] px-4 py-3 flex flex-col gap-2 z-40 border-b border-[#222] shadow-2xl sm:hidden"
           >
-            <button
-              type="button"
-              onClick={() => setShowMobileSearch(false)}
-              className="p-2 text-white/60 hover:text-white transition-colors"
-            >
-              <X size={20} />
-            </button>
-            <form onSubmit={handleSearchSubmit} className="relative flex-1">
-              <input
-                type="text"
-                autoFocus
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                placeholder="Anime qidirish..."
-                className="w-full bg-[#111113] border border-[#ff006a]/30 text-white text-xs rounded-sm pl-4 pr-10 py-3 focus:outline-none focus:border-[#ff006a] transition-all placeholder:text-white/30 font-bold"
-              />
-              <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors">
-                <Search size={16} />
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowMobileSearch(false)}
+                className="p-1.5 text-white/60 hover:text-white transition-colors"
+              >
+                <X size={20} />
               </button>
-            </form>
+              <form onSubmit={handleSearchSubmit} className="relative flex-1">
+                <input
+                  type="text"
+                  autoFocus
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  placeholder="Anime nomini yozing..."
+                  className="w-full bg-[#111113] border border-[#ff006a]/40 text-white text-xs rounded-sm pl-4 pr-10 py-2.5 focus:outline-none focus:border-[#ff006a] transition-all placeholder:text-white/30 font-bold"
+                />
+                <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-[#ff006a] hover:text-white transition-colors">
+                  <Search size={16} />
+                </button>
+              </form>
+            </div>
+
+            {/* Mobile Live Results */}
+            {searchValue.trim() && (
+              <div className="bg-[#111113] border border-[#222] rounded-sm max-h-72 overflow-y-auto divide-y divide-[#1a1a1c] mt-1">
+                {searchResults.length === 0 ? (
+                  <div className="p-3 text-center text-xs text-white/40 flex items-center justify-center gap-2">
+                    <Film size={14} />
+                    <span>Hech narsa topilmadi</span>
+                  </div>
+                ) : (
+                  <>
+                    {searchResults.slice(0, 5).map((anime) => (
+                      <Link
+                        key={anime.id}
+                        to={`/anime/${toSlug(anime.title)}`}
+                        onClick={() => {
+                          setShowMobileSearch(false);
+                          setIsSearchFocused(false);
+                        }}
+                        className="p-2 flex items-center gap-3 hover:bg-[#1a1a1c] transition-colors"
+                      >
+                        <img
+                          src={anime.image_url}
+                          alt={anime.title}
+                          className="w-9 h-12 object-cover rounded-sm border border-white/10 shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-white truncate">{anime.title}</p>
+                          <div className="flex items-center gap-2 text-[10px] text-white/40 mt-0.5">
+                            {anime.rating && (
+                              <span className="flex items-center gap-0.5 text-yellow-400 font-bold">
+                                <Star size={10} className="fill-current" /> {Number(anime.rating).toFixed(1)}
+                              </span>
+                            )}
+                            <span>{anime.yil || ''}</span>
+                            <span className="text-[#ff006a] uppercase text-[9px] font-semibold">{anime.holati || ''}</span>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                    <button
+                      onClick={() => handleSearchSubmit()}
+                      className="w-full p-2.5 text-center text-xs font-bold text-[#ff006a] hover:bg-[#ff006a]/10 transition-colors bg-[#09090b]"
+                    >
+                      Barcha {searchResults.length} ta natijani ko'rish →
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -148,19 +235,83 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           />
         </Link>
 
-        {/* Search Bar Input */}
-        <form onSubmit={handleSearchSubmit} className="relative max-w-md w-full hidden sm:block">
-          <input
-            type="text"
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            placeholder="Anime qidirish..."
-            className="w-full bg-[#111113] border border-[#1a1a1c] text-white text-xs rounded-sm pl-4 pr-10 py-2.5 focus:outline-none focus:border-[#ff006a] transition-all placeholder:text-white/30 font-bold"
-          />
-          <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors">
-            <Search size={14} />
-          </button>
-        </form>
+        {/* Search Bar Input (Desktop) */}
+        <div className="relative max-w-md w-full hidden sm:block" ref={searchContainerRef}>
+          <form onSubmit={handleSearchSubmit} className="relative w-full">
+            <input
+              type="text"
+              value={searchValue}
+              onFocus={() => setIsSearchFocused(true)}
+              onChange={(e) => {
+                setSearchValue(e.target.value);
+                setIsSearchFocused(true);
+              }}
+              placeholder="Anime qidirish..."
+              className="w-full bg-[#111113] border border-[#1a1a1c] text-white text-xs rounded-sm pl-4 pr-10 py-2.5 focus:outline-none focus:border-[#ff006a] transition-all placeholder:text-white/30 font-bold"
+            />
+            <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-[#ff006a] transition-colors">
+              <Search size={14} />
+            </button>
+          </form>
+
+          {/* Desktop Live Autocomplete Dropdown */}
+          <AnimatePresence>
+            {isSearchFocused && searchValue.trim() && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 5 }}
+                className="absolute left-0 right-0 top-full mt-1.5 bg-[#111113] border border-[#222] rounded-sm shadow-2xl overflow-hidden z-50 divide-y divide-[#1a1a1c]"
+              >
+                {searchResults.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-white/40 flex items-center justify-center gap-2">
+                    <Film size={14} />
+                    <span>"{searchValue}" bo'yicha anime topilmadi</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="max-h-80 overflow-y-auto divide-y divide-[#1a1a1c] custom-scrollbar">
+                      {searchResults.slice(0, 6).map((anime) => (
+                        <Link
+                          key={anime.id}
+                          to={`/anime/${toSlug(anime.title)}`}
+                          onClick={() => setIsSearchFocused(false)}
+                          className="p-2.5 flex items-center gap-3 hover:bg-[#1a1a1c] transition-colors group"
+                        >
+                          <img
+                            src={anime.image_url}
+                            alt={anime.title}
+                            className="w-10 h-13 object-cover rounded-sm border border-white/10 shrink-0 group-hover:scale-105 transition-transform"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-white group-hover:text-[#ff006a] transition-colors truncate">
+                              {anime.title}
+                            </p>
+                            <div className="flex items-center gap-2 text-[10px] text-white/40 mt-1">
+                              {anime.rating && (
+                                <span className="flex items-center gap-0.5 text-yellow-400 font-bold">
+                                  <Star size={10} className="fill-current" /> {Number(anime.rating).toFixed(1)}
+                                </span>
+                              )}
+                              <span>{anime.yil || ''}</span>
+                              <span className="text-[#ff006a] uppercase text-[9px] font-semibold">{anime.holati || ''}</span>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => handleSearchSubmit()}
+                      className="w-full p-2.5 text-center text-xs font-bold text-[#ff006a] hover:bg-[#ff006a]/10 transition-colors bg-[#0c0c0e] block"
+                    >
+                      Barcha {searchResults.length} ta natijani ko'rish →
+                    </button>
+                  </>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Right side: Actions & Profile */}

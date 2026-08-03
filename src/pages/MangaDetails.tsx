@@ -100,7 +100,7 @@ export default function MangaDetails() {
       });
       if (res.ok) {
         const data = await res.json();
-        setComments(comments.map(c => c.id === commentId ? { ...c, likes: data.likes, dislikes: data.dislikes, liked_users: data.liked_users, disliked_users: data.disliked_users } : c));
+        setComments(comments.map(c => String(c.id) === String(commentId) ? { ...c, likes: data.likes, dislikes: data.dislikes, liked_users: data.liked_users, disliked_users: data.disliked_users } : c));
       }
     } catch(e) {}
   };
@@ -114,7 +114,7 @@ export default function MangaDetails() {
       });
       if (res.ok) {
         const data = await res.json();
-        setComments(comments.map(c => c.id === commentId ? { ...c, likes: data.likes, dislikes: data.dislikes, liked_users: data.liked_users, disliked_users: data.disliked_users } : c));
+        setComments(comments.map(c => String(c.id) === String(commentId) ? { ...c, likes: data.likes, dislikes: data.dislikes, liked_users: data.liked_users, disliked_users: data.disliked_users } : c));
       }
     } catch(e) {}
   };
@@ -137,7 +137,7 @@ export default function MangaDetails() {
       if (res.ok) {
         const newReply = await res.json();
         setComments(comments.map(c => {
-          if (c.id === commentId) {
+          if (String(c.id) === String(commentId)) {
             return { ...c, replies: [...(c.replies || []), newReply] };
           }
           return c;
@@ -457,15 +457,29 @@ export default function MangaDetails() {
                      className="group bg-[#18181c] border border-[#262626] p-4 rounded-md flex gap-3"
                   >
                      {avatarSrc ? (
-                        <img src={avatarSrc} alt={comment.user_name} className="w-9 h-9 rounded-full object-cover border border-white/10 shrink-0" />
+                        <img src={avatarSrc} alt={comment.user_name} className="w-11 h-11 rounded-full object-cover border-2 border-[#ff006a]/40 hover:border-[#ff006a] shrink-0 shadow-md transition-all" />
                      ) : (
-                        <div className="w-9 h-9 rounded-full bg-[#ff006a]/20 text-[#ff006a] flex items-center justify-center font-bold text-sm shrink-0 border border-[#ff006a]/30">
+                        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#2a2a2e] to-[#151518] text-[#ff006a] flex items-center justify-center font-extrabold text-sm shrink-0 border-2 border-[#ff006a]/30 shadow-md">
                            {comment.user_name?.[0]?.toUpperCase() || 'U'}
                         </div>
                      )}
                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
-                           <span className="text-white/90 font-medium text-xs">{comment.user_name}</span>
+                           <span className="text-white/90 font-bold text-xs">{comment.user_name}</span>
+                           <span className="text-white/30 text-[10px]">
+                              {new Date(comment.created_at).toLocaleDateString()}
+                           </span>
+
+                           {/* Quick Reply button right next to name */}
+                           <button 
+                              onClick={() => setReplyingCommentId(replyingCommentId === Number(comment.id) ? null : Number(comment.id))}
+                              className="px-2 py-0.5 rounded-full bg-white/5 hover:bg-[#ff006a]/20 text-[#ff006a] text-[10px] font-bold flex items-center gap-1 transition-all border border-[#ff006a]/20"
+                              title="Javob qaytarish"
+                           >
+                              <MessageCircle size={11} />
+                              <span>Javob berish</span>
+                           </button>
+
                            {user && (comment.user_id === user.id || user.role === 'admin') && (
                               <button
                                  onClick={() => handleCommentDelete(comment.id)}
@@ -475,11 +489,8 @@ export default function MangaDetails() {
                                  <Trash2 size={13} />
                               </button>
                            )}
-                           <span className="text-white/30 text-[10px] ml-auto">
-                              {new Date(comment.created_at).toLocaleDateString()}
-                           </span>
                         </div>
-                        <p className="text-white/70 text-sm leading-relaxed mb-3">{comment.content}</p>
+                        <p className="text-white/80 text-sm leading-relaxed mb-3">{comment.content}</p>
 
                         {/* Action buttons */}
                         <div className="flex items-center gap-4 text-xs text-white/50">
