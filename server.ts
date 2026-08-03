@@ -584,6 +584,9 @@ app.get("/api/proxy-video", async (req, res) => {
     } else if (parsed.hostname.includes("mover.uz")) {
       reqHeaders["Referer"] = "https://mover.uz/";
       reqHeaders["Origin"] = "https://mover.uz";
+    } else if (parsed.hostname.includes("voiplay.uz")) {
+      reqHeaders["Referer"] = "https://voiplay.uz/";
+      reqHeaders["Origin"] = "https://voiplay.uz";
     } else {
       reqHeaders["Referer"] = `https://${parsed.hostname}/`;
     }

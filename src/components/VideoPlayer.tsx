@@ -2,6 +2,46 @@ import React, { useEffect, useRef, useState } from 'react';
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 
+// Custom HLS Loader that proxies all manifest and fragment requests while preserving original base URLs
+class CustomHlsLoader extends (Hls.DefaultConfig.loader as any) {
+  load(context: any, config: any, callbacks: any) {
+    const originalUrl = context ? context.url : '';
+    let requestUrl = originalUrl;
+
+    if (requestUrl.startsWith('//')) {
+      requestUrl = 'https:' + requestUrl;
+    }
+
+    if (requestUrl.startsWith('http://') || requestUrl.startsWith('https://')) {
+      try {
+        const u = new URL(requestUrl);
+        if (u.origin !== window.location.origin && !requestUrl.includes('/api/proxy-video')) {
+          requestUrl = `/api/proxy-video?url=${encodeURIComponent(requestUrl)}`;
+        }
+      } catch (e) {}
+    }
+
+    const modifiedContext = { ...context, url: requestUrl };
+
+    const modifiedCallbacks = {
+      ...callbacks,
+      onSuccess: (response: any, stats: any, contextParam: any, networkDetails: any) => {
+        if (response) {
+          response.url = originalUrl;
+        }
+        if (contextParam) {
+          contextParam.url = originalUrl;
+        }
+        if (callbacks && callbacks.onSuccess) {
+          callbacks.onSuccess(response, stats, contextParam, networkDetails);
+        }
+      }
+    };
+
+    super.load(modifiedContext, config, modifiedCallbacks);
+  }
+}
+
 interface VideoPlayerProps {
   url: string;
   poster?: string;
@@ -84,7 +124,10 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
     ? `/api/proxy-video?url=${encodeURIComponent(rawVideoUrl)}`
     : rawVideoUrl;
 
-  const isHls = effectiveUrl.toLowerCase().includes('.m3u8');
+  const isHls = rawVideoUrl.toLowerCase().includes('m3u8') || 
+                effectiveUrl.toLowerCase().includes('m3u8') || 
+                rawVideoUrl.toLowerCase().includes('/hls/') ||
+                /\/(hls|m3u8|stream)\b/i.test(rawVideoUrl);
 
   // Initialize ArtPlayer for native media files
   useEffect(() => {
@@ -134,28 +177,129 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
         customType: {
           m3u8: function (video: HTMLVideoElement, url: string, artInstance: any) {
             if (Hls.isSupported()) {
-              if (artInstance.hls) artInstance.hls.destroy();
+              if (artInstance.hls) {
+                try {
+                  artInstance.hls.destroy();
+                } catch (e) {}
+              }
               const hls = new Hls({
                 enableWorker: true,
-                lowLatencyMode: true,
+                lowLatencyMode: false,
+                capLevelToPlayerSize: false,
+                maxBufferLength: 60,
+                maxMaxBufferLength: 120,
+                maxBufferSize: 128 * 1024 * 1024, // 128MB buffer for 1080p/4K streams
+                loader: CustomHlsLoader as any,
+                fLoader: CustomHlsLoader as any,
+                pLoader: CustomHlsLoader as any,
               });
-              hls.loadSource(url);
+
+              // Load from original raw URL so HLS.js base URL resolution computes correct target paths,
+              // while CustomHlsLoader routes each request through proxy-video
+              hls.loadSource(rawVideoUrl);
               hls.attachMedia(video);
               artInstance.hls = hls;
 
-              hls.on(Hls.Events.ERROR, (_, data) => {
-                if (data.fatal) {
-                  if (!useProxy && rawVideoUrl.startsWith('http')) {
-                    setUseProxy(true);
-                  } else {
-                    setHasError(true);
+              // Setup quality selector menu for any resolution (144p, 360p, 480p, 720p, 1080p, 1440p, 4K)
+              hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+                if (data.levels && data.levels.length > 0) {
+                  const levels = data.levels;
+                  const qualityOptions = levels.map((level: any, index: number) => {
+                    let resName = '';
+                    if (level.height) {
+                      if (level.height >= 2160) resName = `${level.height}p (4K)`;
+                      else if (level.height >= 1440) resName = `${level.height}p (2K)`;
+                      else if (level.height >= 1080) resName = `${level.height}p (FHD)`;
+                      else if (level.height >= 720) resName = `${level.height}p (HD)`;
+                      else resName = `${level.height}p`;
+                    } else {
+                      resName = level.name || `Sifat ${index + 1}`;
+                    }
+
+                    return {
+                      default: index === hls.currentLevel,
+                      html: resName,
+                      value: index,
+                    };
+                  });
+
+                  if (levels.length > 1) {
+                    qualityOptions.unshift({
+                      default: true,
+                      html: 'Avto',
+                      value: -1,
+                    });
+
+                    if (artInstance.setting) {
+                      try {
+                        artInstance.setting.add({
+                          html: 'Sifat (Px)',
+                          name: 'quality',
+                          tooltip: 'Avto',
+                          selector: qualityOptions,
+                          onSelect: (item: any) => {
+                            hls.currentLevel = item.value;
+                            return item.html;
+                          },
+                        });
+                      } catch (e) {}
+                    }
                   }
                 }
               });
 
-              artInstance.on('destroy', () => hls.destroy());
+              // Update quality tooltip when auto level switches
+              hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
+                if (hls.autoLevelEnabled && hls.levels && hls.levels[data.level]) {
+                  const currentLevel = hls.levels[data.level];
+                  if (currentLevel && artInstance.setting) {
+                    const resName = currentLevel.height ? `Avto (${currentLevel.height}p)` : 'Avto';
+                    try {
+                      artInstance.setting.update({
+                        name: 'quality',
+                        tooltip: resName,
+                      });
+                    } catch (e) {}
+                  }
+                }
+              });
+
+              let retryCount = 0;
+              hls.on(Hls.Events.ERROR, (_, data) => {
+                if (data.fatal) {
+                  switch (data.type) {
+                    case Hls.ErrorTypes.NETWORK_ERROR:
+                      retryCount++;
+                      if (retryCount <= 3) {
+                        console.warn(`[HLS] Network error, retrying (${retryCount}/3)...`);
+                        hls.startLoad();
+                      } else {
+                        setHasError(true);
+                      }
+                      break;
+                    case Hls.ErrorTypes.MEDIA_ERROR:
+                      console.warn('[HLS] Media error, attempting recovery...');
+                      hls.recoverMediaError();
+                      break;
+                    default:
+                      console.error('[HLS] Fatal unrecoverable error:', data);
+                      setHasError(true);
+                      break;
+                  }
+                }
+              });
+
+              artInstance.on('destroy', () => {
+                try {
+                  hls.destroy();
+                } catch (e) {}
+              });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
               video.src = url;
+            } else {
+              if (artInstance.notice) {
+                artInstance.notice.show = "HLS video formatini brauzer qo'llab-quvvatlamadi";
+              }
             }
           },
         },
