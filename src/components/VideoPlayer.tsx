@@ -226,23 +226,13 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
               <div className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center z-20">
                 <p className="text-white font-semibold text-sm mb-2">Videoni yuklashda muammo yuz berdi</p>
                 <p className="text-xs text-white/60 max-w-md mb-4">Video manbasi yoki proxy javob bermadi.</p>
-                <div className="flex flex-wrap gap-2 justify-center">
+                <div className="flex justify-center">
                   <button
                     onClick={() => { setHasError(false); setUseProxy(!useProxy); }}
-                    className="px-4 py-2 bg-[#ff006a] hover:bg-[#e0005d] text-white text-xs font-semibold rounded-lg transition shadow-lg"
+                    className="px-5 py-2.5 bg-[#ff006a] hover:bg-[#e0005d] text-white text-xs font-semibold rounded-lg transition shadow-lg cursor-pointer active:scale-95"
                   >
                     Qayta yuklash
                   </button>
-                  {rawVideoUrl.startsWith('http') && (
-                    <a
-                      href={rawVideoUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-lg transition"
-                    >
-                      To'g'ridan-to'g me'yoriy manzilda ochish
-                    </a>
-                  )}
                 </div>
               </div>
             )}
