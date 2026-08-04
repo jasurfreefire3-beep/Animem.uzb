@@ -867,7 +867,7 @@ export default function Login() {
                     </p>
                     <div className="py-2">
                       <a
-                        href={`https://t.me/Animemuz_register_bot?start=${telegramSessionId}`}
+                        href={`https://t.me/Animem_register_bot?start=${telegramSessionId}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-sky-400 hover:from-blue-600 hover:to-sky-500 text-white font-bold rounded-sm shadow-lg shadow-blue-500/20 transition-all duration-300 hover:scale-[1.03] uppercase text-[10px] tracking-wider cursor-pointer"
