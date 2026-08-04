@@ -4072,19 +4072,29 @@ async function runTelegramBot() {
                     const hashedPassword = await bcrypt.hash(randomPass, 10);
                     const role = email === "mosinjonovjasurbek28@gmail.com" ? "admin" : "user";
 
-                    const [insertRes]: any = await dbQuery(
-                      "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
-                      [name, email, hashedPassword, role, avatar_url || null, String(tgUserId)]
-                    );
+                    try {
+                      const [insertRes]: any = await dbQuery(
+                        "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
+                        [name, email, hashedPassword, role, avatar_url || null, String(tgUserId)]
+                      );
 
-                    user = {
-                      id: insertRes.insertId,
-                      name,
-                      email,
-                      role,
-                      avatar_url: avatar_url || null,
-                      telegram_id: String(tgUserId)
-                    };
+                      user = {
+                        id: insertRes.insertId,
+                        name,
+                        email,
+                        role,
+                        avatar_url: avatar_url || null,
+                        telegram_id: String(tgUserId)
+                      };
+                    } catch (insertErr: any) {
+                      if (insertErr.code === 'ER_DUP_ENTRY') {
+                        let [existingUsers]: any = await dbQuery("SELECT * FROM users WHERE email = ?", [email]);
+                        user = existingUsers[0];
+                        if (!user) throw insertErr;
+                      } else {
+                        throw insertErr;
+                      }
+                    }
                   } else {
                     await dbQuery(
                       "UPDATE users SET telegram_id = ?, avatar_url = COALESCE(avatar_url, ?) WHERE id = ?",
@@ -4189,19 +4199,29 @@ app.post("/api/auth/telegram/simulate", async (req, res) => {
       const hashedPassword = await bcrypt.hash(randomPass, 10);
       const role = email === "mosinjonovjasurbek28@gmail.com" ? "admin" : "user";
 
-      const [insertRes]: any = await dbQuery(
-        "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
-        [name, email, hashedPassword, role, avatar_url || null, String(fakeTgUserId)]
-      );
+      try {
+        const [insertRes]: any = await dbQuery(
+          "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
+          [name, email, hashedPassword, role, avatar_url || null, String(fakeTgUserId)]
+        );
 
-      user = {
-        id: insertRes.insertId,
-        name,
-        email,
-        role,
-        avatar_url: avatar_url || null,
-        telegram_id: String(fakeTgUserId)
-      };
+        user = {
+          id: insertRes.insertId,
+          name,
+          email,
+          role,
+          avatar_url: avatar_url || null,
+          telegram_id: String(fakeTgUserId)
+        };
+      } catch (insertErr: any) {
+        if (insertErr.code === 'ER_DUP_ENTRY') {
+          let [existingUsers]: any = await dbQuery("SELECT * FROM users WHERE email = ?", [email]);
+          user = existingUsers[0];
+          if (!user) throw insertErr;
+        } else {
+          throw insertErr;
+        }
+      }
     }
 
     const userPayload = {
