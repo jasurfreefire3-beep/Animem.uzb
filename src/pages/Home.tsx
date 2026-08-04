@@ -19,7 +19,7 @@ export default function Home() {
 
   useEffect(() => {
     const fetchHomeData = async () => {
-      const API_BASE = '';
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
       let retries = 3;
       let delay = 1000;
 

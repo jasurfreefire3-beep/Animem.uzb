@@ -52,7 +52,7 @@ export default function Admin() {
 
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  const API_BASE = '';
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
   const safeJson = async (res: Response) => {
     const contentType = res.headers.get("content-type") || "";

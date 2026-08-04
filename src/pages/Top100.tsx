@@ -11,7 +11,7 @@ export default function Top100() {
   useEffect(() => {
     const fetchTopAnimes = async () => {
       try {
-        const API_BASE = '';
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
         const res = await fetch(`${API_BASE}/api/animes`);
         const contentType = res.headers.get("content-type");
         if (res.ok && contentType && contentType.includes("application/json")) {

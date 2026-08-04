@@ -34,7 +34,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
 
     const fetchNotifications = async () => {
       try {
-        const API_BASE = '';
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
         const res = await fetch(`${API_BASE}/api/notifications`, { signal: controller.signal });
         const contentType = res.headers.get("content-type");
         if (res.ok && contentType && contentType.includes("application/json") && isMounted) {

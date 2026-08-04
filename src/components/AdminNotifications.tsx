@@ -14,7 +14,7 @@ export default function AdminNotifications() {
     setStatus({ type: '', text: '' });
     
     try {
-      const API_BASE = '';
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
       const res = await fetch(`${API_BASE}/api/notifications`, {
         method: 'POST',
         headers: {

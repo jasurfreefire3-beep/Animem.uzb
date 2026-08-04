@@ -11,7 +11,7 @@ export default function AnimeDetails() {
   const { slug } = params;
   const navigate = useNavigate();
   const { user, token, logout } = useAuth();
-  const API_BASE = '';
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
   const [anime, setAnime] = useState<Anime | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [episodesList, setEpisodesList] = useState<any[]>([]);

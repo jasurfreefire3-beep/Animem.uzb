@@ -87,7 +87,7 @@ export default function Profil() {
           return;
         }
 
-        const API_BASE = '';
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
         const headers: Record<string, string> = {};
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
@@ -172,7 +172,7 @@ export default function Profil() {
       const resizedBase64 = await resizeImage(file, 250, 250);
       setEditAvatarUrl(resizedBase64);
 
-      const API_BASE = '';
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
       const res = await fetch(`${API_BASE}/api/user/avatar`, {
         method: 'POST',
         headers: {
@@ -205,7 +205,7 @@ export default function Profil() {
       const resizedBase64 = await resizeImage(file, 1000, 400);
       setEditBannerUrl(resizedBase64);
 
-      const API_BASE = '';
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
       await fetch(`${API_BASE}/api/user/profile`, {
         method: 'PUT',
         headers: {
@@ -232,7 +232,7 @@ export default function Profil() {
 
     setSaving(true);
     try {
-      const API_BASE = '';
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
       const payload = {
         name: editName.trim(),
         bio: editBio,

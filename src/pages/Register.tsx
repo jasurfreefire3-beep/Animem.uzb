@@ -48,7 +48,7 @@ export default function Register() {
       .then(async (result) => {
         if (!result || !isMounted) return;
         const user = result.user;
-        const API_BASE = '';
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
         const res = await fetch(`${API_BASE}/api/auth/google`, {
           method: 'POST',
           headers: {
