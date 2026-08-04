@@ -11,6 +11,7 @@ import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import multer from "multer";
+import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
@@ -3912,7 +3913,7 @@ app.delete("/api/chat/clear", authenticateToken, async (req: any, res) => {
 
 
 // --- TELEGRAM LOGIN ENGINE & BOT POLLING ---
-const BOT_TOKEN = "8994654823:AAF639gjnOttH4p0mHtrNHVhRXwsiWeOYM8";
+const BOT_TOKEN = "8738762833:AAE183dMQGDTnBlmlRaHcPoZjqol8jiCNL0";
 const activeSessions = new Map<string, any>(); // sessionId -> sessionData
 const chatToSession = new Map<number, string>(); // chatId -> sessionId
 
@@ -3943,7 +3944,7 @@ async function sendTelegramMessage(chatId: number, text: string, replyMarkup?: a
 
 // Background Bot Long Polling
 async function runTelegramBot() {
-  console.log("Starting Telegram Bot (8994654823) long polling loop...");
+  console.log("Starting Telegram Bot (8738762833) long polling loop...");
   let offset = 0;
 
   // Cleanup old sessions (older than 30 mins) every 10 minutes
@@ -4664,6 +4665,47 @@ async function start() {
 
   // Route for anime detail pages
   app.get("/anime/:slug", handleDynamicSEO);
+
+  // Support bot route
+  app.post("/api/support-bot", async (req, res) => {
+    try {
+      const { message, history, userName } = req.body;
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: "Gemini API key sozlanmagan" });
+      }
+
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+      const sysInstruction = `Sizning ismingiz Sumire. Siz Animem.uz saytining sun'iy intellekt yordamchisisiz. Siz odatda juda xursand, samimiy va yordamga tayyor qizsiz. Foydalanuvchining ismi: ${userName}. Lekin agar foydalanuvchi sizni xafa qilsa, so'ksa yoki nojo'ya gapirsa, siz darhol xafa bo'lasiz va ularni adminlarga aytaman deb qo'rqitasiz. Sizning javoblaringiz qisqa (maksimal 2-3 gap), vizual novella uslubida, emotsiya bilan yozilgan bo'lishi kerak. Foydalanuvchi sizga yozganda yordam so'rashini yoki shunchaki suhbatlashishini kutasiz. Animem.uz sayti - O'zbekistondagi eng zo'r anime sayti hisoblanadi.`;
+
+      // Convert history to Gemini format if needed (system/user/model), here just combining as context
+      let contents = [];
+      if (history && history.length > 0) {
+        contents = history.map((msg: any) => ({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.content }]
+        }));
+      }
+
+      // Add the new message
+      contents.push({ role: 'user', parts: [{ text: message }] });
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents,
+        config: {
+          systemInstruction: sysInstruction,
+          temperature: 0.7,
+        }
+      });
+
+      res.json({ reply: response.text });
+    } catch (err: any) {
+      console.error("Support bot error:", err);
+      res.status(500).json({ error: "Xatolik yuz berdi. Sumire hozir uxlab yotibdi." });
+    }
+  });
 
   // API 404 Fallback Handler - Ensures unhandled /api/* routes return JSON, never index.html
   app.all("/api/*", (req, res) => {

@@ -17,7 +17,8 @@ import {
   Shield,
   MessageSquare,
   Gift,
-  X
+  X,
+  MessageCircle
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { translateGenre } from '../types';
@@ -177,6 +178,19 @@ export default function Sidebar({ onClose, onGenreSelect }: SidebarProps) {
           </div>
         </div>
       </div>
+
+      {/* Support Bot Button (Yashirildi)
+      <div className="p-4 border-t border-[#1a1a1a] bg-[#0c0c0e]">
+        <Link
+          to="/support"
+          onClick={onClose}
+          className="flex items-center justify-center space-x-2 w-full bg-[#ff006a]/10 hover:bg-[#ff006a]/20 border border-[#ff006a]/30 text-[#ff006a] py-2.5 rounded-sm transition-all"
+        >
+          <MessageCircle size={16} />
+          <span className="font-bold text-xs tracking-wider uppercase">Sumire Yordam</span>
+        </Link>
+      </div>
+      */}
 
       {/* Bottom Mode Switch & Info */}
       <div className="p-4 border-t border-[#1a1a1a] bg-[#0c0c0e] flex items-center justify-between">

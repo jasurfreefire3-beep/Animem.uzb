@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import Home from './pages/Home';
@@ -27,10 +27,14 @@ import Sozlamalar from './pages/Sozlamalar';
 import Profil from './pages/Profil';
 import Donat from './pages/Donat';
 import NotFound from './pages/NotFound';
+import SupportBot from './pages/SupportBot';
 
 export default function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showTelegramBanner, setShowTelegramBanner] = useState(true);
+  
+  const location = useLocation();
+  const isSupportBot = location.pathname === '/support';
 
   const closeBanner = () => {
     setShowTelegramBanner(false);
@@ -42,6 +46,16 @@ export default function App() {
   const closeMobileSidebar = () => {
     setMobileSidebarOpen(false);
   };
+
+  if (isSupportBot) {
+    return (
+      <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-[#ff006a]/30 custom-scrollbar relative flex">
+        <Routes>
+          <Route path="/support" element={<SupportBot />} />
+        </Routes>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-[#ff006a]/30 custom-scrollbar relative flex">
