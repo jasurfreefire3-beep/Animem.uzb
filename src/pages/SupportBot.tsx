@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, CornerUpLeft, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
-import sumireImg from '../assets/images/sumire_support_bot_1785805801954.jpg';
 
 type BotMessage = {
   role: 'user' | 'model';
@@ -96,8 +95,12 @@ export default function SupportBot() {
           className="relative mb-4 w-[350px] md:w-[450px] aspect-square flex items-end justify-center drop-shadow-[0_0_30px_rgba(255,0,106,0.3)]"
         >
           <img 
-            src={sumireImg} 
+            src="/sumire_support_bot.jpg" 
             alt="Sumire" 
+            onError={(e) => {
+              // Fallback in case the image doesn't exist on their static hosting
+              e.currentTarget.src = "https://api.dicebear.com/7.x/lorelei/svg?seed=Sumire&backgroundColor=ff006a";
+            }}
             className="object-contain h-[110%] mask-image-bottom-fade"
             style={{ WebkitMaskImage: 'linear-gradient(to top, transparent 5%, black 40%)' }}
           />
