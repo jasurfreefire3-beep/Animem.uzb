@@ -108,7 +108,7 @@ export default function App() {
               {/* Right Side: Action Button and Close Button */}
               <div className="flex items-center gap-3 w-full lg:w-auto justify-center lg:justify-end shrink-0">
                 <motion.a
-                  href="https://t.me/animemuz1"
+                  href="https://t.me/animem_uz2"
                   target="_blank"
                   rel="noopener noreferrer"
                   whileHover={{ scale: 1.03, boxShadow: "0 0 20px rgba(0, 136, 204, 0.4)" }}
@@ -186,7 +186,7 @@ export default function App() {
 
         <footer className="p-4 border-t border-[#1a1a1a] mt-auto flex items-center justify-center gap-6">
           <a
-            href="https://t.me/animemuz1"
+            href="https://t.me/animem_uz2"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-white/40 hover:text-[#0088cc] transition-colors text-xs uppercase tracking-wider"
