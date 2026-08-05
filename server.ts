@@ -498,7 +498,7 @@ io.on("connection", async (socket) => {
       const { user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content } = data;
 
       const [result]: any = await dbQuery(
-        "INSERT INTO messages (user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO messages (user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content) VALUES (?, ?, ?, ?, ?, ?)",
         [
           user_id || null,
           user_name || "Anonim",
@@ -1226,7 +1226,7 @@ app.post("/api/auth/google", async (req, res) => {
       const hashedPassword = await bcrypt.hash(randomPass, 10);
       
       const [result]: any = await dbQuery(
-        "INSERT INTO users (name, email, password, role, avatar_url) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO users (name, email, password, role, avatar_url) VALUES (?, ?, ?, ?, ?)",
         [name, email, hashedPassword, role, avatar_url || null]
       );
       
@@ -2766,7 +2766,7 @@ app.post("/api/animes", authenticateToken, async (req: any, res) => {
       const [result]: any = await dbQuery(
         `INSERT INTO animes 
         (title, description, image_url, banner_url, rating, rating_count, holati, yil, studiyasi, qismlar_soni, korishlar, janrlar, video_url, tavsiya, is_banner, tags) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           title || "",
           description || "",
@@ -3431,7 +3431,7 @@ app.post("/api/mangas/:mangaId/chapters", authenticateToken, async (req: any, re
       } else {
         await dbQuery(
           `INSERT INTO manga_chapters (id, manga_id, chapter_number, title, pages, views, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [chapterObj.id, chapterObj.manga_id, chapterObj.chapter_number, chapterObj.title, jsonPages, chapterObj.views, chapterObj.created_at]
         );
       }
@@ -3840,7 +3840,7 @@ app.post("/api/chat/messages", authenticateToken, async (req: any, res: any) => 
     }
     
     const [result]: any = await dbQuery(
-      "INSERT INTO messages (user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO messages (user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content) VALUES (?, ?, ?, ?, ?, ?)",
       [
         user_id || req.user.id,
         user_name || req.user.name,
@@ -4139,7 +4139,7 @@ async function runTelegramBot() {
 
                     try {
                       const [insertRes]: any = await dbQuery(
-                        "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
                         [name, email, hashedPassword, role, avatar_url || null, String(tgUserId)]
                       );
 
@@ -4266,7 +4266,7 @@ app.post("/api/auth/telegram/simulate", async (req, res) => {
 
       try {
         const [insertRes]: any = await dbQuery(
-          "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
           [name, email, hashedPassword, role, avatar_url || null, String(fakeTgUserId)]
         );
 
@@ -4397,7 +4397,7 @@ async function processYandexAuth(codeOrToken: string, isToken = false) {
     const hashedPassword = await bcrypt.hash(randomPass, 10);
 
     const [insertRes]: any = await dbQuery(
-      "INSERT INTO users (name, email, password, role, avatar_url, yandex_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO users (name, email, password, role, avatar_url, yandex_id) VALUES (?, ?, ?, ?, ?, ?)",
       [name, email, hashedPassword, role, avatarUrl, yandexId]
     );
 
