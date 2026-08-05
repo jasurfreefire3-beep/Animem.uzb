@@ -9,6 +9,7 @@ export default function Mangalar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('Barchasi');
   const [selectedStatus, setSelectedStatus] = useState('Barchasi');
+  const [selectedType, setSelectedType] = useState('Barchasi');
 
   useEffect(() => {
     fetchMangas();
@@ -47,8 +48,9 @@ export default function Mangalar() {
     
     const matchesGenre = selectedGenre === 'Barchasi' || (manga.janrlar && manga.janrlar.includes(selectedGenre));
     const matchesStatus = selectedStatus === 'Barchasi' || manga.holati === selectedStatus;
+    const matchesType = selectedType === 'Barchasi' || (manga.type || 'Manga') === selectedType;
 
-    return matchesSearch && matchesGenre && matchesStatus;
+    return matchesSearch && matchesGenre && matchesStatus && matchesType;
   });
 
   return (
@@ -85,6 +87,21 @@ export default function Mangalar() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-[#18181c] border border-[#333] rounded-md pl-10 pr-4 py-2.5 text-white text-sm placeholder-white/40 focus:outline-none focus:border-[#ff006a] transition-colors"
             />
+          </div>
+
+          {/* Type Select */}
+          <div className="w-full md:w-40">
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="w-full bg-[#18181c] border border-[#333] rounded-md px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#ff006a] cursor-pointer"
+            >
+              <option value="Barchasi">Barcha Turlar</option>
+              <option value="Manga">Manga</option>
+              <option value="Manhwa">Manhwa</option>
+              <option value="Manhua">Manhua</option>
+              <option value="Komiks">Komiks</option>
+            </select>
           </div>
 
           {/* Status Select */}
@@ -178,7 +195,7 @@ export default function Mangalar() {
                 <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black via-black/80 to-transparent p-2 flex items-center justify-between text-[11px] text-white/80">
                   <span className="flex items-center gap-1 font-bold">
                     <Layers size={12} className="text-[#ff006a]" />
-                    {manga.chapters_count || 0} bob
+                    {manga.type || "Manga"} • {manga.chapters_count || 0} bob
                   </span>
                   <span className="flex items-center gap-1 text-white/60">
                     <Eye size={12} />

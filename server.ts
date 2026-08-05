@@ -418,6 +418,14 @@ async function testDbConnection() {
       }
     } catch(e) {}
 
+    try {
+      const [tCols]: any = await connection.query(`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'mangas' AND COLUMN_NAME = 'type' AND TABLE_SCHEMA = DATABASE()`);
+      if (tCols.length === 0) {
+        await connection.query(`ALTER TABLE mangas ADD COLUMN type VARCHAR(100) DEFAULT 'Manga'`);
+      }
+      await connection.query(`UPDATE mangas SET type = 'Manhwa' WHERE title LIKE '%Solo Leveling%'`);
+    } catch(e) {}
+
     // Ensure comments table
     await connection.query(`
       CREATE TABLE IF NOT EXISTS comments (
@@ -490,7 +498,7 @@ io.on("connection", async (socket) => {
       const { user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content } = data;
 
       const [result]: any = await dbQuery(
-        "INSERT INTO messages (user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO messages (user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
           user_id || null,
           user_name || "Anonim",
@@ -1218,7 +1226,7 @@ app.post("/api/auth/google", async (req, res) => {
       const hashedPassword = await bcrypt.hash(randomPass, 10);
       
       const [result]: any = await dbQuery(
-        "INSERT INTO users (name, email, password, role, avatar_url) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO users (name, email, password, role, avatar_url) VALUES (?, ?, ?, ?, ?, ?)",
         [name, email, hashedPassword, role, avatar_url || null]
       );
       
@@ -2758,7 +2766,7 @@ app.post("/api/animes", authenticateToken, async (req: any, res) => {
       const [result]: any = await dbQuery(
         `INSERT INTO animes 
         (title, description, image_url, banner_url, rating, rating_count, holati, yil, studiyasi, qismlar_soni, korishlar, janrlar, video_url, tavsiya, is_banner, tags) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           title || "",
           description || "",
@@ -3194,7 +3202,7 @@ app.get("/api/mangas/:id/chapters/:chapterNumber", async (req, res) => {
 app.post("/api/mangas", authenticateToken, async (req: any, res) => {
   try {
     if (req.user.role !== "admin") return res.sendStatus(403);
-    const { title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, tags } = req.body;
+    const { title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, tags, type } = req.body;
 
     if (!title || !description || !cover_url) {
       return res.status(400).json({ error: "Sarlavha, tavsif va muqova havola (cover_url) kiritilishi shart!" });
@@ -3212,6 +3220,7 @@ app.post("/api/mangas", authenticateToken, async (req: any, res) => {
       holati: holati || "Davom etmoqda",
       released_year: released_year ? parseInt(released_year) : new Date().getFullYear(),
       tags: tags || "",
+      type: type || "Manga",
       rating: 9.5,
       korishlar: 0,
       chapters_count: 0,
@@ -3227,8 +3236,8 @@ app.post("/api/mangas", authenticateToken, async (req: any, res) => {
     // Save to MySQL database
     try {
       await dbQuery(
-        `INSERT INTO mangas (id, title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, tags, rating, korishlar, chapters_count, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO mangas (id, title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, tags, type, rating, korishlar, chapters_count, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newManga.id,
           newManga.title,
@@ -3241,6 +3250,7 @@ app.post("/api/mangas", authenticateToken, async (req: any, res) => {
           newManga.holati,
           newManga.released_year,
           newManga.tags,
+          newManga.type,
           newManga.rating,
           newManga.korishlar,
           newManga.chapters_count,
@@ -3279,7 +3289,7 @@ app.put("/api/mangas/:id", authenticateToken, async (req: any, res) => {
 
     // Update in MySQL database
     try {
-      const { title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, tags } = updatedData;
+      const { title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, tags, type } = updatedData;
       await dbQuery(
         `UPDATE mangas 
          SET title = COALESCE(?, title),
@@ -3291,9 +3301,10 @@ app.put("/api/mangas/:id", authenticateToken, async (req: any, res) => {
              janrlar = COALESCE(?, janrlar),
              holati = COALESCE(?, holati),
              released_year = COALESCE(?, released_year),
-             tags = COALESCE(?, tags)
+             tags = COALESCE(?, tags),
+             type = COALESCE(?, type)
          WHERE id = ?`,
-        [title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, tags, id]
+        [title, description, cover_url, banner_url, author, artist, janrlar, holati, released_year, tags, type, id]
       );
     } catch (dbErr) {
       console.error("[MySQL] Failed to update manga:", dbErr);
@@ -3420,7 +3431,7 @@ app.post("/api/mangas/:mangaId/chapters", authenticateToken, async (req: any, re
       } else {
         await dbQuery(
           `INSERT INTO manga_chapters (id, manga_id, chapter_number, title, pages, views, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [chapterObj.id, chapterObj.manga_id, chapterObj.chapter_number, chapterObj.title, jsonPages, chapterObj.views, chapterObj.created_at]
         );
       }
@@ -3829,7 +3840,7 @@ app.post("/api/chat/messages", authenticateToken, async (req: any, res: any) => 
     }
     
     const [result]: any = await dbQuery(
-      "INSERT INTO messages (user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO messages (user_id, user_name, content, reply_to_id, reply_to_name, reply_to_content) VALUES (?, ?, ?, ?, ?, ?, ?)",
       [
         user_id || req.user.id,
         user_name || req.user.name,
@@ -4128,7 +4139,7 @@ async function runTelegramBot() {
 
                     try {
                       const [insertRes]: any = await dbQuery(
-                        "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
+                        "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
                         [name, email, hashedPassword, role, avatar_url || null, String(tgUserId)]
                       );
 
@@ -4255,7 +4266,7 @@ app.post("/api/auth/telegram/simulate", async (req, res) => {
 
       try {
         const [insertRes]: any = await dbQuery(
-          "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?)",
+          "INSERT INTO users (name, email, password, role, avatar_url, telegram_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
           [name, email, hashedPassword, role, avatar_url || null, String(fakeTgUserId)]
         );
 
@@ -4386,7 +4397,7 @@ async function processYandexAuth(codeOrToken: string, isToken = false) {
     const hashedPassword = await bcrypt.hash(randomPass, 10);
 
     const [insertRes]: any = await dbQuery(
-      "INSERT INTO users (name, email, password, role, avatar_url, yandex_id) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO users (name, email, password, role, avatar_url, yandex_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
       [name, email, hashedPassword, role, avatarUrl, yandexId]
     );
 

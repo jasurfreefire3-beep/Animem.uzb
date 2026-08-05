@@ -16,6 +16,7 @@ export default function MangaDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showFullDesc, setShowFullDesc] = useState(false);
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -152,8 +153,8 @@ export default function MangaDetails() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: manga?.title || 'Manga',
-          text: `${manga?.title} mangasini o'zbek tilida o'qing!`,
+          title: manga?.title || manga?.type || 'Manga',
+          text: `${manga?.title} ${manga?.type?.toLowerCase() || 'manga'}sini o'zbek tilida o'qing!`,
           url: window.location.href,
         });
         return;
@@ -183,13 +184,13 @@ export default function MangaDetails() {
     return (
       <div className="bg-[#111] border border-[#222] p-8 rounded-lg text-center space-y-4">
         <BookOpen className="mx-auto text-red-500/50" size={48} />
-        <h2 className="text-xl font-bold text-white">Manga topilmadi</h2>
-        <p className="text-white/50 text-sm">{error || 'Qidirilayotgan manga mavjud emas'}</p>
+        <h2 className="text-xl font-bold text-white">Topilmadi</h2>
+        <p className="text-white/50 text-sm">{error || 'Qidirilayotgan ma\'lumot mavjud emas'}</p>
         <Link
           to="/mangalar"
           className="inline-flex items-center gap-2 bg-[#18181c] hover:bg-[#222] border border-[#333] px-4 py-2 rounded text-sm text-white font-bold"
         >
-          <ArrowLeft size={16} /> Mangalarga qaytish
+          <ArrowLeft size={16} /> Barchasiga qaytish
         </Link>
       </div>
     );
@@ -206,7 +207,7 @@ export default function MangaDetails() {
         to="/mangalar"
         className="inline-flex items-center gap-2 text-xs font-bold text-white/60 hover:text-white transition-colors"
       >
-        <ArrowLeft size={16} /> Barcha mangalar
+        <ArrowLeft size={16} /> Barcha asarlar
       </Link>
 
       {/* Header / Hero Section */}
@@ -350,11 +351,21 @@ export default function MangaDetails() {
       <div className="bg-[#111] border border-[#222] p-6 rounded-lg space-y-3">
         <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
           <BookOpen size={16} className="text-[#ff006a]" />
-          Manga tavsifi
+          {manga.type || 'Manga'} tavsifi
         </h2>
-        <p className="text-white/70 text-sm leading-relaxed whitespace-pre-line">
-          {manga.description}
-        </p>
+        <div className="relative">
+          <p className={`text-white/70 text-sm leading-relaxed whitespace-pre-line ${showFullDesc ? '' : 'line-clamp-4'}`}>
+            {manga.description}
+          </p>
+          {manga.description && manga.description.length > 200 && (
+            <button 
+              onClick={() => setShowFullDesc(!showFullDesc)}
+              className="text-[#ff006a] hover:text-[#ff3385] text-xs font-bold uppercase tracking-wider mt-2 flex items-center transition-colors"
+            >
+              {showFullDesc ? 'Kamroq o\'qish' : 'Ko\'proq o\'qish'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Chapters list */}
@@ -368,7 +379,7 @@ export default function MangaDetails() {
 
         {chapters.length === 0 ? (
           <div className="text-center py-8 text-white/40 text-sm">
-            Ushbu manga uchun hali hech qanday bob qo'shilmagan.
+            Ushbu asar uchun hali hech qanday bob qo'shilmagan.
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

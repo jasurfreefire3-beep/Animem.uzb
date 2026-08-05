@@ -22,6 +22,7 @@ export default function AdminMangalar({ token }: AdminMangalarProps) {
   const [author, setAuthor] = useState('');
   const [artist, setArtist] = useState('');
   const [holati, setHolati] = useState('Davom etmoqda');
+  const [mangaType, setMangaType] = useState('Manga');
   const [releasedYear, setReleasedYear] = useState(new Date().getFullYear().toString());
   const [tags, setTags] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<string[]>(['Jangari']);
@@ -541,6 +542,20 @@ export default function AdminMangalar({ token }: AdminMangalarProps) {
               >
                 <option value="Davom etmoqda">Davom etmoqda</option>
                 <option value="Tugallangan">Tugallangan</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-white/70 mb-1 uppercase">Turi</label>
+              <select
+                value={mangaType}
+                onChange={(e) => setMangaType(e.target.value)}
+                className="w-full bg-[#18181c] border border-[#333] rounded px-3 py-2 text-white text-xs focus:outline-none focus:border-[#ff006a]"
+              >
+                <option value="Manga">Manga</option>
+                <option value="Manhwa">Manhwa</option>
+                <option value="Manhua">Manhua</option>
+                <option value="Komiks">Komiks</option>
               </select>
             </div>
 

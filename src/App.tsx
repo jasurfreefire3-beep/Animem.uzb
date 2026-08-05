@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
+import MobileBottomNav from './components/MobileBottomNav';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -157,7 +158,7 @@ export default function App() {
         <Navbar onToggleSidebar={toggleMobileSidebar} />
         
         {/* Main Content Area */}
-        <main className="flex-1 pt-24 md:pt-20 pb-12 px-4 md:px-8 max-w-[1440px] mx-auto w-full relative z-10">
+        <main className="flex-1 pt-24 md:pt-20 pb-24 md:pb-12 px-4 md:px-8 max-w-[1440px] mx-auto w-full relative z-10">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
@@ -206,7 +207,8 @@ export default function App() {
         </footer>
       </div>
 
-      {/* 4. Overlay Chat widgets & Ad Modal */}
+      {/* 4. Overlay Chat widgets, Mobile Navigation & Ad Modal */}
+      <MobileBottomNav />
       <ChatWidget />
       <SpinBetterAdModal />
     </div>

@@ -51,6 +51,7 @@ export interface Manga {
   artist?: string;
   janrlar: string;
   tags?: string;
+  type?: string;
   holati: string;
   released_year?: number;
   rating?: number;

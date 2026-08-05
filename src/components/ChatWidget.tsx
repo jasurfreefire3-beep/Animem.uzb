@@ -114,7 +114,7 @@ export default function ChatWidget() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 p-4 bg-gradient-to-r from-[#ff0055] to-[#ff006a] hover:opacity-90 text-white rounded-full shadow-2xl transition-transform hover:scale-110 z-50 flex items-center justify-center shadow-[#ff006a]/20"
+          className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 p-4 bg-gradient-to-r from-[#ff0055] to-[#ff006a] hover:opacity-90 text-white rounded-full shadow-2xl transition-transform hover:scale-110 z-50 flex items-center justify-center shadow-[#ff006a]/20"
         >
           <MessageCircle className="w-6 h-6" />
         </button>
@@ -126,8 +126,8 @@ export default function ChatWidget() {
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
-            className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 bg-[#09090b]/98 backdrop-blur-md border border-[#1a1a1a] rounded-sm shadow-2xl z-50 flex flex-col overflow-hidden transition-all duration-300 ${
-              isExpanded ? 'w-[800px] h-[80vh]' : 'w-[calc(100vw-32px)] sm:w-[380px] h-[550px] max-h-[calc(100vh-100px)]'
+            className={`fixed bottom-20 right-4 sm:bottom-6 sm:right-6 bg-[#09090b]/98 backdrop-blur-md border border-[#1a1a1a] rounded-sm shadow-2xl z-50 flex flex-col overflow-hidden transition-all duration-300 ${
+              isExpanded ? 'w-[800px] h-[80vh]' : 'w-[calc(100vw-32px)] sm:w-[380px] h-[520px] max-h-[calc(100vh-140px)]'
             }`}
           >
             {/* Header */}
