@@ -4222,6 +4222,212 @@ async function runTelegramBot() {
   poll();
 }
 
+// --- SUPPORT TELEGRAM BOT ENGINE (@animem_support_bot) ---
+const SUPPORT_BOT_TOKEN = "8839170706:AAFrabCF7EylydXZDDVy9gSFtRuQN2Mo_n0";
+const SUPPORT_ADMIN_ID = "8991315532";
+
+// Store mapping of admin notification message_id -> user chat_id
+const supportMsgToUserMap = new Map<number, { userId: string; userName: string }>();
+let activeAdminReplyTargetUserId: string | null = null;
+
+// Helper to send Telegram Support Bot API requests
+async function sendSupportBotMessage(chatId: number | string, text: string, replyMarkup?: any) {
+  try {
+    const url = `https://api.telegram.org/bot${SUPPORT_BOT_TOKEN}/sendMessage`;
+    const body: any = {
+      chat_id: chatId,
+      text: text,
+      parse_mode: "HTML",
+      disable_web_page_preview: true
+    };
+    if (replyMarkup) {
+      body.reply_markup = replyMarkup;
+    }
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const resData: any = await response.json();
+    if (!response.ok || !resData.ok) {
+      console.error(`Support Bot sendMessage failed:`, resData);
+    }
+    return resData;
+  } catch (err) {
+    console.error("Failed to send support bot telegram message:", err);
+    return null;
+  }
+}
+
+// Background Support Bot Long Polling (@animem_support_bot)
+async function runSupportTelegramBot() {
+  console.log("Starting Support Telegram Bot (@animem_support_bot) long polling loop...");
+  let offset = 0;
+
+  const poll = async () => {
+    try {
+      const url = `https://api.telegram.org/bot${SUPPORT_BOT_TOKEN}/getUpdates?offset=${offset}&timeout=10`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        setTimeout(poll, 5000);
+        return;
+      }
+      const data: any = await response.json();
+      if (data.ok && data.result) {
+        for (const update of data.result) {
+          offset = update.update_id + 1;
+
+          // 1. Handle Callback Queries (Admin clicking Inline Buttons)
+          if (update.callback_query) {
+            const cb = update.callback_query;
+            const cbData = cb.data || "";
+            const cbFromId = String(cb.from?.id || "");
+
+            if (cbFromId === SUPPORT_ADMIN_ID && cbData.startsWith("reply_")) {
+              const targetUserId = cbData.replace("reply_", "");
+              activeAdminReplyTargetUserId = targetUserId;
+
+              // Answer callback query
+              await fetch(`https://api.telegram.org/bot${SUPPORT_BOT_TOKEN}/answerCallbackQuery`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  callback_query_id: cb.id,
+                  text: `Foydalanuvchi (${targetUserId}) tanlandi! Javob xabaringizni yuboring.`,
+                  show_alert: true
+                })
+              });
+
+              await sendSupportBotMessage(SUPPORT_ADMIN_ID,
+                `✍️ <b>Foydalanuvchiga (ID: <code>${targetUserId}</code>) javob yozish:</b>\n\n` +
+                `Iltimos, ushbu foydalanuvchiga yubormoqchi bo'lgan xabaringizni yozib yuboring.`
+              );
+            }
+          }
+
+          // 2. Handle Incoming Messages
+          if (update.message) {
+            const message = update.message;
+            const chat = message.chat;
+            const chatId = String(chat.id);
+            const text = message.text || "";
+            const from = message.from || {};
+            const fromId = String(from.id);
+
+            // A) MESSAGE FROM ADMIN (8991315532)
+            if (fromId === SUPPORT_ADMIN_ID) {
+              let targetUserId: string | null = null;
+
+              // Check if Admin replied directly to a notification message
+              if (message.reply_to_message) {
+                const replyMsgId = message.reply_to_message.message_id;
+                const mapping = supportMsgToUserMap.get(replyMsgId);
+                if (mapping) {
+                  targetUserId = mapping.userId;
+                }
+              }
+
+              // Check if active target user is set via inline button
+              if (!targetUserId && activeAdminReplyTargetUserId) {
+                targetUserId = activeAdminReplyTargetUserId;
+              }
+
+              // Check if message starts with /reply USER_ID message or USER_ID: message
+              if (!targetUserId) {
+                const match = text.match(/^(\d{6,12})[:\s]+([\s\S]+)$/);
+                if (match) {
+                  targetUserId = match[1];
+                  const actualMessageText = match[2];
+
+                  const sent = await sendSupportBotMessage(targetUserId,
+                    `💬 <b>Animem.uz Ma'muriyatidan javob:</b>\n\n${actualMessageText}`
+                  );
+                  if (sent && sent.ok) {
+                    await sendSupportBotMessage(SUPPORT_ADMIN_ID, `✅ Javobingiz foydalanuvchiga (ID: <code>${targetUserId}</code>) yetkazildi!`);
+                  } else {
+                    await sendSupportBotMessage(SUPPORT_ADMIN_ID, `❌ Foydalanuvchiga xabar yuborib bo'lmadi (ID: <code>${targetUserId}</code>).`);
+                  }
+                  continue;
+                }
+              }
+
+              if (targetUserId) {
+                const sent = await sendSupportBotMessage(targetUserId,
+                  `💬 <b>Animem.uz Ma'muriyatidan javob:</b>\n\n${text}`
+                );
+
+                if (sent && sent.ok) {
+                  await sendSupportBotMessage(SUPPORT_ADMIN_ID, `✅ Javobingiz foydalanuvchiga (ID: <code>${targetUserId}</code>) yetkazildi!`);
+                  activeAdminReplyTargetUserId = null; // reset state after successful reply
+                } else {
+                  await sendSupportBotMessage(SUPPORT_ADMIN_ID, `❌ Foydalanuvchiga xabar yuborib bo'lmadi (ID: <code>${targetUserId}</code>).`);
+                }
+              } else {
+                await sendSupportBotMessage(SUPPORT_ADMIN_ID,
+                  `ℹ️ <b>Admin Rejimi:</b>\n\n` +
+                  `Foydalanuvchiga javob yuborish uchun xabarga <b>Reply</b> (javob bosing) qiling yoki xabar ostidagi <b>"✍️ Bot Orqali Javob Berish"</b> tugmasini bosing.\n` +
+                  `Yoki: <code>USER_ID: sizning xabaringiz</code> ko'rinishida yozing.`
+                );
+              }
+            } 
+            // B) MESSAGE FROM REGULAR USER
+            else {
+              if (text === "/start" || text.startsWith("/start")) {
+                await sendSupportBotMessage(chatId,
+                  `<b>Assalomu alaykum! Animem.uz rasmiy qo'llab-quvvatlash botiga xush kelibsiz! 👋🤖</b>\n\n` +
+                  `Ushbu bot orqali siz Animem.uz ma'muriyati bilan bevosita bog'lanishingiz mumkin.\n\n` +
+                  `Iltimos, <b>Ismingiz</b> va saytdan (animem.uz) ro'yxatdan o'tgan <b>Domen / Taxallusingizni</b> hamda murojaatingizni yozib qoldiring:\n\n` +
+                  `<i>Masalan: "Ismim Jasur, saytdagi nickim/domenim: jasur_uz. Murojaat: Anime yuklash bo'yicha taklifim bor..."</i>`
+                );
+              } else {
+                // Send confirmation to user
+                await sendSupportBotMessage(chatId,
+                  `✅ <b>Murojaatingiz qabul qilindi va adminga yetkazildi!</b>\n\n` +
+                  `Admin ko'rib chiqib, tez orada sizga javob qaytaradi. Rahmat!`
+                );
+
+                // Send notification to Admin Telegram ID (8991315532)
+                const tgUsername = from.username ? `@${from.username}` : "Mavjud emas";
+                const tgName = `${from.first_name || ''} ${from.last_name || ''}`.trim() || "Foydalanuvchi";
+                const userTgLink = from.username ? `https://t.me/${from.username}` : `tg://user?id=${fromId}`;
+
+                const adminMsgText = 
+                  `📩 <b>YANGI MUROJAAT (animem_support_bot)</b>\n\n` +
+                  `👤 <b>Ism:</b> ${tgName}\n` +
+                  `🆔 <b>Telegram ID:</b> <code>${fromId}</code>\n` +
+                  `🏷 <b>Username:</b> ${tgUsername}\n\n` +
+                  `📝 <b>Murojaat / Sayt domeni / Xabar:</b>\n${text}\n\n` +
+                  `📅 <b>Sana:</b> ${new Date().toLocaleString('uz-UZ')}`;
+
+                const inlineKeyboard = {
+                  inline_keyboard: [
+                    [
+                      { text: "💬 Telegramda Chatga Kirish", url: userTgLink }
+                    ],
+                    [
+                      { text: "✍️ Bot Orqali Javob Berish", callback_data: `reply_${fromId}` }
+                    ]
+                  ]
+                };
+
+                const resMsg = await sendSupportBotMessage(SUPPORT_ADMIN_ID, adminMsgText, inlineKeyboard);
+                if (resMsg && resMsg.ok && resMsg.result) {
+                  supportMsgToUserMap.set(resMsg.result.message_id, { userId: fromId, userName: tgName });
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Support Telegram Bot polling error:", err);
+    }
+    setTimeout(poll, 2000);
+  };
+
+  poll();
+}
+
 // 1. Create a session ID
 app.get("/api/auth/telegram/session", (req, res) => {
   const sessionId = "auth_" + Math.random().toString(36).substring(2, 15);
@@ -4513,8 +4719,9 @@ async function start() {
   const publicPath = path.join(process.cwd(), "public");
   const isProduction = process.env.NODE_ENV === "production" || fs.existsSync(distPath);
 
-  // Start Telegram Bot
+  // Start Telegram Bots
   runTelegramBot();
+  runSupportTelegramBot();
 
   // Favicon handler ensuring /favicon.ico is served
   app.get("/favicon.ico", (req, res) => {
@@ -4956,6 +5163,43 @@ async function start() {
     } catch (err: any) {
       console.error("Support bot error:", err);
       res.status(500).json({ error: "Xatolik yuz berdi. Sumire hozir uxlab yotibdi." });
+    }
+  });
+
+  // Contact form submission endpoint -> forwards to Admin Telegram via @animem_support_bot
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const { name, email, message } = req.body;
+      if (!message || !message.trim()) {
+        return res.status(400).json({ error: "Murojaat matni kiritilmadi" });
+      }
+
+      const userName = name || "Noma'lum foydalanuvchi";
+      const userDomainEmail = email || "Kiritilmagan";
+      const msgText = message.trim();
+
+      // Send notification to Admin Telegram ID (8991315532) via @animem_support_bot
+      const adminMsgText = 
+        `🌐 <b>YANGI MUROJAAT (Animem.uz Saytidan)</b>\n\n` +
+        `👤 <b>Ismi:</b> ${userName}\n` +
+        `🌐 <b>Email / Domen / Nick:</b> ${userDomainEmail}\n\n` +
+        `💬 <b>Murojaat matni:</b>\n${msgText}\n\n` +
+        `📅 <b>Sana:</b> ${new Date().toLocaleString('uz-UZ')}`;
+
+      const inlineKeyboard = {
+        inline_keyboard: [
+          [
+            { text: "🌐 Sayt Admin Panelini Ochish", url: "https://animem.uz/admin" }
+          ]
+        ]
+      };
+
+      await sendSupportBotMessage(SUPPORT_ADMIN_ID, adminMsgText, inlineKeyboard);
+
+      res.json({ success: true, message: "Murojaat adminga muvaffaqiyatli yetkazildi!" });
+    } catch (err: any) {
+      console.error("Contact form submit error:", err);
+      res.status(500).json({ error: "Murojaatni yuborishda xatolik yuz berdi" });
     }
   });
 

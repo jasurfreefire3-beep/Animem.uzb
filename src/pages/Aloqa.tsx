@@ -9,17 +9,33 @@ export default function Aloqa() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setError('');
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, message })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Xatolik yuz berdi');
+      }
       setSubmitted(true);
       setName('');
       setEmail('');
       setMessage('');
-    }, 600);
+    } catch (err: any) {
+      console.error('Contact form submit error:', err);
+      setError(err.message || 'Murojaatni yuborishda xatolik yuz berdi');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
