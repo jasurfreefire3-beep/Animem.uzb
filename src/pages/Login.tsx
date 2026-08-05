@@ -246,9 +246,9 @@ export default function Login() {
     try {
       setError('');
       googleProvider.setCustomParameters({ prompt: 'select_account' });
-      await signInWithRedirect(auth, googleProvider);
+      await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
-      console.error("Google login redirect error:", err);
+      console.error("Google login popup error:", err);
       setError(err.message || 'Google orqali kirishda xatolik');
     }
   };

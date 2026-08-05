@@ -409,7 +409,7 @@ export default function AnimeDetails() {
     if (ep.video_url) {
       setCurrentVideoUrl(ep.video_url);
     } else {
-      setCurrentVideoUrl(anime?.video_url || '/assets/sample/video.mp4');
+      setCurrentVideoUrl(anime?.video_url || '');
     }
     const playerEl = document.getElementById('player-section');
     if (playerEl) {
@@ -637,11 +637,34 @@ export default function AnimeDetails() {
                </div>
 
                <div className="-mx-4 sm:mx-0 mb-4 md:mb-6">
-                  <VideoPlayer 
-                    url={currentVideoUrl || anime.video_url || '/assets/sample/video.mp4'} 
-                    poster={anime.banner_url || anime.image_url} 
-                    animeTitle={anime.title} 
-                  />
+                 {(currentVideoUrl || anime.video_url || '').includes('t.me') ? (
+                    <div className="w-full min-h-[250px] sm:min-h-[360px] md:min-h-[480px] bg-[#0a0a0c] border border-white/10 sm:rounded-2xl flex flex-col items-center justify-center p-4 sm:p-6 text-center">
+                      <div className="w-12 h-12 sm:w-20 sm:h-20 bg-[#0088cc]/20 rounded-full flex items-center justify-center mb-4 sm:mb-6 shrink-0">
+                        <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-10 sm:h-10 fill-[#0088cc]">
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.24-5.54 3.65-.52.36-.97.53-1.34.52-.41-.01-1.21-.23-1.8-.42-.73-.24-1.32-.37-1.27-.78.02-.21.31-.43.87-.67 3.42-1.49 5.71-2.48 6.86-2.96 3.27-1.37 3.95-1.61 4.4-.1.01.03.02.05.02.08.01.12.01.25-.01.37z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-base sm:text-2xl font-black text-white mb-2 sm:mb-3">Bu qismni Telegram botimizda tomosha qiling!</h3>
+                      <p className="text-xs sm:text-base text-white/60 max-w-lg mb-6 sm:mb-8">
+                        Video fayl hajmi kattaligi sababli, ushbu anime qismi to'g'ridan-to'g'ri Telegram botimizga yuklangan.
+                      </p>
+                      <a 
+                        href={currentVideoUrl || anime.video_url} 
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 sm:gap-3 px-5 py-3 sm:px-8 sm:py-4 bg-[#0088cc] hover:bg-[#0077b5] text-white font-bold text-xs sm:text-base rounded-lg transition-all shadow-[0_0_20px_rgba(0,136,204,0.3)] hover:shadow-[0_0_30px_rgba(0,136,204,0.5)] hover:-translate-y-1 shrink-0"
+                      >
+                        <PlayCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+                        Botga o'tish va ko'rish
+                      </a>
+                    </div>
+                 ) : (
+                    <VideoPlayer 
+                      url={currentVideoUrl || anime.video_url || '/assets/sample/video.mp4'} 
+                      poster={anime.banner_url || anime.image_url} 
+                      animeTitle={anime.title} 
+                    />
+                 )}
                </div>
 
                {/* Episode Selector */}

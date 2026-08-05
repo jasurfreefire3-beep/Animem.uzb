@@ -4009,10 +4009,64 @@ async function runTelegramBot() {
                     resize_keyboard: true
                   }
                 );
+              } else if (startParam) {
+                // Try to find the anime by slug
+                const toSlugLocal = (text: string): string => {
+                  if (!text) return "";
+                  return text
+                    .toLowerCase()
+                    .replace(/o['’`‘]/g, "o")
+                    .replace(/g['’`‘]/g, "g")
+                    .replace(/[^a-z0-9\u0400-\u04FF]+/gi, "-")
+                    .replace(/^-+|-+$/g, "");
+                };
+
+                try {
+                  const [rows]: any = await dbQuery("SELECT * FROM animes");
+                  let anime = null;
+                  if (Array.isArray(rows)) {
+                    anime = rows.find((r: any) => toSlugLocal(r.title) === startParam);
+                  }
+                  
+                  if (anime) {
+                    const caption = `<b>🎬 ${anime.title}</b>\n\n` +
+                                    `${anime.description ? anime.description.substring(0, 150) + '...' : ''}\n\n` +
+                                    `⭐️ Reyting: ${anime.rating || 0}\n` +
+                                    `👁 Ko'rishlar: ${anime.korishlar || 0}\n\n` +
+                                    `👇 Saytda tomosha qilish uchun quyidagi tugmani bosing!`;
+                    
+                    const replyMarkup = {
+                      inline_keyboard: [
+                        [{ text: "▶️ Saytda tomosha qilish", url: `https://animem.uz/anime/${startParam}` }]
+                      ]
+                    };
+
+                    if (anime.image_url) {
+                      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          chat_id: chat.id,
+                          photo: anime.image_url,
+                          caption: caption,
+                          parse_mode: "HTML",
+                          reply_markup: replyMarkup
+                        })
+                      });
+                    } else {
+                      await sendTelegramMessage(chat.id, caption, replyMarkup);
+                    }
+                  } else {
+                    await sendTelegramMessage(chat.id, `Kechirasiz, ushbu anime topilmadi. Saytimizga tashrif buyurib qidirib ko'ring:\nhttps://animem.uz`);
+                  }
+                } catch (e) {
+                  console.error("Error finding anime for bot start param:", e);
+                  await sendTelegramMessage(chat.id, "Kechirasiz, xatolik yuz berdi.");
+                }
               } else {
                 await sendTelegramMessage(chat.id,
                   `<b>Assalomu alaykum! 👋</b>\n\n` +
-                  `ANIMEUZ rasmiy avtorizatsiya botiga xush kelibsiz.\n\n` +
+                  `ANIMEUZ rasmiy botiga xush kelibsiz.\n\n` +
                   `Siz saytga xavfsiz va tezkor kirish uchun saytdagi <b>"Telegram bilan kirish"</b> tugmasini bosing va ushbu botga o'ting.`
                 );
               }
