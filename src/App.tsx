@@ -29,6 +29,11 @@ import Profil from './pages/Profil';
 import Donat from './pages/Donat';
 import NotFound from './pages/NotFound';
 import SupportBot from './pages/SupportBot';
+import Footer from './components/Footer';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+import DMCA from './pages/DMCA';
+import Aloqa from './pages/Aloqa';
 
 export default function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -182,30 +187,22 @@ export default function App() {
             <Route path="/profil" element={<Profil />} />
             <Route path="/user/:id" element={<Profil />} />
             <Route path="/donat" element={<Donat />} />
+            
+            {/* Legal & Moderation Compliance Routes */}
+            <Route path="/maxfiylik-siyosati" element={<PrivacyPolicy />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/foydalanish-shartlari" element={<TermsOfService />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/mualliflik-huquqi" element={<DMCA />} />
+            <Route path="/dmca" element={<DMCA />} />
+            <Route path="/aloqa" element={<Aloqa />} />
+            <Route path="/contacts" element={<Aloqa />} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
 
-        <footer className="p-4 border-t border-[#1a1a1a] mt-auto flex items-center justify-center gap-6">
-          <a
-            href="https://t.me/animem_uz2"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-white/40 hover:text-[#0088cc] transition-colors text-xs uppercase tracking-wider"
-          >
-            <Send className="w-4 h-4" />
-            Telegram kanal
-          </a>
-          <a
-            href="https://www.instagram.com/animem.uz.official/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-white/40 hover:text-[#E1306C] transition-colors text-xs uppercase tracking-wider"
-          >
-            <Instagram className="w-4 h-4" />
-            Instagram
-          </a>
-        </footer>
+        <Footer />
       </div>
 
       {/* 4. Overlay Chat widgets, Mobile Navigation & Ad Modal */}

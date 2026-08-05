@@ -1,0 +1,4 @@
+# Yandex Direct Ads.txt for Animem.uz
+yandex.ru, f08c4a5923fc3014, DIRECT, f08c4a5923fc3014
+yandex.ru, DIRECT, DIRECT, f08c4a5923fc3014
+google.com, pub-0000000000000000, DIRECT, f08c4a5923fc3014

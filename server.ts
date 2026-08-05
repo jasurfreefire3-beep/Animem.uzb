@@ -4525,6 +4525,24 @@ async function start() {
     return res.sendFile(path.join(publicPath, "logo.png"));
   });
 
+  app.get("/robots.txt", (req, res) => {
+    const file = path.join(publicPath, "robots.txt");
+    if (fs.existsSync(file)) {
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      return res.sendFile(file);
+    }
+    return res.type("text/plain").send("User-agent: *\nAllow: /\nSitemap: https://animem.uz/sitemap.xml");
+  });
+
+  app.get("/ads.txt", (req, res) => {
+    const file = path.join(publicPath, "ads.txt");
+    if (fs.existsSync(file)) {
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      return res.sendFile(file);
+    }
+    return res.type("text/plain").send("yandex.ru, f08c4a5923fc3014, DIRECT, f08c4a5923fc3014");
+  });
+
   const toSlugLocal = (text: string): string => {
     if (!text) return "";
     return text
@@ -4551,6 +4569,10 @@ async function start() {
         { url: "/jadval", priority: "0.8", freq: "daily" },
         { url: "/yangi-chiqishlar", priority: "0.8", freq: "daily" },
         { url: "/chat", priority: "0.7", freq: "daily" },
+        { url: "/maxfiylik-siyosati", priority: "0.6", freq: "monthly" },
+        { url: "/foydalanish-shartlari", priority: "0.6", freq: "monthly" },
+        { url: "/mualliflik-huquqi", priority: "0.7", freq: "monthly" },
+        { url: "/aloqa", priority: "0.7", freq: "monthly" },
       ];
       
       for (const page of staticPages) {
@@ -4824,6 +4846,18 @@ async function start() {
       } else if (reqPath === "/tarix") {
         titleText = "Ko'rishlar Tarixi | Animem.uz";
         descText = "Siz oxirgi marta tomosha qilgan anime va qismlar tarixi.";
+      } else if (reqPath === "/maxfiylik-siyosati" || reqPath === "/privacy") {
+        titleText = "Maxfiylik Siyosati (Privacy Policy) | Animem.uz";
+        descText = "Animem.uz foydalanuvchilarining shaxsiy ma'lumotlarini to'plash, saqlash va xavfsizligini ta'minlash bo'yicha rasmiy maxfiylik siyosati.";
+      } else if (reqPath === "/foydalanish-shartlari" || reqPath === "/terms") {
+        titleText = "Foydalanish Shartlari (Terms of Service) | Animem.uz";
+        descText = "Animem.uz saytidan foydalanish bo'yicha rasmiy foydalanish shartlari va qoidalar kelishuvi.";
+      } else if (reqPath === "/mualliflik-huquqi" || reqPath === "/dmca") {
+        titleText = "Mualliflik Huquqi va DMCA | Animem.uz";
+        descText = "Animem.uz saytining mualliflik huquqi egalari uchun rasmiy bildirishnomasi va DMCA o'chirish siyosati.";
+      } else if (reqPath === "/aloqa" || reqPath === "/contacts") {
+        titleText = "Aloqa va Qo'llab-Quvvatlash | Animem.uz";
+        descText = "Animem.uz ma'muriyati bilan bog'lanish, texnik qo'llab-quvvatlash va takliflar yuborish bo'limi.";
       } else {
         // Genre check (e.g., /isekai, /fantasy, /jangari, /komediya, /mecha, /sarguzasht, /romantika)
         const knownGenres: Record<string, string> = {
