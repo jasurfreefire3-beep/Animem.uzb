@@ -233,11 +233,11 @@ export default function Animelar() {
               transition={{ delay: idx * 0.03 }}
               className="bg-[#111] border border-[#222] p-3 rounded-sm flex gap-4 hover:border-[#ff006a]/30 transition-colors group"
             >
-              <Link to={`/anime/${toSlug(anime.title)}`} title={`${anime.title} - O'zbek tilida ko'rish`} className="w-16 h-20 rounded-sm overflow-hidden bg-[#000] shrink-0 border border-[#222] relative block">
+              <Link to={`/anime/${toSlug(anime.title)}`} title={anime.title} className="w-16 h-20 rounded-sm overflow-hidden bg-[#000] shrink-0 border border-[#222] relative block">
                 <img 
                   src={anime.image_url} 
-                  alt={`${anime.title} - O'zbek tilida ko'rish`} 
-                  title={`${anime.title} - O'zbek tilida ko'rish`}
+                  alt={anime.title} 
+                  title={anime.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
                 />
               </Link>

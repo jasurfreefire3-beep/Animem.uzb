@@ -187,7 +187,7 @@ export default function MangaDetails() {
         <h2 className="text-xl font-bold text-white">Topilmadi</h2>
         <p className="text-white/50 text-sm">{error || 'Qidirilayotgan ma\'lumot mavjud emas'}</p>
         <Link
-          to="/mangalar"
+          to="/manga"
           className="inline-flex items-center gap-2 bg-[#18181c] hover:bg-[#222] border border-[#333] px-4 py-2 rounded text-sm text-white font-bold"
         >
           <ArrowLeft size={16} /> Barchasiga qaytish
@@ -204,7 +204,7 @@ export default function MangaDetails() {
     <div className="space-y-6">
       {/* Back button */}
       <Link
-        to="/mangalar"
+        to="/manga"
         className="inline-flex items-center gap-2 text-xs font-bold text-white/60 hover:text-white transition-colors"
       >
         <ArrowLeft size={16} /> Barcha asarlar

@@ -464,7 +464,8 @@ export default function AnimeDetails() {
         <div className="absolute inset-0 w-full h-full overflow-hidden">
           <img 
             src={anime.banner_url || anime.image_url} 
-            alt={`${anime.title} o'zbek tilida tizer afishasi - Animem Uz`} 
+            alt={`${anime.title} banner`} 
+            title={anime.title}
             className="w-full h-full object-cover opacity-35 md:opacity-100 scale-105 blur-[2px] md:blur-0 transition-all duration-700" 
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/90 md:via-[#09090b]/55 to-transparent" />
@@ -475,7 +476,7 @@ export default function AnimeDetails() {
           <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-end max-w-7xl mx-auto">
              {/* Poster Overlay */}
              <div className="w-32 sm:w-36 md:w-48 shrink-0 rounded-sm overflow-hidden shadow-2xl border border-white/10 transform translate-y-0 md:translate-y-16 hover:scale-105 transition-transform duration-300">
-               <img src={anime.image_url} alt={`${anime.title} o'zbek tilida poster - Animem Uz`} className="w-full h-full object-cover aspect-[3/4]" />
+               <img src={anime.image_url} alt={anime.title} title={anime.title} className="w-full h-full object-cover aspect-[3/4]" />
              </div>
              
              {/* Title & Meta */}

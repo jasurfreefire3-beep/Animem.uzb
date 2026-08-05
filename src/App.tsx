@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import MobileBottomNav from './components/MobileBottomNav';
@@ -169,7 +169,8 @@ export default function App() {
             
             {/* Added high fidelity views matching user design */}
             <Route path="/animelar" element={<Animelar />} />
-            <Route path="/mangalar" element={<Mangalar />} />
+            <Route path="/manga" element={<Mangalar />} />
+            <Route path="/mangalar" element={<Navigate to="/manga" replace />} />
             <Route path="/manga/:id" element={<MangaDetails />} />
             <Route path="/manga/:id/read/:chapterNumber" element={<MangaReader />} />
             <Route path="/jadval" element={<Jadval />} />

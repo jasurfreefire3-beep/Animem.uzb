@@ -4516,9 +4516,6 @@ async function start() {
   // Start Telegram Bot
   runTelegramBot();
 
-  // Serve public folder directly using express for favicon, videos, images, logos
-  app.use(express.static(publicPath));
-
   // Favicon handler ensuring /favicon.ico is served
   app.get("/favicon.ico", (req, res) => {
     const icoPath = path.join(publicPath, "favicon.ico");
@@ -4541,7 +4538,6 @@ async function start() {
   // Dynamic Sitemap XML generator
   app.get("/sitemap.xml", async (req, res) => {
     try {
-      const [rows]: any = await dbQuery("SELECT * FROM animes");
       const domain = "https://animem.uz";
       
       let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
@@ -4565,23 +4561,71 @@ async function start() {
       for (const g of genres) {
         xml += `  <url>\n    <loc>${domain}/${g}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
       }
+
+      // 1. Anime pages in Sitemap
+      let animesList: any[] = [];
+      try {
+        const [rows]: any = await dbQuery("SELECT * FROM animes");
+        if (Array.isArray(rows) && rows.length > 0) {
+          animesList = rows;
+        }
+      } catch (e) {
+        console.warn("Sitemap DB query error for animes:", e);
+      }
+
+      if (animesList.length === 0) {
+        const store = loadLocalStore();
+        animesList = store.animes || [];
+      }
       
-      if (Array.isArray(rows)) {
-        for (const a of rows) {
-          const slug = toSlugLocal(a.title);
-          if (slug) {
-            const imgUrl = (a.image_url || `${domain}/logo.png`).replace(/&/g, "&amp;");
-            const titleClean = (a.title || "Anime").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            xml += `  <url>\n`;
-            xml += `    <loc>${domain}/anime/${slug}</loc>\n`;
-            xml += `    <image:image>\n`;
-            xml += `      <image:loc>${imgUrl}</image:loc>\n`;
-            xml += `      <image:title>${titleClean}</image:title>\n`;
-            xml += `    </image:image>\n`;
-            xml += `    <changefreq>daily</changefreq>\n`;
-            xml += `    <priority>0.9</priority>\n`;
-            xml += `  </url>\n`;
-          }
+      for (const a of animesList) {
+        const slug = toSlugLocal(a.title);
+        if (slug) {
+          const imgUrl = (a.image_url || `${domain}/logo.png`).replace(/&/g, "&amp;");
+          const titleClean = (a.title || "Anime").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          xml += `  <url>\n`;
+          xml += `    <loc>${domain}/anime/${slug}</loc>\n`;
+          xml += `    <image:image>\n`;
+          xml += `      <image:loc>${imgUrl}</image:loc>\n`;
+          xml += `      <image:title>${titleClean}</image:title>\n`;
+          xml += `      <image:caption>${titleClean} - O'zbekcha anime posteri</image:caption>\n`;
+          xml += `    </image:image>\n`;
+          xml += `    <changefreq>daily</changefreq>\n`;
+          xml += `    <priority>0.9</priority>\n`;
+          xml += `  </url>\n`;
+        }
+      }
+
+      // 2. Manga pages in Sitemap
+      let mangasList: any[] = [];
+      try {
+        const [mRows]: any = await dbQuery("SELECT * FROM mangas");
+        if (Array.isArray(mRows) && mRows.length > 0) {
+          mangasList = mRows;
+        }
+      } catch (e) {
+        console.warn("Sitemap DB query error for mangas:", e);
+      }
+
+      if (mangasList.length === 0) {
+        const store = loadLocalStore();
+        mangasList = store.mangas || [];
+      }
+
+      for (const m of mangasList) {
+        if (m.id) {
+          const coverUrl = (m.cover_url || `${domain}/logo.png`).replace(/&/g, "&amp;");
+          const mTitleClean = (m.title || "Manga").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          xml += `  <url>\n`;
+          xml += `    <loc>${domain}/manga/${m.id}</loc>\n`;
+          xml += `    <image:image>\n`;
+          xml += `      <image:loc>${coverUrl}</image:loc>\n`;
+          xml += `      <image:title>${mTitleClean}</image:title>\n`;
+          xml += `      <image:caption>${mTitleClean} - O'zbekcha manga muqovasi</image:caption>\n`;
+          xml += `    </image:image>\n`;
+          xml += `    <changefreq>daily</changefreq>\n`;
+          xml += `    <priority>0.8</priority>\n`;
+          xml += `  </url>\n`;
         }
       }
       
@@ -4593,6 +4637,9 @@ async function start() {
       return res.sendFile(path.join(publicPath, "sitemap.xml"));
     }
   });
+
+  // Serve public folder directly using express for favicon, videos, images, logos
+  app.use(express.static(publicPath));
 
   // Helper function to serve custom SEO injected HTML
   const handleDynamicSEO = async (req: express.Request, res: express.Response) => {
@@ -4608,6 +4655,7 @@ async function start() {
       let descText = "Animem Uz - O'zbekistondagi eng yirik onlayn anime portali! Bu yerda eng mashhur va eng so'nggi animelarni o'zbek tilida, yuqori sifatda (HD) va mutlaqo bepul tomosha qilishingiz mumkin.";
       let imageUrl = "https://animem.uz/logo.png";
       let shareUrl = `https://animem.uz${req.path}`;
+      let imageAltText = "Animem.uz Logo";
       let jsonLdScript = "";
 
       // 1. Anime detail page: /anime/:slug or /anime/:id
@@ -4645,14 +4693,20 @@ async function start() {
           descText = `${anime.title} o'zbek tilida HD formatda onlayn tomosha qilish. ${anime.description ? anime.description.substring(0, 180).trim() : 'Barcha qismlari bepul va yuqori sifatda!'}`;
           imageUrl = anime.image_url || "https://animem.uz/logo.png";
           shareUrl = `https://animem.uz/anime/${toSlugLocal(anime.title)}`;
+          imageAltText = anime.title;
 
           const genres = anime.janrlar ? anime.janrlar.split(",").map((g: string) => g.trim()) : [];
           const jsonLd = {
             "@context": "https://schema.org",
             "@type": "Movie",
-            "name": `${anime.title} - O'zbek tilida ko'rish - Animem.uz`,
-            "alternateName": anime.title,
-            "image": imageUrl,
+            "name": anime.title,
+            "alternateName": `${anime.title} - O'zbek tilida ko'rish`,
+            "image": {
+              "@type": "ImageObject",
+              "url": imageUrl,
+              "name": anime.title,
+              "caption": `${anime.title} anime posteri`
+            },
             "description": anime.description || "",
             "aggregateRating": {
               "@type": "AggregateRating",
@@ -4672,10 +4726,83 @@ async function start() {
           jsonLdScript = `\n    <script type="application/ld+json">\n    ${JSON.stringify(jsonLd, null, 2)}\n    </script>`;
         }
       } 
-      // 2. Specific main pages
-      else if (reqPath === "/animelar" || reqPath === "/anime") {
+      // 2. Manga detail page: /manga/:id
+      else if (reqPath.startsWith("/manga/") && reqPath.length > 7) {
+        const mangaId = req.path.replace(/^\/manga\//, "").split("?")[0].split("/")[0];
+        let mangaRaw: any = null;
+        try {
+          const [mRows]: any = await dbQuery("SELECT * FROM mangas WHERE id = ?", [mangaId]);
+          if (Array.isArray(mRows) && mRows.length > 0) {
+            mangaRaw = mRows[0];
+          }
+        } catch (e) {
+          console.warn("DB manga query failed in handleDynamicSEO:", e);
+        }
+
+        if (!mangaRaw) {
+          const store = loadLocalStore();
+          mangaRaw = (store.mangas || []).find((m: any) => String(m.id) === String(mangaId));
+        }
+
+        if (mangaRaw) {
+          titleText = `${mangaRaw.title} - O'zbekcha Manga va Komiks | Animem.uz`;
+          descText = `${mangaRaw.title} mangasi o'zbek tilida onlayn o'qish. ${mangaRaw.description ? mangaRaw.description.substring(0, 180).trim() : 'Eng so\'nggi boblar va yuqori sifat!'}`;
+          imageUrl = mangaRaw.cover_url || "https://animem.uz/logo.png";
+          shareUrl = `https://animem.uz/manga/${mangaRaw.id}`;
+          imageAltText = mangaRaw.title;
+
+          const jsonLd = {
+            "@context": "https://schema.org",
+            "@type": "Book",
+            "name": mangaRaw.title,
+            "image": {
+              "@type": "ImageObject",
+              "url": imageUrl,
+              "name": mangaRaw.title,
+              "caption": `${mangaRaw.title} manga muqovasi`
+            },
+            "description": mangaRaw.description || "",
+            "author": mangaRaw.author || "Animem Uz",
+            "provider": {
+              "@type": "Organization",
+              "name": "Animem Uz",
+              "url": "https://animem.uz"
+            }
+          };
+          jsonLdScript = `\n    <script type="application/ld+json">\n    ${JSON.stringify(jsonLd, null, 2)}\n    </script>`;
+        }
+      }
+      // 3. Main catalog pages
+      else if (reqPath === "/" || reqPath === "/animelar" || reqPath === "/anime") {
         titleText = "Barcha Animelar - O'zbek tilida tomosha qilish | Animem.uz";
         descText = "Animem.uz portalidagi barcha o'zbekcha tarjima animelar katalogi. Sevimli animelaringizni HD sifatda bepul tomosha qiling.";
+
+        // Inject ItemList JSON-LD mapping each anime image directly to its anime title
+        const store = loadLocalStore();
+        const topAnimes = (store.animes || []).slice(0, 30);
+        if (topAnimes.length > 0) {
+          const itemListLd = {
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            "name": "O'zbekcha Animelar Katalogi",
+            "itemListElement": topAnimes.map((a: any, idx: number) => ({
+              "@type": "ListItem",
+              "position": idx + 1,
+              "item": {
+                "@type": "Movie",
+                "name": a.title,
+                "url": `https://animem.uz/anime/${toSlugLocal(a.title)}`,
+                "image": {
+                  "@type": "ImageObject",
+                  "url": a.image_url,
+                  "name": a.title,
+                  "caption": a.title
+                }
+              }
+            }))
+          };
+          jsonLdScript = `\n    <script type="application/ld+json">\n    ${JSON.stringify(itemListLd, null, 2)}\n    </script>`;
+        }
       } else if (reqPath === "/chat") {
         titleText = "Anime Chat va Muloqot | Animem.uz";
         descText = "Animem.uz saytining anime ixlosmandlari uchun jonli chat va muhokama bo'limi. Do'stlar ortiring va do'stona suhbatlashing.";
@@ -4731,6 +4858,12 @@ async function start() {
       html = html.replace(/<meta\s+property="og:description"\s+content=".*?"\s*\/?>/gi, `<meta property="og:description" content="${descText.replace(/"/g, '&quot;')}" />`);
       html = html.replace(/<meta\s+property="og:image"\s+content=".*?"\s*\/?>/gi, `<meta property="og:image" content="${imageUrl}" />`);
       
+      if (html.includes('property="og:image:alt"')) {
+        html = html.replace(/<meta\s+property="og:image:alt"\s+content=".*?"\s*\/?>/gi, `<meta property="og:image:alt" content="${imageAltText.replace(/"/g, '&quot;')}" />`);
+      } else {
+        html = html.replace('<meta property="og:image"', `<meta property="og:image:alt" content="${imageAltText.replace(/"/g, '&quot;')}" />\n    <meta property="og:image"`);
+      }
+
       html = html.replace(/<meta\s+property="twitter:url"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:url" content="${shareUrl}" />`);
       html = html.replace(/<meta\s+property="twitter:title"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:title" content="${titleText.replace(/"/g, '&quot;')}" />`);
       html = html.replace(/<meta\s+property="twitter:description"\s+content=".*?"\s*\/?>/gi, `<meta property="twitter:description" content="${descText.replace(/"/g, '&quot;')}" />`);

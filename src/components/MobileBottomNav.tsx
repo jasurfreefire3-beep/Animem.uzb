@@ -65,9 +65,9 @@ export default function MobileBottomNav() {
     {
       id: 'mangalar',
       label: 'Mangalar',
-      path: '/mangalar',
+      path: '/manga',
       icon: BookOpen,
-      isActive: location.pathname.startsWith('/mangalar') || location.pathname.startsWith('/manga/')
+      isActive: location.pathname.startsWith('/manga')
     },
     {
       id: 'qidiruv',

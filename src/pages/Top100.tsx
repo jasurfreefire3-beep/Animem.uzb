@@ -74,11 +74,11 @@ export default function Top100() {
 
                 <div className="flex gap-4">
                   {/* Poster */}
-                  <Link to={`/anime/${toSlug(anime.title)}`} title={`${anime.title} - O'zbek tilida ko'rish`} className="w-20 h-28 bg-[#000] rounded-sm overflow-hidden border border-[#222] shrink-0 relative block">
+                  <Link to={`/anime/${toSlug(anime.title)}`} title={anime.title} className="w-20 h-28 bg-[#000] rounded-sm overflow-hidden border border-[#222] shrink-0 relative block">
                     <img 
                       src={anime.image_url} 
-                      alt={`${anime.title} - O'zbek tilida ko'rish`} 
-                      title={`${anime.title} - O'zbek tilida ko'rish`} 
+                      alt={anime.title} 
+                      title={anime.title} 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
                     />
                     <div className={`absolute top-1 left-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black bg-black/80 border ${textColors[index]}`}>
@@ -143,11 +143,11 @@ export default function Top100() {
                 </span>
 
                 {/* Thumbnail */}
-                <Link to={`/anime/${toSlug(anime.title)}`} title={`${anime.title} - O'zbek tilida ko'rish`} className="w-9 h-12 rounded-sm overflow-hidden border border-[#222] shrink-0 block">
+                <Link to={`/anime/${toSlug(anime.title)}`} title={anime.title} className="w-9 h-12 rounded-sm overflow-hidden border border-[#222] shrink-0 block">
                   <img 
                     src={anime.image_url} 
-                    alt={`${anime.title} - O'zbek tilida ko'rish`} 
-                    title={`${anime.title} - O'zbek tilida ko'rish`} 
+                    alt={anime.title} 
+                    title={anime.title} 
                     className="w-full h-full object-cover" 
                   />
                 </Link>

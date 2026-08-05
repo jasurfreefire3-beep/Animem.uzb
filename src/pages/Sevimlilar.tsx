@@ -116,11 +116,11 @@ export default function Sevimlilar() {
             >
               <div className="flex items-center space-x-4 min-w-0 flex-1">
                 {/* Poster Thumbnail */}
-                <Link to={`/anime/${toSlug(anime.title)}`} title={`${anime.title} - O'zbek tilida ko'rish`} className="w-12 h-16 bg-[#000] rounded-sm overflow-hidden border border-[#222] shrink-0 block">
+                <Link to={`/anime/${toSlug(anime.title)}`} title={anime.title} className="w-12 h-16 bg-[#000] rounded-sm overflow-hidden border border-[#222] shrink-0 block">
                   <img 
                     src={anime.image_url} 
-                    alt={`${anime.title} - O'zbek tilida ko'rish`} 
-                    title={`${anime.title} - O'zbek tilida ko'rish`} 
+                    alt={anime.title} 
+                    title={anime.title} 
                     className="w-full h-full object-cover" 
                   />
                 </Link>
