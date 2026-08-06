@@ -166,6 +166,20 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
     setHasError(false);
   }, [url]);
 
+  // Ensure MyBird.io Video Overlay AD Code is initialized for VideoPlayer
+  useEffect(() => {
+    const scriptId = 'mybird-video-overlay-script';
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://js.mbidadm.com/static/scripts.js';
+      script.setAttribute('data-admpid', '450955');
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, [url]);
+
   const rawVideoUrl = url || '/assets/sample/video.mp4';
   const effectiveUrl = (useProxy && rawVideoUrl.startsWith('http'))
     ? `/api/proxy-video?url=${encodeURIComponent(rawVideoUrl)}`

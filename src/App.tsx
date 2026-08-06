@@ -44,7 +44,7 @@ export default function App() {
 
   // Popunder script re-initialization on route changes & Smart Link handler
   useEffect(() => {
-    // 1. Re-inject Popunder script on route changes to ensure active ad triggers in SPA
+    // 1. Re-inject Popunder & MyBird.io scripts on route changes to ensure active ad triggers in SPA
     const popunderId = 'popunder-ad-script';
     let popunderScript = document.getElementById(popunderId) as HTMLScriptElement;
     if (!popunderScript) {
@@ -53,6 +53,17 @@ export default function App() {
       popunderScript.src = 'https://pl29370557.effectivecpmnetwork.com/24/0f/92/240f9261ba9f8a006aec770eddd0dc4f.js';
       popunderScript.async = true;
       document.body.appendChild(popunderScript);
+    }
+
+    const mybirdId = 'mybird-ad-script';
+    let mybirdScript = document.getElementById(mybirdId) as HTMLScriptElement;
+    if (!mybirdScript) {
+      mybirdScript = document.createElement('script');
+      mybirdScript.id = mybirdId;
+      mybirdScript.src = 'https://js.mbidadm.com/static/scripts.js';
+      mybirdScript.setAttribute('data-admpid', '450955');
+      mybirdScript.async = true;
+      document.body.appendChild(mybirdScript);
     }
 
     // Ensure any previously injected social bar element is removed
