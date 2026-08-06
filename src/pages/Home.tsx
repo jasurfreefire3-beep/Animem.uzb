@@ -4,6 +4,8 @@ import { Anime, toSlug } from '../types';
 import { Star, PlayCircle, Calendar, Play, Clock, Grid, MessageSquare, ChevronLeft, ChevronRight, TrendingUp, Info, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import AnimeCard from '../components/AnimeCard';
+import AdBanner728x90 from '../components/AdBanner728x90';
+import NativeBannerAd from '../components/NativeBannerAd';
 import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
@@ -226,6 +228,12 @@ export default function Home() {
         </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 728x90 Advertisement Banner */}
+      <AdBanner728x90 />
+
+      {/* Native Banner Advertisement */}
+      <NativeBannerAd />
 
       {/* Main Content Layout */}
       <div className="flex flex-col lg:flex-row gap-8">

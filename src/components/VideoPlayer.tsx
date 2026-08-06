@@ -63,6 +63,52 @@ function parseEmbedUrl(rawUrl: string): { isEmbed: boolean; embedUrl: string } {
     }
   }
 
+  // OK.ru video link: ok.ru/video/123456789 -> ok.ru/videoembed/123456789
+  const okMatch = trimmed.match(/ok\.ru\/(?:video|videoembed)\/(\d+)/i);
+  if (okMatch && okMatch[1]) {
+    return {
+      isEmbed: true,
+      embedUrl: `https://ok.ru/videoembed/${okMatch[1]}`
+    };
+  }
+
+  // Mover.uz video link: mover.uz/watch/XXXX -> mover.uz/video/embed/XXXX
+  const moverMatch = trimmed.match(/mover\.uz\/(?:watch|video\/embed|video)\/([A-Za-z0-9_-]+)/i);
+  if (moverMatch && moverMatch[1]) {
+    const cleanId = moverMatch[1].replace(/\.mp4$/i, '');
+    return {
+      isEmbed: true,
+      embedUrl: `https://mover.uz/video/embed/${cleanId}`
+    };
+  }
+
+  // VK.com video link: vk.com/video-12345_67890 -> vk.com/video_ext.php?oid=-12345&id=67890
+  const vkMatch = trimmed.match(/vk\.com\/video(-?\d+)_(\d+)/i);
+  if (vkMatch && vkMatch[1] && vkMatch[2]) {
+    return {
+      isEmbed: true,
+      embedUrl: `https://vk.com/video_ext.php?oid=${vkMatch[1]}&id=${vkMatch[2]}`
+    };
+  }
+
+  // Rutube video link: rutube.ru/video/123456789 -> rutube.ru/play/embed/123456789
+  const rutubeMatch = trimmed.match(/rutube\.ru\/(?:video|play\/embed)\/([A-Za-z0-9_-]+)/i);
+  if (rutubeMatch && rutubeMatch[1]) {
+    return {
+      isEmbed: true,
+      embedUrl: `https://rutube.ru/play/embed/${rutubeMatch[1]}`
+    };
+  }
+
+  // Vimeo video link: vimeo.com/123456789
+  const vimeoMatch = trimmed.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
+  if (vimeoMatch && vimeoMatch[1]) {
+    return {
+      isEmbed: true,
+      embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}`
+    };
+  }
+
   let youtubeId = '';
   const ytMatch1 = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\s\?]+)/i);
   if (ytMatch1) {
@@ -86,13 +132,14 @@ function parseEmbedUrl(rawUrl: string): { isEmbed: boolean; embedUrl: string } {
     'sibnet.ru',
     'myvi.tv',
     'myvi.ru',
-    'ok.ru/videoembed',
-    'vk.com/video_ext',
+    'ok.ru',
+    'vk.com',
     'yandex.ru/video/preview',
-    'rutube.ru/play/embed',
+    'rutube.ru',
     'drive.google.com',
     'kodik.',
-    'allplay.uz/embed'
+    'allplay.uz/embed',
+    'mover.uz'
   ];
 
   if (embedHosts.some(host => lowerUrl.includes(host)) || lowerUrl.includes('/embed/') || lowerUrl.includes('/video/embed/')) {

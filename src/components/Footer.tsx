@@ -1,11 +1,18 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Send, Instagram, ShieldCheck, FileText, Copyright, Mail, Tv, BookOpen, Flame, Calendar } from 'lucide-react';
+import AdBanner728x90 from './AdBanner728x90';
 
 export default function Footer() {
   return (
-    <footer className="bg-[#0b0b0e] border-t border-[#1a1a20] text-white/70 pt-10 pb-20 md:pb-10 mt-16 font-sans">
+    <footer className="bg-[#0b0b0e] border-t border-[#1a1a20] text-white/70 pt-6 pb-20 md:pb-10 mt-16 font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* Ad Banner Placement */}
+        <div className="mb-8">
+          <AdBanner728x90 />
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-8 border-b border-[#181820]">
           
           {/* Column 1: Brand & Intro */}

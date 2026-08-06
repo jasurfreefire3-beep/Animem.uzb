@@ -42,6 +42,57 @@ export default function App() {
   const location = useLocation();
   const isSupportBot = location.pathname === '/support';
 
+  // Popunder script re-initialization on route changes & Smart Link handler
+  useEffect(() => {
+    // 1. Re-inject Popunder script on route changes to ensure active ad triggers in SPA
+    const popunderId = 'popunder-ad-script';
+    let popunderScript = document.getElementById(popunderId) as HTMLScriptElement;
+    if (!popunderScript) {
+      popunderScript = document.createElement('script');
+      popunderScript.id = popunderId;
+      popunderScript.src = 'https://pl29370557.effectivecpmnetwork.com/24/0f/92/240f9261ba9f8a006aec770eddd0dc4f.js';
+      popunderScript.async = true;
+      document.body.appendChild(popunderScript);
+    }
+
+    // Ensure any previously injected social bar element is removed
+    const socialBarElem = document.getElementById('social-bar-ad-script');
+    if (socialBarElem) {
+      socialBarElem.remove();
+    }
+
+    // 2. Smart Link global click trigger (runs every 45s on user click)
+    const SMART_LINK_URL = 'https://www.effectivecpmnetwork.com/sj6na3h4k?key=3319610b49fa2628239f64bce6679712';
+    const handleGlobalClick = (e: MouseEvent) => {
+      // Ignore clicks on internal admin inputs or forms to avoid disrupting editing
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+        return;
+      }
+
+      const lastTrigger = sessionStorage.getItem('_smartlink_last');
+      const now = Date.now();
+      // Trigger smart link every 45 seconds on user click
+      if (!lastTrigger || now - parseInt(lastTrigger, 10) > 45000) {
+        sessionStorage.setItem('_smartlink_last', String(now));
+        try {
+          const popup = window.open(SMART_LINK_URL, '_blank');
+          if (popup) {
+            popup.blur();
+            window.focus();
+          }
+        } catch (err) {
+          console.warn('Smart link popup blocked:', err);
+        }
+      }
+    };
+
+    window.addEventListener('click', handleGlobalClick, true);
+    return () => {
+      window.removeEventListener('click', handleGlobalClick, true);
+    };
+  }, [location.pathname]);
+
   const closeBanner = () => {
     setShowTelegramBanner(false);
   };

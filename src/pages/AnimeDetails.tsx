@@ -5,6 +5,8 @@ import { Anime, Comment, translateGenre, toSlug } from '../types';
 import { Star, MessageSquare, Send, Clock, Play, Plus, Calendar, Building, ListOrdered, Share2, Heart, Flag, PlayCircle, Eye, Shield, Moon, Sun, Trash2, Trophy, X, ThumbsUp, ThumbsDown, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import VideoPlayer from '../components/VideoPlayer';
+import AdBanner728x90 from '../components/AdBanner728x90';
+import NativeBannerAd from '../components/NativeBannerAd';
 
 export default function AnimeDetails() {
   const params = useParams();
@@ -692,6 +694,12 @@ export default function AnimeDetails() {
                   </div>
                </div>
             </motion.section>
+
+            {/* 728x90 Advertisement Banner */}
+            <AdBanner728x90 />
+
+            {/* Native Banner Advertisement */}
+            <NativeBannerAd />
 
             {/* Reyting va Sharhlar Section */}
             {anime && (

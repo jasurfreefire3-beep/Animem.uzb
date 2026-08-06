@@ -4,6 +4,7 @@ import { Anime, translateGenre, getEnglishGenre, toSlug } from '../types';
 import { Star, Play, Grid, List, Film, Calendar, Eye, Search, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import AnimeCard from '../components/AnimeCard';
+import AdBanner728x90 from '../components/AdBanner728x90';
 
 export default function Animelar() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -190,6 +191,9 @@ export default function Animelar() {
           );
         })}
       </div>
+
+      {/* 728x90 Advertisement Banner */}
+      <AdBanner728x90 />
 
       {/* Empty State */}
       {filteredAnimes.length === 0 && (

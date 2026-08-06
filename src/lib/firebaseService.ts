@@ -56,7 +56,7 @@ const DEFAULT_ANIMES = [
     studiyasi: "A-1 Pictures",
     qismlar_soni: 12,
     janrlar: "Jangari, Sarguzasht, Fantastika",
-    video_url: "https://r2.allplay.uz/anime/solo_leveling/solo_leveling_01_uzb.mp4",
+    video_url: "/assets/sample/video.mp4",
     tavsiya: true
   },
   {
@@ -71,7 +71,7 @@ const DEFAULT_ANIMES = [
     studiyasi: "ufotable",
     qismlar_soni: 26,
     janrlar: "Jangari, Fantastika, Dahshatli",
-    video_url: "https://r2.allplay.uz/anime/demon_slayer/demon_slayer_01_uzb.mp4",
+    video_url: "/assets/sample/video.mp4",
     tavsiya: true
   },
   {
@@ -86,7 +86,7 @@ const DEFAULT_ANIMES = [
     studiyasi: "MAPPA",
     qismlar_soni: 24,
     janrlar: "Jangari, Fantastika, Supernatural",
-    video_url: "https://r2.allplay.uz/anime/jujutsu_kaisen/jujutsu_kaisen_01_uzb.mp4",
+    video_url: "/assets/sample/video.mp4",
     tavsiya: false
   }
 ];
