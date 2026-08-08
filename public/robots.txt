@@ -1,5 +1,9 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://animem.uz/sitemap.xml
+User-agent: *
+Allow: /
 Disallow: /admin
 Disallow: /api/admin
 Disallow: /profil
