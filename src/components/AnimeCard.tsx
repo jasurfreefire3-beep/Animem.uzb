@@ -13,6 +13,7 @@ export default function AnimeCard({ anime, showBadge }: AnimeCardProps) {
   const episodeCount = Number(anime.qismlar_soni) || 1;
   const isMultiEpisode = episodeCount >= 2;
   const targetPath = user ? `/anime/${toSlug(anime.title)}` : '/register';
+  const targetUrl = `https://animem.uz/anime/${toSlug(anime.title)}`;
 
   return (
     <Link
@@ -28,8 +29,10 @@ export default function AnimeCard({ anime, showBadge }: AnimeCardProps) {
           <div className="absolute inset-0 aspect-[3/4] rounded-sm bg-[#18181b] border border-white/10 shadow-md transform translate-x-2.5 -translate-y-1.5 -rotate-2 overflow-hidden pointer-events-none opacity-50 group-hover:translate-x-3 group-hover:-translate-y-2 group-hover:-rotate-3 transition-transform duration-300">
             <img
               src={anime.image_url}
-              alt={anime.title}
-              title={anime.title}
+              alt={`${anime.title} - ${targetUrl}`}
+              title={`${anime.title} - Animem.uz`}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover opacity-40 blur-[0.5px]"
             />
           </div>
@@ -40,8 +43,10 @@ export default function AnimeCard({ anime, showBadge }: AnimeCardProps) {
           <div className="absolute inset-0 aspect-[3/4] rounded-sm bg-[#27272a] border border-white/20 shadow-md transform translate-x-1.5 -translate-y-0.5 rotate-1 overflow-hidden pointer-events-none opacity-80 group-hover:translate-x-2 group-hover:-translate-y-1 group-hover:rotate-2 transition-transform duration-300">
             <img
               src={anime.image_url}
-              alt={anime.title}
-              title={anime.title}
+              alt={`${anime.title} - ${targetUrl}`}
+              title={`${anime.title} - Animem.uz`}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover opacity-65"
             />
           </div>
@@ -51,8 +56,10 @@ export default function AnimeCard({ anime, showBadge }: AnimeCardProps) {
         <div className="relative aspect-[3/4] overflow-hidden mb-2 rounded-sm bg-[#111] border border-[#222] z-10 shadow-xl">
           <img
             src={anime.image_url}
-            alt={anime.title}
-            title={anime.title}
+            alt={`${anime.title} - ${targetUrl}`}
+            title={`${anime.title} - Animem.uz`}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300"
           />
 

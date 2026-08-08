@@ -150,6 +150,75 @@ export default function AnimeDetails() {
     }
   }, [anime]);
 
+  // Enhanced SEO: canonical, OG, Twitter, JSON-LD
+  useEffect(() => {
+    if (!anime) return;
+
+    try {
+      const canonicalUrl = `${window.location.origin}/anime/${toSlug(anime.title || '')}`;
+
+      // canonical link
+      let linkCanonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+      if (!linkCanonical) {
+        linkCanonical = document.createElement('link');
+        linkCanonical.setAttribute('rel', 'canonical');
+        document.head.appendChild(linkCanonical);
+      }
+      linkCanonical.setAttribute('href', canonicalUrl);
+
+      // og:description
+      let ogDesc = document.querySelector('meta[property="og:description"]') as HTMLMetaElement | null;
+      if (!ogDesc) {
+        ogDesc = document.createElement('meta');
+        ogDesc.setAttribute('property', 'og:description');
+        document.head.appendChild(ogDesc);
+      }
+      ogDesc.setAttribute('content', anime.description ? anime.description.substring(0, 200).trim() : `${anime.title} - Animem.uz`);
+
+      // twitter card
+      let twCard = document.querySelector('meta[name="twitter:card"]') as HTMLMetaElement | null;
+      if (!twCard) {
+        twCard = document.createElement('meta');
+        twCard.setAttribute('name', 'twitter:card');
+        document.head.appendChild(twCard);
+      }
+      twCard.setAttribute('content', 'summary_large_image');
+
+      let twTitle = document.querySelector('meta[name="twitter:title"]') as HTMLMetaElement | null;
+      if (!twTitle) { twTitle = document.createElement('meta'); twTitle.setAttribute('name', 'twitter:title'); document.head.appendChild(twTitle); }
+      twTitle.setAttribute('content', `${anime.title} - Animem.uz`);
+
+      let twImage = document.querySelector('meta[name="twitter:image"]') as HTMLMetaElement | null;
+      if (!twImage) { twImage = document.createElement('meta'); twImage.setAttribute('name', 'twitter:image'); document.head.appendChild(twImage); }
+      if (anime.image_url) twImage.setAttribute('content', anime.image_url);
+
+      // JSON-LD structured data
+      const ldId = 'ld-json-anime';
+      let ldScript = document.getElementById(ldId) as HTMLScriptElement | null;
+      const isSeries = (anime.qismlar_soni && Number(anime.qismlar_soni) > 1);
+      const ld = {
+        '@context': 'https://schema.org',
+        '@type': isSeries ? 'TVSeries' : 'Movie',
+        'name': anime.title,
+        'url': canonicalUrl,
+        'image': anime.image_url || undefined,
+        'description': anime.description || undefined,
+        'genre': anime.janrlar || undefined,
+        'datePublished': anime.created_at || undefined,
+        'aggregateRating': anime.rating ? { '@type': 'AggregateRating', 'ratingValue': String(anime.rating), 'ratingCount': anime.rating_count || 0 } : undefined,
+      };
+      if (!ldScript) {
+        ldScript = document.createElement('script');
+        ldScript.id = ldId;
+        ldScript.type = 'application/ld+json';
+        document.head.appendChild(ldScript);
+      }
+      ldScript.textContent = JSON.stringify(ld);
+    } catch (e) {
+      console.error('SEO meta injection error:', e);
+    }
+  }, [anime]);
+
   // Handle saving history when activeEpisode changes
   useEffect(() => {
     if (anime && anime.id) {
