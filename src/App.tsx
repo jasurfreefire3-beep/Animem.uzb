@@ -42,73 +42,14 @@ export default function App() {
   const location = useLocation();
   const isSupportBot = location.pathname === '/support';
 
-  // Popunder script re-initialization on route changes & Smart Link handler
+  // Previously we injected several third-party popunder and smart-link scripts which
+  // opened popups or created redirects. Those behaviours conflict with ad network
+  // policies (Yandex Ads) and can cause resource rejection. To comply, we avoid
+  // injecting any popunder/smartlink scripts here. Use explicit in-page banners only.
   useEffect(() => {
-    // 1. Re-inject Popunder & MyBird.io scripts on route changes to ensure active ad triggers in SPA
-    const popunderId = 'popunder-ad-script';
-    let popunderScript = document.getElementById(popunderId) as HTMLScriptElement;
-    if (!popunderScript) {
-      popunderScript = document.createElement('script');
-      popunderScript.id = popunderId;
-      popunderScript.src = 'https://pl29370557.effectivecpmnetwork.com/24/0f/92/240f9261ba9f8a006aec770eddd0dc4f.js';
-      popunderScript.async = true;
-      document.body.appendChild(popunderScript);
-    }
-
-    const mybirdId = 'mybird-ad-script';
-    let mybirdScript = document.getElementById(mybirdId) as HTMLScriptElement;
-    if (!mybirdScript) {
-      mybirdScript = document.createElement('script');
-      mybirdScript.id = mybirdId;
-      mybirdScript.src = 'https://js.mbidadm.com/static/scripts.js';
-      mybirdScript.setAttribute('data-admpid', '450955');
-      mybirdScript.async = true;
-      document.body.appendChild(mybirdScript);
-    }
-
-    // Ensure any previously injected social bar element is removed
-    const socialBarElem = document.getElementById('social-bar-ad-script');
-    if (socialBarElem) {
-      socialBarElem.remove();
-    }
-
-    // 2. Smart Link global click trigger (runs every 45s on user click)
-    const SMART_LINK_URL = 'https://www.effectivecpmnetwork.com/sj6na3h4k?key=3319610b49fa2628239f64bce6679712';
-    const handleGlobalClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-
-      const tag = target.tagName;
-      const blockedTags = ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'VIDEO', 'CANVAS'];
-      const isBlockedTag = blockedTags.includes(tag);
-      const inPlayer = target.closest('[data-player-root], .art-video, video, [data-anime-player], [data-player-container]');
-      const inContent = target.closest('[data-anime-content], .anime-content, .player-section, .stream-player, [data-video-controls]');
-      const isInteractive = Boolean(target.closest('button, a, [role="button"], input, textarea, select, .clickable'));
-
-      if (isBlockedTag || isInteractive || inPlayer || inContent) {
-        return;
-      }
-
-      const lastTrigger = sessionStorage.getItem('_smartlink_last');
-      const now = Date.now();
-      if (!lastTrigger || now - parseInt(lastTrigger, 10) > 45000) {
-        sessionStorage.setItem('_smartlink_last', String(now));
-        try {
-          const popup = window.open(SMART_LINK_URL, '_blank');
-          if (popup) {
-            popup.blur();
-            window.focus();
-          }
-        } catch (err) {
-          console.warn('Smart link popup blocked:', err);
-        }
-      }
-    };
-
-    window.addEventListener('click', handleGlobalClick, true);
-    return () => {
-      window.removeEventListener('click', handleGlobalClick, true);
-    };
+    // Intentionally left blank: third-party popunder / auto-popup ad scripts disabled
+    // to maintain compliance with ad network policies (no popups, no redirects).
+    return () => {};
   }, [location.pathname]);
 
   const closeBanner = () => {
