@@ -198,9 +198,34 @@ export default function Register() {
     try {
       setError('');
       googleProvider.setCustomParameters({ prompt: 'select_account' });
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+
+      if (!result || !result.user) {
+        throw new Error('Google foydalanuvchi ma\'lumotlari olinmadi');
+      }
+
+      const user = result.user;
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+      const res = await fetch(`${API_BASE}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user.email,
+          name: user.displayName || 'Google User',
+          uid: user.uid,
+          avatar_url: user.photoURL,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Google login failed');
+      }
+
+      login(data.token, data.user);
+      navigate('/');
     } catch (err: any) {
-      console.error("Google login popup error:", err);
+      console.error('Google login popup error:', err);
       setError(err.message || 'Google orqali kirishda xatolik');
     }
   };
