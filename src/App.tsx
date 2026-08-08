@@ -75,15 +75,22 @@ export default function App() {
     // 2. Smart Link global click trigger (runs every 45s on user click)
     const SMART_LINK_URL = 'https://www.effectivecpmnetwork.com/sj6na3h4k?key=3319610b49fa2628239f64bce6679712';
     const handleGlobalClick = (e: MouseEvent) => {
-      // Ignore clicks on internal admin inputs or forms to avoid disrupting editing
-      const target = e.target as HTMLElement;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      const tag = target.tagName;
+      const blockedTags = ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'VIDEO', 'CANVAS'];
+      const isBlockedTag = blockedTags.includes(tag);
+      const inPlayer = target.closest('[data-player-root], .art-video, video, [data-anime-player], [data-player-container]');
+      const inContent = target.closest('[data-anime-content], .anime-content, .player-section, .stream-player, [data-video-controls]');
+      const isInteractive = Boolean(target.closest('button, a, [role="button"], input, textarea, select, .clickable'));
+
+      if (isBlockedTag || isInteractive || inPlayer || inContent) {
         return;
       }
 
       const lastTrigger = sessionStorage.getItem('_smartlink_last');
       const now = Date.now();
-      // Trigger smart link every 45 seconds on user click
       if (!lastTrigger || now - parseInt(lastTrigger, 10) > 45000) {
         sessionStorage.setItem('_smartlink_last', String(now));
         try {
