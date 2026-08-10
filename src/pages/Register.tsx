@@ -5,11 +5,6 @@ import { Mail, Lock, User, Phone, ArrowLeft, Loader2, CheckCircle2, Send, Shield
 import { motion } from 'motion/react';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
-import Turnstile from '../components/Turnstile';
-
-const TURNSTILE_SITE_KEY =
-  import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY ||
-  '0x4AAAAAAELs5lBiHLGHTiN6';
 
 declare global {
   interface Window {
@@ -29,7 +24,6 @@ export default function Register() {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [emailTurnstileToken, setEmailTurnstileToken] = useState('');
 
   // Phone form states
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -405,17 +399,12 @@ export default function Register() {
       return;
     }
 
-    if (!emailTurnstileToken) {
-      setError('Iltimos, roboti tekshiring!');
-      return;
-    }
-
     setLoading(true);
     try {
       const res = await fetch('/api/auth/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, turnstileToken: emailTurnstileToken }),
+        body: JSON.stringify({ email }),
       });
 
       const data = await res.json();
@@ -707,21 +696,9 @@ export default function Register() {
                 </p>
               </div>
 
-              <Turnstile
-                sitekey={TURNSTILE_SITE_KEY}
-                onToken={setEmailTurnstileToken}
-                onError={() => {
-                  setError('Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko\'ring.');
-                  setEmailTurnstileToken('');
-                }}
-                onExpire={() => setEmailTurnstileToken('')}
-                theme="dark"
-                size="normal"
-              />
-
               <button
                 type="submit"
-                disabled={loading || !emailTurnstileToken}
+                disabled={loading}
                 className="w-full bg-[#ff006a] hover:bg-[#d40058] disabled:bg-[#ff006a]/50 text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
               >
                 {loading ? (

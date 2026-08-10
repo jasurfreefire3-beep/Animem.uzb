@@ -110,55 +110,6 @@ async function dbQuery<T = any>(sql: string, params?: any[], retries = 3): Promi
 
 const LOCAL_STORE_PATH = path.join(process.cwd(), "local_store.json");
 
-type TurnstileVerification = {
-  valid: boolean;
-  errorCodes: string[];
-};
-
-// Turnstile verification helper
-async function verifyTurnstile(token: string): Promise<TurnstileVerification> {
-  if (!token) return { valid: false, errorCodes: ["missing-input-response"] };
-  
-  const TURNSTILE_SECRET_KEY = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
-  if (!TURNSTILE_SECRET_KEY) {
-    console.error("CLOUDFLARE_TURNSTILE_SECRET_KEY is not configured");
-    return { valid: false, errorCodes: ["missing-server-secret"] };
-  }
-  
-  try {
-    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        secret: TURNSTILE_SECRET_KEY,
-        response: token,
-      }),
-    });
-
-    const data = await response.json() as any;
-    return {
-      valid: data.success === true,
-      errorCodes: data.error_codes || [],
-    };
-  } catch (error) {
-    console.error("Turnstile verification error:", error);
-    return { valid: false, errorCodes: ["verification-request-failed"] };
-  }
-}
-
-function turnstileErrorMessage(errorCodes: string[]): string {
-  if (errorCodes.includes("missing-server-secret")) {
-    return "Serverda Cloudflare Turnstile secret key sozlanmagan.";
-  }
-  if (errorCodes.includes("invalid-input-secret") || errorCodes.includes("missing-input-secret")) {
-    return "Serverdagi Cloudflare Turnstile secret key noto'g'ri.";
-  }
-  if (errorCodes.includes("timeout-or-duplicate")) {
-    return "Xavfsizlik kodi eskirgan. Iltimos, tekshiruvni qayta bajaring.";
-  }
-  return "Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko'ring.";
-}
-
 function loadLocalStore() {
   try {
     if (!fs.existsSync(LOCAL_STORE_PATH)) {
@@ -798,15 +749,9 @@ function buildAnimeEmailHtml(title: string, subtitle: string, code: string, note
 // Send 6-digit verification code via Resend
 app.post("/api/auth/send-code", async (req, res) => {
   try {
-    const { email, turnstileToken } = req.body;
+    const { email } = req.body;
     if (!email || !email.includes("@")) {
       return res.status(400).json({ error: "Yaroqli email manzilini kiriting!" });
-    }
-
-    // Verify Turnstile token
-    const turnstileVerification = await verifyTurnstile(turnstileToken);
-    if (!turnstileVerification.valid) {
-      return res.status(400).json({ error: turnstileErrorMessage(turnstileVerification.errorCodes) });
     }
 
     const cleanEmail = email.toLowerCase().trim();
@@ -897,15 +842,9 @@ app.post("/api/auth/send-code", async (req, res) => {
 // FORGOT PASSWORD: Send Code
 app.post("/api/auth/forgot-password-send-code", async (req, res) => {
   try {
-    const { email, turnstileToken } = req.body;
+    const { email } = req.body;
     if (!email || !email.includes("@")) {
       return res.status(400).json({ error: "Yaroqli email manzilini kiriting!" });
-    }
-
-    // Verify Turnstile token
-    const turnstileVerification = await verifyTurnstile(turnstileToken);
-    if (!turnstileVerification.valid) {
-      return res.status(400).json({ error: turnstileErrorMessage(turnstileVerification.errorCodes) });
     }
 
     const cleanEmail = email.toLowerCase().trim();
@@ -1227,15 +1166,9 @@ app.post("/api/auth/register", async (req, res) => {
 // Auth Login
 app.post("/api/auth/login", async (req, res) => {
   try {
-    const { email, password, turnstileToken } = req.body;
+    const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: "Email va parolni kiriting!" });
-    }
-
-    // Verify Turnstile token for email login
-    const turnstileVerification = await verifyTurnstile(turnstileToken);
-    if (!turnstileVerification.valid) {
-      return res.status(400).json({ error: turnstileErrorMessage(turnstileVerification.errorCodes) });
     }
 
     const [users]: any = await dbQuery("SELECT * FROM users WHERE email = ?", [email]);

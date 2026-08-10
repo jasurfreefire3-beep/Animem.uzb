@@ -5,11 +5,6 @@ import { LogIn, Mail, Lock, Phone, User, X, Loader2, Send, ArrowLeft, KeyRound, 
 import { motion } from 'motion/react';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
-import Turnstile from '../components/Turnstile';
-
-const TURNSTILE_SITE_KEY =
-  import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY ||
-  '0x4AAAAAAELs5lBiHLGHTiN6';
 
 declare global {
   interface Window {
@@ -23,8 +18,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState('');
-  const [resetTurnstileToken, setResetTurnstileToken] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -212,16 +205,10 @@ export default function Login() {
 
     try {
       if (loginMethod === 'email') {
-        if (!turnstileToken) {
-          setError('Iltimos, roboti tekshiring!');
-          setLoading(false);
-          return;
-        }
-
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password, turnstileToken }),
+          body: JSON.stringify({ email, password }),
         });
 
         const data = await res.json();
@@ -302,17 +289,12 @@ export default function Login() {
       return;
     }
 
-    if (!resetTurnstileToken) {
-      setError('Iltimos, roboti tekshiring!');
-      return;
-    }
-
     setForgotLoading(true);
     try {
       const res = await fetch('/api/auth/forgot-password-send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail, turnstileToken: resetTurnstileToken }),
+        body: JSON.stringify({ email: resetEmail }),
       });
 
       const data = await res.json();
@@ -594,23 +576,9 @@ export default function Login() {
                 </div>
               </div>
 
-              {loginMethod === 'email' && (
-                <Turnstile
-                  sitekey={TURNSTILE_SITE_KEY}
-                  onToken={setTurnstileToken}
-                  onError={() => {
-                    setError('Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko\'ring.');
-                    setTurnstileToken('');
-                  }}
-                  onExpire={() => setTurnstileToken('')}
-                  theme="dark"
-                  size="normal"
-                />
-              )}
-
               <button
                 type="submit"
-                disabled={loading || (loginMethod === 'email' && !turnstileToken)}
+                disabled={loading}
                 className="w-full bg-[#ff006a] hover:bg-[#d40058] disabled:bg-[#ff006a]/50 text-white font-bold py-3 px-4 rounded-sm transition-colors mt-6 uppercase text-xs tracking-wider cursor-pointer flex items-center justify-center gap-2"
               >
                 {loading ? (
@@ -721,21 +689,9 @@ export default function Login() {
                 </p>
               </div>
 
-              <Turnstile
-                sitekey={TURNSTILE_SITE_KEY}
-                onToken={setResetTurnstileToken}
-                onError={() => {
-                  setError('Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko\'ring.');
-                  setResetTurnstileToken('');
-                }}
-                onExpire={() => setResetTurnstileToken('')}
-                theme="dark"
-                size="normal"
-              />
-
               <button
                 type="submit"
-                disabled={forgotLoading || !resetTurnstileToken}
+                disabled={forgotLoading}
                 className="w-full bg-[#ff006a] hover:bg-[#d40058] disabled:bg-[#ff006a]/50 text-white font-bold py-3 px-4 rounded-sm transition-colors mt-2 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#ff006a]/20 text-xs uppercase tracking-wider"
               >
                 {forgotLoading ? (
