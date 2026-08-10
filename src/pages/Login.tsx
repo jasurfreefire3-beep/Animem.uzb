@@ -9,7 +9,7 @@ import Turnstile from '../components/Turnstile';
 
 const TURNSTILE_SITE_KEY =
   import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY ||
-  '0x4AAAAAAAELs5lBiHLGHTiN6';
+  '0x4AAAAAAELs5lBiHLGHTiN6';
 
 declare global {
   interface Window {
