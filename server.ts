@@ -110,6 +110,30 @@ async function dbQuery<T = any>(sql: string, params?: any[], retries = 3): Promi
 
 const LOCAL_STORE_PATH = path.join(process.cwd(), "local_store.json");
 
+// Turnstile verification helper
+async function verifyTurnstile(token: string): Promise<boolean> {
+  if (!token) return false;
+  
+  const TURNSTILE_SECRET_KEY = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY || "0x4AAAAAAC_bMu-Qqssm¥LiX-viVQFzTLB8";
+  
+  try {
+    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        secret: TURNSTILE_SECRET_KEY,
+        response: token,
+      }),
+    });
+
+    const data = await response.json() as any;
+    return data.success === true && data.error_codes?.length === 0;
+  } catch (error) {
+    console.error("Turnstile verification error:", error);
+    return false;
+  }
+}
+
 function loadLocalStore() {
   try {
     if (!fs.existsSync(LOCAL_STORE_PATH)) {
@@ -749,9 +773,17 @@ function buildAnimeEmailHtml(title: string, subtitle: string, code: string, note
 // Send 6-digit verification code via Resend
 app.post("/api/auth/send-code", async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, turnstileToken } = req.body;
     if (!email || !email.includes("@")) {
       return res.status(400).json({ error: "Yaroqli email manzilini kiriting!" });
+    }
+
+    // Verify Turnstile token
+    if (turnstileToken) {
+      const isTurnstileValid = await verifyTurnstile(turnstileToken);
+      if (!isTurnstileValid) {
+        return res.status(400).json({ error: "Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko'ring." });
+      }
     }
 
     const cleanEmail = email.toLowerCase().trim();
@@ -842,9 +874,17 @@ app.post("/api/auth/send-code", async (req, res) => {
 // FORGOT PASSWORD: Send Code
 app.post("/api/auth/forgot-password-send-code", async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, turnstileToken } = req.body;
     if (!email || !email.includes("@")) {
       return res.status(400).json({ error: "Yaroqli email manzilini kiriting!" });
+    }
+
+    // Verify Turnstile token
+    if (turnstileToken) {
+      const isTurnstileValid = await verifyTurnstile(turnstileToken);
+      if (!isTurnstileValid) {
+        return res.status(400).json({ error: "Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko'ring." });
+      }
     }
 
     const cleanEmail = email.toLowerCase().trim();
@@ -1166,9 +1206,17 @@ app.post("/api/auth/register", async (req, res) => {
 // Auth Login
 app.post("/api/auth/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, turnstileToken } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: "Email va parolni kiriting!" });
+    }
+
+    // Verify Turnstile token for email login
+    if (turnstileToken) {
+      const isTurnstileValid = await verifyTurnstile(turnstileToken);
+      if (!isTurnstileValid) {
+        return res.status(400).json({ error: "Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko'ring." });
+      }
     }
 
     const [users]: any = await dbQuery("SELECT * FROM users WHERE email = ?", [email]);
