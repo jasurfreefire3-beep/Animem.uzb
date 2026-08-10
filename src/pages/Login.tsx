@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, Mail, Lock, Phone, User, X, Loader2, Send, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck, Shield } from 'lucide-react';
+import { LogIn, Mail, Lock, Phone, User, X, Loader2, Send, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
@@ -9,7 +9,7 @@ import Turnstile from '../components/Turnstile';
 
 const TURNSTILE_SITE_KEY =
   import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY ||
-  '1x00000000000000000000AA';
+  '0x4AAAAAAAELs5lBiHLGHTiN6';
 
 declare global {
   interface Window {
@@ -594,25 +594,18 @@ export default function Login() {
                 </div>
               </div>
 
-              {/* Cloudflare Turnstile for Email Login */}
               {loginMethod === 'email' && (
-                <div className="bg-[#0a0a0c] border border-[#ff006a]/10 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Shield size={16} className="text-[#ff006a]" />
-                    <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Xavfsizlik tekshirovi</span>
-                  </div>
-                  <Turnstile
-                    sitekey={TURNSTILE_SITE_KEY}
-                    onToken={setTurnstileToken}
-                    onError={() => {
-                      setError('Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko\'ring.');
-                      setTurnstileToken('');
-                    }}
-                    onExpire={() => setTurnstileToken('')}
-                    theme="dark"
-                    size="normal"
-                  />
-                </div>
+                <Turnstile
+                  sitekey={TURNSTILE_SITE_KEY}
+                  onToken={setTurnstileToken}
+                  onError={() => {
+                    setError('Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko\'ring.');
+                    setTurnstileToken('');
+                  }}
+                  onExpire={() => setTurnstileToken('')}
+                  theme="dark"
+                  size="normal"
+                />
               )}
 
               <button
@@ -728,24 +721,17 @@ export default function Login() {
                 </p>
               </div>
 
-              {/* Cloudflare Turnstile for Email Password Reset */}
-              <div className="bg-[#0a0a0c] border border-[#ff006a]/10 p-4 rounded-lg">
-                <div className="flex items-center gap-2 mb-3">
-                  <Shield size={16} className="text-[#ff006a]" />
-                  <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Xavfsizlik tekshirovi</span>
-                </div>
-                <Turnstile
-                  sitekey={TURNSTILE_SITE_KEY}
-                  onToken={setResetTurnstileToken}
-                  onError={() => {
-                    setError('Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko\'ring.');
-                    setResetTurnstileToken('');
-                  }}
-                  onExpire={() => setResetTurnstileToken('')}
-                  theme="dark"
-                  size="normal"
-                />
-              </div>
+              <Turnstile
+                sitekey={TURNSTILE_SITE_KEY}
+                onToken={setResetTurnstileToken}
+                onError={() => {
+                  setError('Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko\'ring.');
+                  setResetTurnstileToken('');
+                }}
+                onExpire={() => setResetTurnstileToken('')}
+                theme="dark"
+                size="normal"
+              />
 
               <button
                 type="submit"
