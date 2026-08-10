@@ -71,6 +71,11 @@ export default function Turnstile({
 }: TurnstileProps) {
   const containerId = useRef(`turnstile-${Math.random().toString(36).substring(2, 9)}`);
   const widgetId = useRef<string | null>(null);
+  const callbacks = useRef({ onToken, onError, onExpire });
+
+  // Login and registration forms re-render as users type. Keep the latest
+  // callbacks without destroying an in-progress Turnstile challenge.
+  callbacks.current = { onToken, onError, onExpire };
 
   useEffect(() => {
     let cancelled = false;
@@ -80,21 +85,22 @@ export default function Turnstile({
         const container = document.getElementById(containerId.current);
         if (cancelled || !container || !window.turnstile) return;
 
+        container.replaceChildren();
         widgetId.current = window.turnstile.render(container, {
           sitekey,
           theme,
           size,
-          callback: onToken,
+          callback: (token) => callbacks.current.onToken(token),
           'error-callback': (code) => {
             console.error('Cloudflare Turnstile error:', code);
-            onError?.();
+            callbacks.current.onError?.();
           },
-          'expired-callback': onExpire || (() => {}),
+          'expired-callback': () => callbacks.current.onExpire?.(),
         });
       })
       .catch((error) => {
         console.error('Unable to load Cloudflare Turnstile:', error);
-        onError?.();
+        callbacks.current.onError?.();
       });
 
     return () => {
@@ -106,9 +112,10 @@ export default function Turnstile({
         } catch (e) {
           console.warn('Error removing Turnstile widget:', e);
         }
+        widgetId.current = null;
       }
     };
-  }, [sitekey, onToken, onError, onExpire, theme, size]);
+  }, [sitekey, theme, size]);
 
   return (
     <div
