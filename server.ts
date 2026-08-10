@@ -114,7 +114,12 @@ const LOCAL_STORE_PATH = path.join(process.cwd(), "local_store.json");
 async function verifyTurnstile(token: string): Promise<boolean> {
   if (!token) return false;
   
-  const TURNSTILE_SECRET_KEY = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY || "0x4AAAAAAC_bMu-Qqssm¥LiX-viVQFzTLB8";
+  // Cloudflare's documented test key keeps local development usable. Set the
+  // environment variable to the secret paired with the production site key
+  // before deploying.
+  const TURNSTILE_SECRET_KEY =
+    process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY ||
+    "1x0000000000000000000000000000000AA";
   
   try {
     const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {

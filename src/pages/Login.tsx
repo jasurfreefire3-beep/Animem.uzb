@@ -7,6 +7,10 @@ import { signInWithPopup, signInWithRedirect, getRedirectResult, RecaptchaVerifi
 import { auth, googleProvider } from '../lib/firebase';
 import Turnstile from '../components/Turnstile';
 
+const TURNSTILE_SITE_KEY =
+  import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY ||
+  '1x00000000000000000000AA';
+
 declare global {
   interface Window {
     recaptchaVerifier?: RecaptchaVerifier;
@@ -598,7 +602,7 @@ export default function Login() {
                     <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Xavfsizlik tekshirovi</span>
                   </div>
                   <Turnstile
-                    sitekey="0x4AAAAAAC_bMoaIUwmn54wj"
+                    sitekey={TURNSTILE_SITE_KEY}
                     onToken={setTurnstileToken}
                     onError={() => {
                       setError('Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko\'ring.');
@@ -731,7 +735,7 @@ export default function Login() {
                   <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Xavfsizlik tekshirovi</span>
                 </div>
                 <Turnstile
-                  sitekey="0x4AAAAAAC_bMoaIUwmn54wj"
+                  sitekey={TURNSTILE_SITE_KEY}
                   onToken={setResetTurnstileToken}
                   onError={() => {
                     setError('Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko\'ring.');
