@@ -110,14 +110,19 @@ async function dbQuery<T = any>(sql: string, params?: any[], retries = 3): Promi
 
 const LOCAL_STORE_PATH = path.join(process.cwd(), "local_store.json");
 
+type TurnstileVerification = {
+  valid: boolean;
+  errorCodes: string[];
+};
+
 // Turnstile verification helper
-async function verifyTurnstile(token: string): Promise<boolean> {
-  if (!token) return false;
+async function verifyTurnstile(token: string): Promise<TurnstileVerification> {
+  if (!token) return { valid: false, errorCodes: ["missing-input-response"] };
   
   const TURNSTILE_SECRET_KEY = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
   if (!TURNSTILE_SECRET_KEY) {
     console.error("CLOUDFLARE_TURNSTILE_SECRET_KEY is not configured");
-    return false;
+    return { valid: false, errorCodes: ["missing-server-secret"] };
   }
   
   try {
@@ -131,11 +136,27 @@ async function verifyTurnstile(token: string): Promise<boolean> {
     });
 
     const data = await response.json() as any;
-    return data.success === true && data.error_codes?.length === 0;
+    return {
+      valid: data.success === true,
+      errorCodes: data.error_codes || [],
+    };
   } catch (error) {
     console.error("Turnstile verification error:", error);
-    return false;
+    return { valid: false, errorCodes: ["verification-request-failed"] };
   }
+}
+
+function turnstileErrorMessage(errorCodes: string[]): string {
+  if (errorCodes.includes("missing-server-secret")) {
+    return "Serverda Cloudflare Turnstile secret key sozlanmagan.";
+  }
+  if (errorCodes.includes("invalid-input-secret") || errorCodes.includes("missing-input-secret")) {
+    return "Serverdagi Cloudflare Turnstile secret key noto'g'ri.";
+  }
+  if (errorCodes.includes("timeout-or-duplicate")) {
+    return "Xavfsizlik kodi eskirgan. Iltimos, tekshiruvni qayta bajaring.";
+  }
+  return "Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko'ring.";
 }
 
 function loadLocalStore() {
@@ -783,11 +804,9 @@ app.post("/api/auth/send-code", async (req, res) => {
     }
 
     // Verify Turnstile token
-    if (turnstileToken) {
-      const isTurnstileValid = await verifyTurnstile(turnstileToken);
-      if (!isTurnstileValid) {
-        return res.status(400).json({ error: "Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko'ring." });
-      }
+    const turnstileVerification = await verifyTurnstile(turnstileToken);
+    if (!turnstileVerification.valid) {
+      return res.status(400).json({ error: turnstileErrorMessage(turnstileVerification.errorCodes) });
     }
 
     const cleanEmail = email.toLowerCase().trim();
@@ -884,11 +903,9 @@ app.post("/api/auth/forgot-password-send-code", async (req, res) => {
     }
 
     // Verify Turnstile token
-    if (turnstileToken) {
-      const isTurnstileValid = await verifyTurnstile(turnstileToken);
-      if (!isTurnstileValid) {
-        return res.status(400).json({ error: "Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko'ring." });
-      }
+    const turnstileVerification = await verifyTurnstile(turnstileToken);
+    if (!turnstileVerification.valid) {
+      return res.status(400).json({ error: turnstileErrorMessage(turnstileVerification.errorCodes) });
     }
 
     const cleanEmail = email.toLowerCase().trim();
@@ -1216,11 +1233,9 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     // Verify Turnstile token for email login
-    if (turnstileToken) {
-      const isTurnstileValid = await verifyTurnstile(turnstileToken);
-      if (!isTurnstileValid) {
-        return res.status(400).json({ error: "Xavfsizlik tekshiruvi muvaffaqiyatsiz. Iltimos, qayta urinib ko'ring." });
-      }
+    const turnstileVerification = await verifyTurnstile(turnstileToken);
+    if (!turnstileVerification.valid) {
+      return res.status(400).json({ error: turnstileErrorMessage(turnstileVerification.errorCodes) });
     }
 
     const [users]: any = await dbQuery("SELECT * FROM users WHERE email = ?", [email]);
