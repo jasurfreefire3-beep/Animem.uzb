@@ -321,6 +321,22 @@ async function testDbConnection() {
       console.log("Added yandex_id column to users table.");
     }
 
+    // Check if discord_id column exists in users
+    const [discordColumns]: any = await connection.query(`
+      SELECT COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_NAME = 'users'
+        AND COLUMN_NAME = 'discord_id'
+        AND TABLE_SCHEMA = DATABASE()
+    `);
+
+    if (discordColumns.length === 0) {
+      await connection.query(`
+        ALTER TABLE users ADD COLUMN discord_id VARCHAR(255) DEFAULT NULL
+      `);
+      console.log("Added discord_id column to users table.");
+    }
+
     // Check if created_at column exists in users
     const [createdAtCols]: any = await connection.query(`
       SELECT COLUMN_NAME 
@@ -4709,6 +4725,135 @@ app.post("/api/auth/yandex/verify", async (req, res) => {
   } catch (err: any) {
     console.error("Yandex verify error:", err);
     res.status(400).json({ error: err.message || "Yandex orqali kirishda xatolik yuz berdi" });
+  }
+});
+
+// ==================== DISCORD OAUTH ENDPOINTS ====================
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
+
+function getDiscordRedirectUri(req: express.Request): string {
+  const appUrl = process.env.APP_URL || `https://${req.headers.host}`;
+  return `${appUrl.replace(/\/$/, "")}/api/auth/discord/callback`;
+}
+
+app.get("/api/auth/discord/url", (req, res) => {
+  if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
+    return res.status(503).json({ error: "Discord orqali kirish hali serverda sozlanmagan." });
+  }
+
+  const redirectUri = getDiscordRedirectUri(req);
+  const state = jwt.sign({ provider: "discord", redirectUri }, JWT_SECRET, { expiresIn: "10m" });
+  const params = new URLSearchParams({
+    client_id: DISCORD_CLIENT_ID,
+    response_type: "code",
+    redirect_uri: redirectUri,
+    scope: "identify email",
+    state,
+  });
+
+  res.json({ url: `https://discord.com/oauth2/authorize?${params.toString()}` });
+});
+
+async function processDiscordAuth(code: string, redirectUri: string) {
+  if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
+    throw new Error("Discord server sozlamalari topilmadi.");
+  }
+
+  const tokenParams = new URLSearchParams({
+    client_id: DISCORD_CLIENT_ID,
+    client_secret: DISCORD_CLIENT_SECRET,
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: redirectUri,
+  });
+  const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: tokenParams.toString(),
+  });
+  const tokenData = await tokenRes.json() as any;
+  if (!tokenRes.ok || !tokenData.access_token) {
+    throw new Error(tokenData.error_description || "Discord tasdiqlash kodini tekshirib bo'lmadi.");
+  }
+
+  const profileRes = await fetch("https://discord.com/api/users/@me", {
+    headers: { Authorization: `Bearer ${tokenData.access_token}` },
+  });
+  const discordUser = await profileRes.json() as any;
+  if (!profileRes.ok || !discordUser.id) {
+    throw new Error("Discord profilingiz ma'lumotlari olinmadi.");
+  }
+
+  const discordId = String(discordUser.id);
+  const email = discordUser.email || `discord-${discordId}@users.animem.uz`;
+  const name = discordUser.global_name || discordUser.username || "Discord User";
+  const avatarUrl = discordUser.avatar
+    ? `https://cdn.discordapp.com/avatars/${discordId}/${discordUser.avatar}.png?size=256`
+    : null;
+
+  const [users]: any = await dbQuery(
+    "SELECT * FROM users WHERE discord_id = ? OR email = ?",
+    [discordId, email]
+  );
+  let user = users[0];
+
+  if (!user) {
+    const role = email === "mosinjonovjasurbek28@gmail.com" ? "admin" : "user";
+    const hashedPassword = await bcrypt.hash(Math.random().toString(36).slice(-16), 10);
+    const [insertRes]: any = await dbQuery(
+      "INSERT INTO users (name, email, password, role, avatar_url, discord_id) VALUES (?, ?, ?, ?, ?, ?)",
+      [name, email, hashedPassword, role, avatarUrl, discordId]
+    );
+    user = { id: insertRes.insertId, name, email, role, avatar_url: avatarUrl, discord_id: discordId };
+  } else if (!user.discord_id || (avatarUrl && !user.avatar_url)) {
+    await dbQuery(
+      "UPDATE users SET discord_id = COALESCE(discord_id, ?), avatar_url = COALESCE(avatar_url, ?) WHERE id = ?",
+      [discordId, avatarUrl, user.id]
+    );
+    user.discord_id = discordId;
+    if (avatarUrl) user.avatar_url = avatarUrl;
+  }
+
+  const userPayload = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    avatar_url: user.avatar_url,
+  };
+  const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: "30d" });
+  return { token, user: userPayload };
+}
+
+app.get(["/api/auth/discord/callback", "/api/auth/discord/callback/"], async (req, res) => {
+  const sendCallback = (type: "DISCORD_AUTH_SUCCESS" | "DISCORD_AUTH_ERROR", payload: Record<string, unknown>) => {
+    res.send(`<!doctype html><html><body><script>
+      const message = ${JSON.stringify({ type, ...payload })};
+      if (window.opener) {
+        window.opener.postMessage(message, window.location.origin);
+        window.close();
+      } else {
+        window.location.replace('/login');
+      }
+    </script></body></html>`);
+  };
+
+  try {
+    const code = req.query.code as string;
+    const state = req.query.state as string;
+    if (!code || !state) throw new Error("Discord tasdiqlash ma'lumotlari topilmadi.");
+
+    const stateData = jwt.verify(state, JWT_SECRET) as { provider?: string; redirectUri?: string };
+    if (stateData.provider !== "discord" || !stateData.redirectUri) {
+      throw new Error("Discord tasdiqlash so'rovi yaroqsiz.");
+    }
+
+    const result = await processDiscordAuth(code, stateData.redirectUri);
+    sendCallback("DISCORD_AUTH_SUCCESS", result);
+  } catch (err: any) {
+    console.error("Discord OAuth callback error:", err);
+    sendCallback("DISCORD_AUTH_ERROR", { error: err.message || "Discord orqali kirishda xatolik" });
   }
 });
 

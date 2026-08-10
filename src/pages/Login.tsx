@@ -87,10 +87,12 @@ export default function Login() {
   const [telegramStatus, setTelegramStatus] = useState<'pending' | 'pending_phone' | 'authorized' | 'expired' | ''>('');
   const [telegramProgress, setTelegramProgress] = useState(1);
 
-  // Listen for Yandex OAuth postMessage from popup callback
+  // Listen for OAuth popup callbacks
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'YANDEX_AUTH_SUCCESS') {
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data?.type === 'YANDEX_AUTH_SUCCESS' || event.data?.type === 'DISCORD_AUTH_SUCCESS') {
         const { token: userToken, user: authUser } = event.data;
         if (userToken && authUser) {
           login(userToken, authUser);
@@ -98,6 +100,8 @@ export default function Login() {
         }
       } else if (event.data?.type === 'YANDEX_AUTH_ERROR') {
         setError(event.data.error || 'Yandex avtorizatsiyasida xatolik yuz berdi');
+      } else if (event.data?.type === 'DISCORD_AUTH_ERROR') {
+        setError(event.data.error || 'Discord avtorizatsiyasida xatolik yuz berdi');
       }
     };
     window.addEventListener('message', handleMessage);
@@ -125,6 +129,20 @@ export default function Login() {
       }
     } catch (err: any) {
       setError(err.message || 'Yandex orqali kirishda xatolik');
+    }
+  };
+
+  const handleDiscordLoginStart = async () => {
+    try {
+      setError('');
+      const res = await fetch('/api/auth/discord/url');
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error || 'Discord avtorizatsiya havolasi olinmadi');
+
+      const authWindow = window.open(data.url, 'discord_oauth_popup', 'width=600,height=700,top=100,left=100');
+      if (!authWindow) window.location.href = data.url;
+    } catch (err: any) {
+      setError(err.message || 'Discord orqali kirishda xatolik');
     }
   };
 
@@ -614,6 +632,17 @@ export default function Login() {
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                 </svg>
                 Google bilan kirish
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDiscordLoginStart}
+                className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-3 flex items-center justify-center gap-3 cursor-pointer"
+              >
+                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" aria-hidden="true">
+                  <path d="M20.32 4.37A19.8 19.8 0 0015.55 3l-.6 1.22a18.27 18.27 0 00-5.9 0L8.45 3a19.7 19.7 0 00-4.77 1.37C.66 8.9-.16 13.3.25 17.63A19.9 19.9 0 006.1 20.6l1.42-1.95a12.2 12.2 0 01-2.24-1.08l.54-.42c4.32 2 9 2 13.27 0l.54.42c-.72.43-1.47.79-2.24 1.08l1.42 1.95a19.8 19.8 0 005.85-2.97c.48-5.02-.82-9.38-3.34-13.26zM8.4 15.02c-1.15 0-2.1-1.05-2.1-2.34s.92-2.34 2.1-2.34c1.19 0 2.12 1.06 2.1 2.34.01 1.29-.91 2.34-2.1 2.34zm7.2 0c-1.15 0-2.1-1.05-2.1-2.34s.92-2.34 2.1-2.34c1.19 0 2.12 1.06 2.1 2.34.01 1.29-.91 2.34-2.1 2.34z" />
+                </svg>
+                Discord bilan kirish
               </button>
 
               <button

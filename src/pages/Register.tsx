@@ -91,10 +91,12 @@ export default function Register() {
   const [telegramStatus, setTelegramStatus] = useState<'pending' | 'pending_phone' | 'authorized' | 'expired' | ''>('');
   const [telegramProgress, setTelegramProgress] = useState(1);
 
-  // Listen for Yandex OAuth postMessage from popup callback
+  // Listen for OAuth popup callbacks
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'YANDEX_AUTH_SUCCESS') {
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data?.type === 'YANDEX_AUTH_SUCCESS' || event.data?.type === 'DISCORD_AUTH_SUCCESS') {
         const { token: userToken, user: authUser } = event.data;
         if (userToken && authUser) {
           login(userToken, authUser);
@@ -102,6 +104,8 @@ export default function Register() {
         }
       } else if (event.data?.type === 'YANDEX_AUTH_ERROR') {
         setError(event.data.error || 'Yandex avtorizatsiyasida xatolik yuz berdi');
+      } else if (event.data?.type === 'DISCORD_AUTH_ERROR') {
+        setError(event.data.error || 'Discord avtorizatsiyasida xatolik yuz berdi');
       }
     };
     window.addEventListener('message', handleMessage);
@@ -129,6 +133,20 @@ export default function Register() {
       }
     } catch (err: any) {
       setError(err.message || 'Yandex orqali kirishda xatolik');
+    }
+  };
+
+  const handleDiscordLoginStart = async () => {
+    try {
+      setError('');
+      const res = await fetch('/api/auth/discord/url');
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error || 'Discord avtorizatsiya havolasi olinmadi');
+
+      const authWindow = window.open(data.url, 'discord_oauth_popup', 'width=600,height=700,top=100,left=100');
+      if (!authWindow) window.location.href = data.url;
+    } catch (err: any) {
+      setError(err.message || 'Discord orqali kirishda xatolik');
     }
   };
 
@@ -612,6 +630,21 @@ export default function Register() {
                 <div className="text-[11px] text-gray-600 font-normal">
                   Google akkunt orqali bir bosishda
                 </div>
+              </div>
+            </button>
+
+            <button
+              onClick={handleDiscordLoginStart}
+              className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white p-4 rounded-sm transition-all text-left flex items-center gap-4 cursor-pointer"
+            >
+              <div className="w-10 h-10 bg-white/10 rounded-sm flex items-center justify-center">
+                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" aria-hidden="true">
+                  <path d="M20.32 4.37A19.8 19.8 0 0015.55 3l-.6 1.22a18.27 18.27 0 00-5.9 0L8.45 3a19.7 19.7 0 00-4.77 1.37C.66 8.9-.16 13.3.25 17.63A19.9 19.9 0 006.1 20.6l1.42-1.95a12.2 12.2 0 01-2.24-1.08l.54-.42c4.32 2 9 2 13.27 0l.54.42c-.72.43-1.47.79-2.24 1.08l1.42 1.95a19.8 19.8 0 005.85-2.97c.48-5.02-.82-9.38-3.34-13.26zM8.4 15.02c-1.15 0-2.1-1.05-2.1-2.34s.92-2.34 2.1-2.34c1.19 0 2.12 1.06 2.1 2.34.01 1.29-.91 2.34-2.1 2.34zm7.2 0c-1.15 0-2.1-1.05-2.1-2.34s.92-2.34 2.1-2.34c1.19 0 2.12 1.06 2.1 2.34.01 1.29-.91 2.34-2.1 2.34z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-black text-white">Discord bilan kirish</div>
+                <div className="text-[11px] text-white/70">Discord akkauntingiz orqali bir bosishda</div>
               </div>
             </button>
 
