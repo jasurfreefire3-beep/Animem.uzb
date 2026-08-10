@@ -23,8 +23,9 @@ interface AdminUser {
   avatar_url?: string;
   telegram_id?: string;
   yandex_id?: string;
+  discord_id?: string;
   created_at: string;
-  provider: 'telegram' | 'yandex' | 'google' | 'phone' | 'email';
+  provider: 'telegram' | 'yandex' | 'discord' | 'google' | 'phone' | 'email';
   provider_label: string;
 }
 
@@ -36,7 +37,7 @@ export default function AdminUsers({ token }: AdminUsersProps) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'telegram' | 'google' | 'yandex' | 'phone' | 'email' | 'admin'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'telegram' | 'google' | 'yandex' | 'discord' | 'phone' | 'email' | 'admin'>('all');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const fetchUsers = async () => {
@@ -109,6 +110,7 @@ export default function AdminUsers({ token }: AdminUsersProps) {
   const telegramCount = users.filter(u => u.provider === 'telegram').length;
   const googleCount = users.filter(u => u.provider === 'google').length;
   const yandexCount = users.filter(u => u.provider === 'yandex').length;
+  const discordCount = users.filter(u => u.provider === 'discord').length;
   const phoneCount = users.filter(u => u.provider === 'phone').length;
   const emailCount = users.filter(u => u.provider === 'email').length;
   const adminCount = users.filter(u => u.role === 'admin').length;
@@ -119,7 +121,8 @@ export default function AdminUsers({ token }: AdminUsersProps) {
       (u.name && u.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (u.email && u.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (u.phone && u.phone.includes(searchQuery)) ||
-      (u.telegram_id && u.telegram_id.includes(searchQuery));
+      (u.telegram_id && u.telegram_id.includes(searchQuery)) ||
+      (u.discord_id && u.discord_id.includes(searchQuery));
 
     if (!matchSearch) return false;
 
@@ -151,6 +154,13 @@ export default function AdminUsers({ token }: AdminUsersProps) {
             Yandex ID
           </span>
         );
+      case 'discord':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-[#5865F2]/15 text-[#8ea1ff] border border-[#5865F2]/30">
+            <span className="w-3 h-3 rounded-sm bg-[#5865F2] text-white flex items-center justify-center text-[9px] font-black shrink-0">D</span>
+            Discord
+          </span>
+        );
       case 'phone':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
@@ -178,7 +188,7 @@ export default function AdminUsers({ token }: AdminUsersProps) {
           </div>
           <h2 className="text-xl font-black text-white">Barcha Ro'yxatdan O'tgan Foydalanuvchilar</h2>
           <p className="text-xs text-white/50 mt-1">
-            Telegram, Google, Yandex va Email orqali kirgan barcha foydalanuvchilar statistikasi va ro'yxati.
+            Telegram, Discord, Google, Yandex va Email orqali kirgan barcha foydalanuvchilar statistikasi va ro'yxati.
           </p>
         </div>
 
@@ -205,7 +215,7 @@ export default function AdminUsers({ token }: AdminUsersProps) {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
         <div className="bg-[#111] border border-[#222] p-4 rounded-sm">
           <div className="text-xs text-white/50 font-medium">Jami A'zolar</div>
           <div className="text-xl font-black text-white mt-1">{totalCount}</div>
@@ -230,6 +240,13 @@ export default function AdminUsers({ token }: AdminUsersProps) {
             <span className="font-bold">Я</span> Yandex ID
           </div>
           <div className="text-xl font-black text-white mt-1">{yandexCount}</div>
+        </div>
+
+        <div className="bg-[#111] border border-[#5865F2]/30 p-4 rounded-sm">
+          <div className="text-xs text-[#8ea1ff] font-medium flex items-center gap-1">
+            <span className="font-bold">D</span> Discord
+          </div>
+          <div className="text-xl font-black text-white mt-1">{discordCount}</div>
         </div>
 
         <div className="bg-[#111] border border-purple-500/30 p-4 rounded-sm">
@@ -295,6 +312,14 @@ export default function AdminUsers({ token }: AdminUsersProps) {
               }`}
             >
               Yandex ({yandexCount})
+            </button>
+            <button
+              onClick={() => setActiveFilter('discord')}
+              className={`px-3 py-1.5 rounded-sm text-xs font-bold transition-colors cursor-pointer ${
+                activeFilter === 'discord' ? 'bg-[#5865F2] text-white' : 'bg-[#222] text-white/60 hover:text-white'
+              }`}
+            >
+              Discord ({discordCount})
             </button>
             <button
               onClick={() => setActiveFilter('admin')}

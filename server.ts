@@ -3567,7 +3567,7 @@ app.get("/api/admin/users", authenticateToken, async (req: any, res: any) => {
 
     let users: any[] = [];
     try {
-      const [rows]: any = await dbQuery("SELECT id, name, email, phone, role, avatar_url, telegram_id, yandex_id, created_at FROM users ORDER BY id DESC");
+      const [rows]: any = await dbQuery("SELECT id, name, email, phone, role, avatar_url, telegram_id, yandex_id, discord_id, created_at FROM users ORDER BY id DESC");
       users = rows || [];
     } catch (dbErr) {
       console.warn("DB Query for users failed, falling back to local store:", dbErr);
@@ -3585,6 +3585,9 @@ app.get("/api/admin/users", authenticateToken, async (req: any, res: any) => {
       } else if (u.yandex_id) {
         provider = "yandex";
         provider_label = "Yandex ID";
+      } else if (u.discord_id) {
+        provider = "discord";
+        provider_label = "Discord";
       } else if (u.email && u.email.toLowerCase().endsWith("@gmail.com")) {
         provider = "google";
         provider_label = "Google Email";
@@ -3602,6 +3605,7 @@ app.get("/api/admin/users", authenticateToken, async (req: any, res: any) => {
         avatar_url: u.avatar_url || null,
         telegram_id: u.telegram_id || null,
         yandex_id: u.yandex_id || null,
+        discord_id: u.discord_id || null,
         created_at: u.created_at || new Date().toISOString(),
         provider,
         provider_label
