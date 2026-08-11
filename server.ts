@@ -58,6 +58,7 @@ app.use((req, res, next) => {
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "anime_super_secret_key";
+const ANIMEBOT_SYNC_SECRET = process.env.ANIMEBOT_SYNC_SECRET || "";
 
 // MySQL Database Pool Connection
 const pool = mysql.createPool({
@@ -2225,6 +2226,107 @@ app.get("/api/animes/:id/episodes", async (req, res) => {
   const store = loadLocalStore();
   const eps = (store.episodes || []).filter((e: any) => String(e.anime_id) === String(id));
   res.json(eps);
+});
+
+function toAnimeSlug(text: string): string {
+  return (text || "")
+    .toLowerCase()
+    .replace(/o['’`‘]/g, "o")
+    .replace(/g['’`‘]/g, "g")
+    .replace(/[^a-z0-9\u0400-\u04FF]+/gi, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Private bridge used by public/animebot/main.py.
+ * When a video arrives in the Telegram channel it creates (or updates) the
+ * matching anime and its episode on the site. The stored URL is a Telegram
+ * deep link, so neither a Telegram bot token nor the actual media file is
+ * exposed to browsers.
+ */
+app.post("/api/integrations/animebot/episode", async (req, res) => {
+  const suppliedSecret = req.headers.authorization?.replace(/^Bearer\s+/i, "");
+  if (!ANIMEBOT_SYNC_SECRET || suppliedSecret !== ANIMEBOT_SYNC_SECRET) {
+    return res.sendStatus(401);
+  }
+
+  const { title, slug, episode_number, note, telegram_url } = req.body || {};
+  const episodeNumber = Number.parseInt(String(episode_number), 10);
+  if (
+    typeof title !== "string" || !title.trim() ||
+    !Number.isInteger(episodeNumber) || episodeNumber < 1 ||
+    typeof telegram_url !== "string" ||
+    !/^https:\/\/t\.me\/[A-Za-z0-9_]+\?start=[A-Za-z0-9_-]{1,64}$/.test(telegram_url)
+  ) {
+    return res.status(400).json({ error: "Noto'g'ri animebot ma'lumoti" });
+  }
+
+  const normalizedTitle = title.trim().slice(0, 255);
+  const normalizedSlug = toAnimeSlug(typeof slug === "string" ? slug : normalizedTitle);
+  if (!normalizedSlug || normalizedSlug !== toAnimeSlug(normalizedTitle)) {
+    return res.status(400).json({ error: "Slug anime nomiga mos emas" });
+  }
+
+  let anime: any;
+  let animeId: number;
+  try {
+    const [rows]: any = await dbQuery("SELECT * FROM animes");
+    anime = (rows || []).find((row: any) => toAnimeSlug(row.title) === normalizedSlug);
+
+    if (!anime) {
+      const [result]: any = await dbQuery(
+        `INSERT INTO animes
+          (title, description, image_url, banner_url, rating, rating_count, holati, yil, studiyasi, qismlar_soni, korishlar, janrlar, video_url, tavsiya, is_banner, tags)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [normalizedTitle, "", "/logo.png", "/logo.png", 0, 0, "Efirda", null, "", episodeNumber, 0, "", telegram_url, 0, 0, ""]
+      );
+      animeId = Number(result.insertId);
+      anime = { id: animeId, title: normalizedTitle, qismlar_soni: episodeNumber, video_url: telegram_url };
+    } else {
+      animeId = Number(anime.id);
+      const totalEpisodes = Math.max(Number(anime.qismlar_soni) || 0, episodeNumber);
+      await dbQuery("UPDATE animes SET qismlar_soni = ?, video_url = COALESCE(NULLIF(video_url, ''), ?) WHERE id = ?", [totalEpisodes, telegram_url, animeId]);
+      anime.qismlar_soni = totalEpisodes;
+    }
+
+    const [existingEpisode]: any = await dbQuery(
+      "SELECT id FROM episodes WHERE anime_id = ? AND episode_number = ?", [animeId, episodeNumber]
+    );
+    if (existingEpisode?.length) {
+      await dbQuery("UPDATE episodes SET video_url = ? WHERE anime_id = ? AND episode_number = ?", [telegram_url, animeId, episodeNumber]);
+    } else {
+      await dbQuery(
+        "INSERT INTO episodes (anime_id, episode_number, video_url) VALUES (?, ?, ?)", [animeId, episodeNumber, telegram_url]
+      );
+    }
+  } catch (error) {
+    // Local store mirrors normal API behavior if MySQL is temporarily offline.
+    console.warn("Animebot DB sync failed; using local store:", (error as any)?.message);
+    const store = loadLocalStore();
+    store.animes = store.animes || [];
+    store.episodes = store.episodes || [];
+    anime = store.animes.find((item: any) => toAnimeSlug(item.title) === normalizedSlug);
+    if (!anime) {
+      animeId = Date.now();
+      anime = {
+        id: animeId, title: normalizedTitle, description: "", image_url: "/logo.png", banner_url: "/logo.png",
+        rating: 0, rating_count: 0, holati: "Efirda", yil: null, studiyasi: "", qismlar_soni: episodeNumber,
+        korishlar: 0, janrlar: "", video_url: telegram_url, tavsiya: false, is_banner: false, tags: ""
+      };
+      store.animes.unshift(anime);
+    } else {
+      animeId = Number(anime.id);
+      anime.qismlar_soni = Math.max(Number(anime.qismlar_soni) || 0, episodeNumber);
+      if (!anime.video_url) anime.video_url = telegram_url;
+    }
+    const index = store.episodes.findIndex((item: any) => Number(item.anime_id) === animeId && Number(item.episode_number) === episodeNumber);
+    const episode = { id: index >= 0 ? store.episodes[index].id : Date.now(), anime_id: animeId, episode_number: episodeNumber, video_url: telegram_url, note: note || null };
+    if (index >= 0) store.episodes[index] = { ...store.episodes[index], ...episode };
+    else store.episodes.push(episode);
+    saveLocalStore(store);
+  }
+
+  res.status(201).json({ anime_id: animeId!, slug: normalizedSlug, episode_number: episodeNumber });
 });
 
 // Helper function for safe JSON parsing
