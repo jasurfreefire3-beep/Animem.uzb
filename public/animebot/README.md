@@ -5,7 +5,7 @@ documentni qabul qiladi. U qismni Telegram botida saqlaydi va sayt API'sida anim
 qismni avtomatik yaratadi. Saytdagi qism tugmasi foydalanuvchini botning aynan shu qismiga
 ochadi.
 
-Bot jarayoniga quyidagi environment o'zgaruvchilarni bering:
+`public/animebot/.env.example` faylidan `public/animebot/.env` yarating va quyidagi qiymatlarni kiriting (bot bu faylni avtomatik o'qiydi):
 
 ```bash
 ANIMEBOT_TOKEN="telegram-bot-token"
@@ -23,8 +23,17 @@ ANIMEBOT_SYNC_SECRET="uzun-va-tasodifiy-maxfiy-kalit"
 ```
 
 Keyin sayt serveri va bot jarayonini qayta ishga tushiring. Botni loyiha papkasidan
-`python3 public/animebot/main.py` orqali yoki shu environment qiymatlarini beradigan
-systemd service orqali ishga tushirish mumkin.
+quyidagicha ishga tushiring:
+
+```bash
+cd public/animebot
+sudo apt-get install python3.14-venv  # faqat bir marta, agar venv yo'q bo'lsa
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python main.py
+```
+
+Yoki shu environment qiymatlarini beradigan systemd service orqali ishga tushirish mumkin.
 
 Eslatma: `SITE_SYNC_SECRET` hech qachon frontend (`VITE_*`) o'zgaruvchisi sifatida
 berilmasin. Telegram tokeni ham faqat bot jarayonida qoladi.

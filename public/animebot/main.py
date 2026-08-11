@@ -24,6 +24,24 @@ from aiogram.types import (
 )
 import os
 
+def load_local_env():
+    """Bot papkasidagi .env faylini qo'shimcha kutubxonasiz o'qiydi."""
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    if not os.path.exists(env_path):
+        return
+    with open(env_path, "r", encoding="utf-8") as env_file:
+        for line in env_file:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+load_local_env()
+
 # ======================= CONFIG =======================
 BOT_TOKEN = os.environ.get("ANIMEBOT_TOKEN", "")
 ADMIN_IDS = [int(value) for value in os.environ.get("ANIMEBOT_ADMIN_IDS", "8991315532").split(",") if value.strip()]
