@@ -341,7 +341,7 @@ export default function Profil() {
         
         {/* Banner Container */}
         <div className="relative w-full h-48 sm:h-64 md:h-72 bg-[#1a1a1c] overflow-hidden">
-          <img 
+          <img loading="lazy" decoding="async" 
             src={profileUser.banner_url || DEFAULT_BANNER} 
             alt="User Banner" 
             className="w-full h-full object-cover opacity-80"
@@ -374,7 +374,7 @@ export default function Profil() {
             <div className="relative shrink-0 group">
               <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border-4 border-[#111] bg-[#1c1c1e] overflow-hidden flex items-center justify-center text-4xl sm:text-5xl font-black text-[#ff006a] uppercase shadow-[0_0_30px_rgba(255,0,106,0.3)] relative">
                 {profileUser.avatar_url ? (
-                  <img src={profileUser.avatar_url} alt={profileUser.name} className="w-full h-full object-cover" />
+                  <img loading="lazy" decoding="async" src={profileUser.avatar_url} alt={profileUser.name} className="w-full h-full object-cover" />
                 ) : (
                   profileUser.name.charAt(0)
                 )}
@@ -744,7 +744,7 @@ export default function Profil() {
               >
                 {/* Anime Poster */}
                 <Link to={`/anime/${toSlug(anime.title)}`} className="aspect-[3/4] relative overflow-hidden block bg-black">
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={anime.image_url} 
                     alt={anime.title} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

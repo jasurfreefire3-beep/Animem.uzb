@@ -121,7 +121,7 @@ export default function Tarix() {
               <div className="flex items-center space-x-4 min-w-0 flex-1">
                 {/* Thumbnail */}
                 <Link to={`/anime/${toSlug(item.title)}`} title={item.title} className="w-12 h-16 bg-[#000] rounded-sm overflow-hidden border border-[#222] shrink-0 block">
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={item.image_url} 
                     alt={item.title} 
                     title={item.title} 
