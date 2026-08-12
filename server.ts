@@ -338,6 +338,22 @@ async function testDbConnection() {
       console.log("Added discord_id column to users table.");
     }
 
+    // Check if facebook_id column exists in users
+    const [facebookColumns]: any = await connection.query(`
+      SELECT COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_NAME = 'users'
+        AND COLUMN_NAME = 'facebook_id'
+        AND TABLE_SCHEMA = DATABASE()
+    `);
+
+    if (facebookColumns.length === 0) {
+      await connection.query(`
+        ALTER TABLE users ADD COLUMN facebook_id VARCHAR(255) DEFAULT NULL
+      `);
+      console.log("Added facebook_id column to users table.");
+    }
+
     // Check if created_at column exists in users
     const [createdAtCols]: any = await connection.query(`
       SELECT COLUMN_NAME 
@@ -1284,6 +1300,72 @@ app.post("/api/auth/google", async (req, res) => {
     });
   } catch (error: any) {
     console.error("Google Login error:", error);
+    res.status(500).json({ error: "Serverda xatolik yuz berdi" });
+  }
+});
+
+app.post("/api/auth/facebook", async (req, res) => {
+  try {
+    const { email, name, uid, avatar_url } = req.body;
+    if (!uid || !name) {
+      return res.status(400).json({ error: "Kerakli ma'lumotlar yo'q" });
+    }
+
+    const facebookId = String(uid);
+    const userEmail = email || `fb_${facebookId}@facebook.local`;
+
+    let [users]: any = await dbQuery(
+      "SELECT * FROM users WHERE facebook_id = ? OR email = ?",
+      [facebookId, userEmail]
+    );
+    let user = users[0];
+
+    if (!user) {
+      // Auto generate random password for facebook users (they won't use it anyway)
+      const randomPass = Math.random().toString(36).slice(-8);
+      const hashedPassword = await bcrypt.hash(randomPass, 10);
+
+      const [result]: any = await dbQuery(
+        "INSERT INTO users (name, email, password, role, avatar_url, facebook_id) VALUES (?, ?, ?, ?, ?, ?)",
+        [name, userEmail, hashedPassword, "user", avatar_url || null, facebookId]
+      );
+
+      user = {
+        id: result.insertId,
+        name,
+        email: userEmail,
+        role: "user",
+        avatar_url: avatar_url || null,
+        facebook_id: facebookId,
+      };
+    } else {
+      if (!user.facebook_id || (avatar_url && !user.avatar_url)) {
+        await dbQuery(
+          "UPDATE users SET facebook_id = COALESCE(facebook_id, ?), avatar_url = COALESCE(avatar_url, ?) WHERE id = ?",
+          [facebookId, avatar_url || null, user.id]
+        );
+        user.facebook_id = user.facebook_id || facebookId;
+        user.avatar_url = user.avatar_url || avatar_url || null;
+      }
+    }
+
+    const userPayload = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar_url: user.avatar_url,
+    };
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    res.json({ token, user: userPayload });
+  } catch (error: any) {
+    console.error("Facebook Login error:", error);
     res.status(500).json({ error: "Serverda xatolik yuz berdi" });
   }
 });
@@ -3669,7 +3751,7 @@ app.get("/api/admin/users", authenticateToken, async (req: any, res: any) => {
 
     let users: any[] = [];
     try {
-      const [rows]: any = await dbQuery("SELECT id, name, email, phone, role, avatar_url, telegram_id, yandex_id, discord_id, created_at FROM users ORDER BY id DESC");
+      const [rows]: any = await dbQuery("SELECT id, name, email, phone, role, avatar_url, telegram_id, yandex_id, discord_id, facebook_id, created_at FROM users ORDER BY id DESC");
       users = rows || [];
     } catch (dbErr) {
       console.warn("DB Query for users failed, falling back to local store:", dbErr);
@@ -3690,6 +3772,9 @@ app.get("/api/admin/users", authenticateToken, async (req: any, res: any) => {
       } else if (u.discord_id) {
         provider = "discord";
         provider_label = "Discord";
+      } else if (u.facebook_id) {
+        provider = "facebook";
+        provider_label = "Facebook";
       } else if (u.email && u.email.toLowerCase().endsWith("@gmail.com")) {
         provider = "google";
         provider_label = "Google Email";
@@ -3708,6 +3793,7 @@ app.get("/api/admin/users", authenticateToken, async (req: any, res: any) => {
         telegram_id: u.telegram_id || null,
         yandex_id: u.yandex_id || null,
         discord_id: u.discord_id || null,
+        facebook_id: u.facebook_id || null,
         created_at: u.created_at || new Date().toISOString(),
         provider,
         provider_label

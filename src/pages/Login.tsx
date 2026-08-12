@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { LogIn, Mail, Lock, Phone, User, X, Loader2, Send, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
-import { auth, googleProvider } from '../lib/firebase';
+import { auth, googleProvider, facebookProvider } from '../lib/firebase';
 
 declare global {
   interface Window {
@@ -293,6 +293,45 @@ export default function Login() {
     } catch (err: any) {
       console.error('Google login popup error:', err);
       setError(err.message || 'Google orqali kirishda xatolik');
+    }
+  };
+
+  const handleFacebookLogin = async () => {
+    try {
+      setError('');
+      const result = await signInWithPopup(auth, facebookProvider);
+
+      if (!result || !result.user) {
+        throw new Error('Facebook foydalanuvchi ma\'lumotlari olinmadi');
+      }
+
+      const user = result.user;
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+      const res = await fetch(`${API_BASE}/api/auth/facebook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user.email,
+          name: user.displayName || 'Facebook User',
+          uid: user.uid,
+          avatar_url: user.photoURL,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Facebook login failed');
+      }
+
+      login(data.token, data.user);
+      navigate('/');
+    } catch (err: any) {
+      console.error('Facebook login popup error:', err);
+      if (err.code === 'auth/account-exists-with-different-credential') {
+        setError('Bu email bilan boshqa usulda ro\'yxatdan o\'tilgan. Google yoki email orqali kiring.');
+      } else if (err.code !== 'auth/popup-closed-by-user') {
+        setError(err.message || 'Facebook orqali kirishda xatolik');
+      }
     }
   };
 
@@ -632,6 +671,17 @@ export default function Login() {
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                 </svg>
                 Google bilan kirish
+              </button>
+
+              <button
+                type="button"
+                onClick={handleFacebookLogin}
+                className="w-full bg-[#1877F2] hover:bg-[#145fc4] text-white font-bold py-3 px-4 rounded-sm transition-colors mt-3 flex items-center justify-center gap-3 cursor-pointer"
+              >
+                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
+                  <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047v-2.66c0-3.026 1.792-4.697 4.533-4.697 1.313 0 2.686.235 2.686.235v2.971H15.83c-1.491 0-1.956.93-1.956 1.886v2.265h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
+                </svg>
+                Facebook bilan kirish
               </button>
 
               <button

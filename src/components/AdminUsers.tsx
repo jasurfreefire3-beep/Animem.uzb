@@ -24,8 +24,9 @@ interface AdminUser {
   telegram_id?: string;
   yandex_id?: string;
   discord_id?: string;
+  facebook_id?: string;
   created_at: string;
-  provider: 'telegram' | 'yandex' | 'discord' | 'google' | 'phone' | 'email';
+  provider: 'telegram' | 'yandex' | 'discord' | 'facebook' | 'google' | 'phone' | 'email';
   provider_label: string;
 }
 
@@ -37,7 +38,7 @@ export default function AdminUsers({ token }: AdminUsersProps) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'telegram' | 'google' | 'yandex' | 'discord' | 'phone' | 'email' | 'admin'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'telegram' | 'google' | 'facebook' | 'yandex' | 'discord' | 'phone' | 'email' | 'admin'>('all');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const fetchUsers = async () => {
@@ -111,6 +112,7 @@ export default function AdminUsers({ token }: AdminUsersProps) {
   const googleCount = users.filter(u => u.provider === 'google').length;
   const yandexCount = users.filter(u => u.provider === 'yandex').length;
   const discordCount = users.filter(u => u.provider === 'discord').length;
+  const facebookCount = users.filter(u => u.provider === 'facebook').length;
   const phoneCount = users.filter(u => u.provider === 'phone').length;
   const emailCount = users.filter(u => u.provider === 'email').length;
   const adminCount = users.filter(u => u.role === 'admin').length;
@@ -145,6 +147,13 @@ export default function AdminUsers({ token }: AdminUsersProps) {
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-red-500/15 text-red-400 border border-red-500/30">
             <Mail size={12} className="shrink-0" />
             Google Email
+          </span>
+        );
+      case 'facebook':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-[#1877F2]/15 text-[#6ca8f7] border border-[#1877F2]/30">
+            <span className="w-3 h-3 rounded-full bg-[#1877F2] text-white flex items-center justify-center text-[9px] font-black shrink-0">f</span>
+            Facebook
           </span>
         );
       case 'yandex':
@@ -215,7 +224,7 @@ export default function AdminUsers({ token }: AdminUsersProps) {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3">
         <div className="bg-[#111] border border-[#222] p-4 rounded-sm">
           <div className="text-xs text-white/50 font-medium">Jami A'zolar</div>
           <div className="text-xl font-black text-white mt-1">{totalCount}</div>
@@ -233,6 +242,13 @@ export default function AdminUsers({ token }: AdminUsersProps) {
             <Mail size={12} /> Google Email
           </div>
           <div className="text-xl font-black text-white mt-1">{googleCount}</div>
+        </div>
+
+        <div className="bg-[#111] border border-[#1877F2]/30 p-4 rounded-sm">
+          <div className="text-xs text-[#6ca8f7] font-medium flex items-center gap-1">
+            <span className="font-bold">f</span> Facebook
+          </div>
+          <div className="text-xl font-black text-white mt-1">{facebookCount}</div>
         </div>
 
         <div className="bg-[#111] border border-[#FC3F1D]/30 p-4 rounded-sm">
@@ -304,6 +320,14 @@ export default function AdminUsers({ token }: AdminUsersProps) {
               }`}
             >
               Google ({googleCount})
+            </button>
+            <button
+              onClick={() => setActiveFilter('facebook')}
+              className={`px-3 py-1.5 rounded-sm text-xs font-bold transition-colors cursor-pointer ${
+                activeFilter === 'facebook' ? 'bg-[#1877F2] text-white' : 'bg-[#222] text-white/60 hover:text-white'
+              }`}
+            >
+              Facebook ({facebookCount})
             </button>
             <button
               onClick={() => setActiveFilter('yandex')}
