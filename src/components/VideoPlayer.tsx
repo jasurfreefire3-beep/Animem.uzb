@@ -122,19 +122,6 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
 
   return (
     <div className="animem-player-shell group">
-      <div className="animem-player-topbar">
-        <div className="animem-player-brand" aria-label="Animem.uz">
-          <span>ANIMEM</span><b>.UZ</b>
-        </div>
-        <div className="animem-player-actions">
-          <button type="button" title="Chiroq rejimi"><span>☼</span> Light</button>
-          <button type="button" title="Picture in picture"><span>▣</span> Pip</button>
-          <button type="button" className="animem-player-keyboard" title="Klaviatura tugmalari"><span>⌨</span> Klaviatura</button>
-          <button type="button" title="Yoqish"><span>ⓘ</span> Yoqish</button>
-          <button type="button" title="To'liq ekran"><span>⛶</span> To'liq ekran</button>
-        </div>
-      </div>
-
       <div className="animem-player-stage">
         {isEmbed ? (
           <iframe

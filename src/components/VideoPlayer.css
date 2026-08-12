@@ -4,7 +4,7 @@
   width: 100%;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .11);
-  padding: 8px;
+  padding: 0;
   border-radius: 24px;
   background: linear-gradient(145deg, #11111a, #06060a 55%, #0d0912);
   box-shadow: 0 26px 75px rgba(0, 0, 0, .52), 0 0 32px rgba(255, 0, 106, .07);
@@ -19,7 +19,6 @@
   background: linear-gradient(90deg, transparent, var(--player-pink), transparent);
 }
 
-.animem-player-topbar,
 .animem-player-footer {
   position: relative;
   z-index: 1;
@@ -30,35 +29,7 @@
   background: rgba(7, 7, 13, .88);
 }
 
-.animem-player-topbar {
-  min-height: 78px;
-  padding: 10px 38px;
-  border-bottom: 0;
-}
-
-.animem-player-brand {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  color: #fff;
-  font-size: clamp(22px, 2.1vw, 33px);
-  font-weight: 900;
-  letter-spacing: -.045em;
-}
-.animem-player-brand span { color: var(--player-pink); text-shadow: 0 0 24px rgba(255, 0, 106, .42); }
-.animem-player-brand b { font-weight: 900; }
-.animem-player-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
-.animem-player-actions button {
-  display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px;
-  padding: 0 17px; border: 1px solid rgba(255, 0, 106, .28); border-radius: 14px;
-  color: rgba(255, 255, 255, .93); background: linear-gradient(145deg, #151420, #0d0c15);
-  box-shadow: inset 0 1px rgba(255,255,255,.04), 0 7px 18px rgba(0,0,0,.2);
-  font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: .2s ease;
-}
-.animem-player-actions button:hover { border-color: var(--player-pink); color: #fff; background: #21101d; box-shadow: 0 0 20px rgba(255, 0, 106, .17); transform: translateY(-1px); }
-.animem-player-actions button span { font-size: 23px; font-weight: 400; line-height: 1; }
-
-.animem-player-stage { position: relative; aspect-ratio: 16 / 9; min-height: 190px; overflow: hidden; border: 1px solid rgba(255, 0, 106, .66); border-radius: 20px; background: radial-gradient(circle at 50% 30%, #25121f, #050506 68%); box-shadow: 0 0 0 1px rgba(255, 0, 106, .1), inset 0 0 50px rgba(255,0,106,.08); }
+.animem-player-stage { position: relative; aspect-ratio: 16 / 9; min-height: 190px; overflow: hidden; border: 1px solid rgba(255, 0, 106, .72); border-radius: 23px; background: radial-gradient(circle at 50% 30%, #25121f, #050506 68%); box-shadow: 0 0 0 1px rgba(255, 0, 106, .12), inset 0 0 50px rgba(255,0,106,.1), 0 0 32px rgba(255,0,106,.09); }
 .animem-player-instance, .animem-player-embed { width: 100%; height: 100%; border: 0; }
 .animem-player-instance > div, .animem-player-instance iframe { width: 100% !important; height: 100% !important; }
 
@@ -78,23 +49,15 @@
 }
 html.light .animem-episodes-panel { background: #fff; border-color: rgba(15,23,42,.12); }
 
-/* PlayerJS controls inherit the site accent and stay comfortably tappable on mobile. */
+/* PlayerJS renders its controls inside the player; the configured theme keeps its active controls pink. */
 .animem-player-instance .playerjs, .animem-player-instance [class*='player'] { font-family: "Outfit", Arial, sans-serif !important; }
-.animem-player-instance [class*='progress'] [class*='line'], .animem-player-instance [class*='progress'] [style*='background'] { accent-color: var(--player-pink); }
 
 html.light .animem-player-shell { border-color: rgba(15, 23, 42, .13); box-shadow: 0 16px 40px rgba(15, 23, 42, .12); }
-html.light .animem-player-topbar, html.light .animem-player-footer { background: #fff; color: #334155; }
-html.light .animem-player-brand b { color: #0f172a; }
-html.light .animem-player-actions button { color: #334155; background: #fff; border-color: rgba(255, 0, 106, .28); }
+html.light .animem-player-footer { background: #fff; color: #334155; }
 html.light .animem-player-footer { color: #64748b; }
 
 @media (max-width: 640px) {
-  .animem-player-shell { padding: 4px; border-right: 0; border-left: 0; border-radius: 0; }
-  .animem-player-topbar { min-height: 62px; padding: 7px 12px; }
-  .animem-player-actions { gap: 6px; }
-  .animem-player-actions button { min-height: 35px; padding: 0 9px; border-radius: 10px; font-size: 0; }
-  .animem-player-actions button span { font-size: 18px; }
-  .animem-player-keyboard { display: none !important; }
+  .animem-player-shell { border-right: 0; border-left: 0; border-radius: 0; }
   .animem-player-stage { min-height: 220px; }
   .animem-player-footer { min-height: 30px; padding: 0 12px; font-size: 9px; }
 }
