@@ -123,11 +123,16 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
   return (
     <div className="animem-player-shell group">
       <div className="animem-player-topbar">
-        <div className="animem-player-title">
-          <span className="animem-player-live-dot" />
-          <span>{animeTitle || 'Animem.uz player'}</span>
+        <div className="animem-player-brand" aria-label="Animem.uz">
+          <span>ANIMEM</span><b>.UZ</b>
         </div>
-        <span className="animem-player-badge">{isEmbed ? 'TASHQI PLAYER' : 'ANIMEM PLAYER'}</span>
+        <div className="animem-player-actions">
+          <button type="button" title="Chiroq rejimi"><span>☼</span> Light</button>
+          <button type="button" title="Picture in picture"><span>▣</span> Pip</button>
+          <button type="button" className="animem-player-keyboard" title="Klaviatura tugmalari"><span>⌨</span> Klaviatura</button>
+          <button type="button" title="Yoqish"><span>ⓘ</span> Yoqish</button>
+          <button type="button" title="To'liq ekran"><span>⛶</span> To'liq ekran</button>
+        </div>
       </div>
 
       <div className="animem-player-stage">
@@ -152,10 +157,7 @@ export default function VideoPlayer({ url, poster, animeTitle }: VideoPlayerProp
         )}
       </div>
 
-      <div className="animem-player-footer">
-        <span>Yuqori sifatli tomosha tajribasi</span>
-        <span className="animem-player-footer-hint">⚙ Sifat va tezlik player sozlamalarida</span>
-      </div>
+      <div className="animem-player-footer"><span>{isEmbed ? 'Tashqi player orqali tomosha qilinmoqda' : 'Sifat va tezlik player sozlamalarida'}</span></div>
     </div>
   );
 }

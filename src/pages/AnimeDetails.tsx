@@ -708,7 +708,7 @@ export default function AnimeDetails() {
                  </div>
                </div>
 
-               <div className="-mx-4 sm:mx-0 mb-4 md:mb-6">
+               <div className="-mx-4 sm:mx-0 mb-3 md:mb-4">
                  {(currentVideoUrl || anime.video_url || '').includes('t.me') ? (
                     <div className="w-full min-h-[250px] sm:min-h-[360px] md:min-h-[480px] bg-[#0a0a0c] border border-white/10 sm:rounded-2xl flex flex-col items-center justify-center p-4 sm:p-6 text-center">
                       <div className="w-12 h-12 sm:w-20 sm:h-20 bg-[#0088cc]/20 rounded-full flex items-center justify-center mb-4 sm:mb-6 shrink-0">
@@ -740,20 +740,20 @@ export default function AnimeDetails() {
                </div>
 
                {/* Episode Selector */}
-               <div className="px-4 md:px-0">
-                  <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3 flex items-center gap-2">
+               <div className="animem-episodes-panel px-4 md:px-6 py-5">
+                  <h3 className="text-xs font-bold text-[#ff9ac5] uppercase tracking-widest mb-4 flex items-center gap-2">
                      <ListOrdered className="w-3.5 h-3.5" /> Qismlar
                   </h3>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-3">
                      {combinedEpisodes.map(ep => (
                         <button 
                            key={ep.number}
                            onClick={() => handleEpisodeClick(ep)}
-                           className={`w-12 h-12 rounded-sm text-xs font-bold transition-all flex items-center justify-center border ${
+                           className={`w-14 h-12 rounded-xl text-sm font-semibold transition-all flex items-center justify-center border ${
                               activeEpisode === ep.number 
-                                 ? 'bg-[#ff006a] border-[#ff006a] text-white shadow-[0_0_12px_rgba(255,0,106,0.35)]' 
-                                 : ep.video_url
-                                    ? 'bg-[#18181b] hover:bg-[#27272a] border-[#27272a] text-white'
+                                 ? 'bg-[#1b0b16] border-[#ff006a] text-white shadow-[0_0_18px_rgba(255,0,106,0.42)]'
+                              : ep.video_url
+                                    ? 'bg-[#171720] hover:bg-[#281421] hover:border-[#ff006a]/50 border-white/10 text-white'
                                     : 'bg-[#09090b] text-white/10 border border-[#1a1a1a] cursor-not-allowed'
                            }`}
                         >

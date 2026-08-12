@@ -4,18 +4,19 @@
   width: 100%;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .11);
-  border-radius: 18px;
-  background: #08080b;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, .45), 0 0 0 1px rgba(255, 0, 106, .04);
+  padding: 8px;
+  border-radius: 24px;
+  background: linear-gradient(145deg, #11111a, #06060a 55%, #0d0912);
+  box-shadow: 0 26px 75px rgba(0, 0, 0, .52), 0 0 32px rgba(255, 0, 106, .07);
 }
 
 .animem-player-shell::before {
   position: absolute;
   z-index: 0;
   inset: 0 0 auto;
-  height: 2px;
+  height: 1px;
   content: '';
-  background: linear-gradient(90deg, transparent, var(--player-pink), #a855f7, transparent);
+  background: linear-gradient(90deg, transparent, var(--player-pink), transparent);
 }
 
 .animem-player-topbar,
@@ -26,42 +27,56 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: linear-gradient(100deg, #131319, #0d0d11);
+  background: rgba(7, 7, 13, .88);
 }
 
 .animem-player-topbar {
-  min-height: 46px;
-  padding: 0 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, .08);
+  min-height: 78px;
+  padding: 10px 38px;
+  border-bottom: 0;
 }
 
-.animem-player-title {
+.animem-player-brand {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 9px;
-  color: #f8f8fa;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  color: #fff;
+  font-size: clamp(22px, 2.1vw, 33px);
+  font-weight: 900;
+  letter-spacing: -.045em;
 }
+.animem-player-brand span { color: var(--player-pink); text-shadow: 0 0 24px rgba(255, 0, 106, .42); }
+.animem-player-brand b { font-weight: 900; }
+.animem-player-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.animem-player-actions button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px;
+  padding: 0 17px; border: 1px solid rgba(255, 0, 106, .28); border-radius: 14px;
+  color: rgba(255, 255, 255, .93); background: linear-gradient(145deg, #151420, #0d0c15);
+  box-shadow: inset 0 1px rgba(255,255,255,.04), 0 7px 18px rgba(0,0,0,.2);
+  font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: .2s ease;
+}
+.animem-player-actions button:hover { border-color: var(--player-pink); color: #fff; background: #21101d; box-shadow: 0 0 20px rgba(255, 0, 106, .17); transform: translateY(-1px); }
+.animem-player-actions button span { font-size: 23px; font-weight: 400; line-height: 1; }
 
-.animem-player-title > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.animem-player-live-dot { width: 8px; height: 8px; flex: none; border-radius: 999px; background: var(--player-pink); box-shadow: 0 0 0 4px rgba(255, 0, 106, .13), 0 0 14px var(--player-pink); }
-.animem-player-badge { flex: none; color: #ff77ad; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
-
-.animem-player-stage { position: relative; aspect-ratio: 16 / 9; min-height: 190px; background: radial-gradient(circle at 50% 30%, #25202d, #050506 68%); }
+.animem-player-stage { position: relative; aspect-ratio: 16 / 9; min-height: 190px; overflow: hidden; border: 1px solid rgba(255, 0, 106, .66); border-radius: 20px; background: radial-gradient(circle at 50% 30%, #25121f, #050506 68%); box-shadow: 0 0 0 1px rgba(255, 0, 106, .1), inset 0 0 50px rgba(255,0,106,.08); }
 .animem-player-instance, .animem-player-embed { width: 100%; height: 100%; border: 0; }
 .animem-player-instance > div, .animem-player-instance iframe { width: 100% !important; height: 100% !important; }
 
-.animem-player-footer { min-height: 36px; padding: 0 16px; color: rgba(255, 255, 255, .42); font-size: 10px; font-weight: 600; }
-.animem-player-footer-hint { color: rgba(255, 255, 255, .6); }
+.animem-player-footer { min-height: 34px; padding: 0 22px; color: rgba(255, 255, 255, .42); font-size: 10px; font-weight: 600; }
 
 .animem-player-error { position: absolute; inset: 0; display: flex; z-index: 3; align-items: center; justify-content: center; flex-direction: column; gap: 8px; padding: 24px; color: #fff; text-align: center; background: rgba(5, 5, 7, .94); }
 .animem-player-error strong { font-size: 15px; }
 .animem-player-error span { color: rgba(255, 255, 255, .62); font-size: 12px; }
 .animem-player-error button { margin-top: 6px; padding: 9px 16px; border: 0; border-radius: 8px; color: #fff; background: var(--player-pink); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+
+.animem-episodes-panel {
+  margin-top: 14px;
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-radius: 20px;
+  background: linear-gradient(125deg, #11111b, #09090e);
+  box-shadow: inset 0 1px rgba(255,255,255,.025), 0 14px 35px rgba(0,0,0,.18);
+}
+html.light .animem-episodes-panel { background: #fff; border-color: rgba(15,23,42,.12); }
 
 /* PlayerJS controls inherit the site accent and stay comfortably tappable on mobile. */
 .animem-player-instance .playerjs, .animem-player-instance [class*='player'] { font-family: "Outfit", Arial, sans-serif !important; }
@@ -69,13 +84,17 @@
 
 html.light .animem-player-shell { border-color: rgba(15, 23, 42, .13); box-shadow: 0 16px 40px rgba(15, 23, 42, .12); }
 html.light .animem-player-topbar, html.light .animem-player-footer { background: #fff; color: #334155; }
-html.light .animem-player-title { color: #0f172a; }
-html.light .animem-player-footer, html.light .animem-player-footer-hint { color: #64748b; }
+html.light .animem-player-brand b { color: #0f172a; }
+html.light .animem-player-actions button { color: #334155; background: #fff; border-color: rgba(255, 0, 106, .28); }
+html.light .animem-player-footer { color: #64748b; }
 
 @media (max-width: 640px) {
-  .animem-player-shell { border-right: 0; border-left: 0; border-radius: 0; }
-  .animem-player-topbar { min-height: 42px; padding: 0 12px; }
+  .animem-player-shell { padding: 4px; border-right: 0; border-left: 0; border-radius: 0; }
+  .animem-player-topbar { min-height: 62px; padding: 7px 12px; }
+  .animem-player-actions { gap: 6px; }
+  .animem-player-actions button { min-height: 35px; padding: 0 9px; border-radius: 10px; font-size: 0; }
+  .animem-player-actions button span { font-size: 18px; }
+  .animem-player-keyboard { display: none !important; }
   .animem-player-stage { min-height: 220px; }
-  .animem-player-badge, .animem-player-footer-hint { display: none; }
-  .animem-player-footer { min-height: 32px; padding: 0 12px; font-size: 9px; }
+  .animem-player-footer { min-height: 30px; padding: 0 12px; font-size: 9px; }
 }
