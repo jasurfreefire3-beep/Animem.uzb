@@ -127,7 +127,7 @@ export default function ChatWidget() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
             className={`fixed bottom-20 right-4 sm:bottom-6 sm:right-6 bg-[#09090b]/98 backdrop-blur-md border border-[#1a1a1a] rounded-sm shadow-2xl z-50 flex flex-col overflow-hidden transition-all duration-300 ${
-              isExpanded ? 'w-[800px] h-[80vh]' : 'w-[calc(100vw-32px)] sm:w-[380px] h-[520px] max-h-[calc(100vh-140px)]'
+              isExpanded ? 'w-[calc(100vw-32px)] max-w-[800px] h-[80vh]' : 'w-[calc(100vw-32px)] sm:w-[380px] h-[520px] max-h-[calc(100vh-140px)]'
             }`}
           >
             {/* Header */}

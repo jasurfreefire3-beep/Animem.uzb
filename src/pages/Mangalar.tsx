@@ -200,7 +200,7 @@ export default function Mangalar() {
 
       {/* Manga Grid */}
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {[...Array(10)].map((_, i) => (
             <div key={i} className="bg-[#111] border border-[#222] rounded-lg overflow-hidden animate-pulse">
               <div className="aspect-[3/4] bg-[#222]" />
@@ -220,7 +220,7 @@ export default function Mangalar() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {filteredMangas.map((manga) => (
             <Link
               key={manga.id}
