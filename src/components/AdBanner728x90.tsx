@@ -76,10 +76,10 @@ export default function AdBanner728x90({ className = '' }: AdBanner728x90Props) 
       </div>
 
       {/* Responsive Wrapper - auto scales down on smaller screens */}
-      <div className="w-full max-w-[728px] overflow-x-auto overflow-y-hidden bg-[#0d0d10] border border-white/10 rounded-xl p-1.5 shadow-lg flex items-center justify-center min-h-[98px]">
+      <div className="w-full max-w-[728px] overflow-x-auto overflow-y-hidden bg-[#0d0d10] border border-white/10 rounded-xl p-1.5 shadow-lg flex items-center min-h-[98px]">
         <div 
           ref={containerRef} 
-          className="w-[728px] h-[90px] min-w-[728px] flex items-center justify-center overflow-hidden" 
+          className="w-[728px] h-[90px] min-w-[728px] mx-auto flex items-center justify-center overflow-hidden" 
         />
       </div>
     </div>

@@ -643,7 +643,7 @@ export default function AnimeDetails() {
         </div>
       </motion.div>
 
-      <div className="flex flex-col lg:flex-row gap-6 mt-10 md:mt-20 max-w-7xl mx-auto px-4 md:px-8">
+      <div className="flex flex-col xl:flex-row gap-6 mt-10 md:mt-20 max-w-7xl mx-auto px-4 md:px-8">
          {/* Main Left Content */}
          <div className="flex-1 space-y-6 min-w-0">
             {/* Synopsis */}
@@ -1129,7 +1129,7 @@ export default function AnimeDetails() {
          </div>
          
          {/* Right Sidebar */}
-         <div className="hidden lg:block w-[300px] shrink-0">
+         <div className="hidden xl:block w-[300px] shrink-0">
            <div className="sticky top-20 space-y-6">
               {similarAnimes.length > 0 && (
                 <div className="bg-[#111] border border-[#222] rounded-sm p-4">

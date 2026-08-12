@@ -89,7 +89,7 @@ export default function MobileBottomNav() {
   return (
     <>
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-[#09090b]/95 backdrop-blur-xl border-t border-[#1c1c20] px-2 py-1.5 shadow-[0_-10px_25px_rgba(0,0,0,0.8)]">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-[#09090b]/95 backdrop-blur-xl border-t border-[#1c1c20] px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] shadow-[0_-10px_25px_rgba(0,0,0,0.8)]">
         <div className="flex items-center justify-around max-w-md mx-auto relative">
           {navItems.map((item) => {
             const Icon = item.icon;

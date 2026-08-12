@@ -228,7 +228,7 @@ export default function Home() {
       </AnimatePresence>
 
       {/* Main Content Layout */}
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col xl:flex-row gap-8">
         
         {/* Left Column (Main) */}
         <div className="flex-1 space-y-12 min-w-0">
@@ -305,7 +305,7 @@ export default function Home() {
         </div>
 
         {/* Right Column (Sidebar) */}
-        <div className="w-full lg:w-[320px] shrink-0 space-y-6">
+        <div className="w-full xl:w-[320px] shrink-0 space-y-6">
           
           {/* Community Chat Preview */}
           <div className="bg-[#111] border border-[#222] rounded-sm p-4">

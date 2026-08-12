@@ -82,15 +82,15 @@ export default function App() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -150, opacity: 0 }}
             transition={{ type: "spring", stiffness: 100, damping: 15 }}
-            className="fixed top-4 left-4 right-4 z-[100] max-w-7xl mx-auto"
+            className="fixed top-[4.25rem] md:top-20 left-2 right-2 md:left-72 md:right-6 z-[60] max-w-7xl mx-auto"
           >
-            <div className="relative w-full rounded-2xl bg-gradient-to-r from-[#070e17] via-[#0b172a] to-[#070e17] border border-cyan-500/30 p-4 md:p-6 shadow-[0_10px_40px_rgba(0,136,204,0.25)] flex flex-col lg:flex-row items-center justify-between gap-4 md:gap-6">
+            <div className="relative w-full rounded-xl md:rounded-2xl bg-gradient-to-r from-[#070e17] via-[#0b172a] to-[#070e17] border border-cyan-500/30 p-3 md:p-6 shadow-[0_10px_40px_rgba(0,136,204,0.25)] flex flex-row lg:flex-row items-center justify-between gap-3 md:gap-6">
               {/* Left Side: Icon, Badges, Title & Subtitle */}
-              <div className="flex flex-col md:flex-row items-center md:items-start gap-4 flex-1">
+              <div className="flex flex-row md:flex-row items-center md:items-start gap-3 md:gap-4 flex-1 min-w-0">
                 {/* Logo with NEW badge */}
                 <div className="relative shrink-0">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#0088cc] to-[#00bfff] flex items-center justify-center shadow-lg shadow-[#0088cc]/30">
-                    <svg viewBox="0 0 24 24" className="w-8 h-8 text-white fill-current">
+                  <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-tr from-[#0088cc] to-[#00bfff] flex items-center justify-center shadow-lg shadow-[#0088cc]/30">
+                    <svg viewBox="0 0 24 24" className="w-6 h-6 md:w-8 md:h-8 text-white fill-current">
                       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.24-5.54 3.65-.52.36-.99.54-1.41.53-.46-.01-1.35-.26-2.01-.48-.81-.27-1.46-.41-1.4-.87.03-.24.36-.49.99-.75 3.86-1.68 6.43-2.78 7.72-3.3 3.67-1.48 4.44-1.74 4.94-1.75.11 0 .35.03.5.16.13.11.17.26.18.37 0 .04.01.18 0 .27z" />
                     </svg>
                   </div>
@@ -100,9 +100,9 @@ export default function App() {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 text-center md:text-left">
+                <div className="flex-1 min-w-0 text-left">
                   {/* Badges */}
-                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-2">
+                  <div className="hidden md:flex flex-wrap items-center justify-start gap-2 mb-2">
                     <span className="bg-[#0088cc]/10 text-[#00c8ff] text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded-md border border-[#00c8ff]/20 uppercase">
                       TELEGRAM KANAL
                     </span>
@@ -112,34 +112,35 @@ export default function App() {
                   </div>
 
                   {/* Title & Description */}
-                  <h3 className="text-white font-bold text-base md:text-lg tracking-tight leading-snug">
+                  <h3 className="text-white font-bold text-xs sm:text-sm md:text-lg tracking-tight leading-snug">
                     Bizning Rasmiy Telegram Kanalimizga Qo'shiling!
                   </h3>
-                  <p className="text-slate-400 text-xs md:text-sm mt-1 max-w-3xl leading-relaxed">
+                  <p className="hidden sm:block text-slate-400 text-xs md:text-sm mt-1 max-w-3xl leading-relaxed">
                     Eng yangi animelar, premyeralar, o'zbekcha tarjimalar va do'stona suhbatlarni o'tkazib yubormaslik uchun hoziroq a'zo bo'ling!
                   </p>
                 </div>
               </div>
 
               {/* Right Side: Action Button and Close Button */}
-              <div className="flex items-center gap-3 w-full lg:w-auto justify-center lg:justify-end shrink-0">
+              <div className="flex items-center gap-2 md:gap-3 w-auto justify-end shrink-0">
                 <motion.a
                   href="https://t.me/animem_uz2"
                   target="_blank"
                   rel="noopener noreferrer"
                   whileHover={{ scale: 1.03, boxShadow: "0 0 20px rgba(0, 136, 204, 0.4)" }}
                   whileTap={{ scale: 0.98 }}
-                  className="bg-gradient-to-r from-[#0088cc] to-[#00aaff] hover:from-[#0077bb] hover:to-[#0099ee] text-white px-6 py-3 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#0088cc]/20 transition-all uppercase tracking-wider cursor-pointer w-full sm:w-auto"
+                  className="bg-gradient-to-r from-[#0088cc] to-[#00aaff] hover:from-[#0077bb] hover:to-[#0099ee] text-white px-3 py-2.5 md:px-6 md:py-3 rounded-lg md:rounded-xl text-[10px] md:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#0088cc]/20 transition-all uppercase tracking-wider cursor-pointer whitespace-nowrap"
                 >
-                  <svg viewBox="0 0 24 24" className="w-4 h-4 text-white fill-current">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 text-white fill-current shrink-0">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.24-5.54 3.65-.52.36-.99.54-1.41.53-.46-.01-1.35-.26-2.01-.48-.81-.27-1.46-.41-1.4-.87.03-.24.36-.49.99-.75 3.86-1.68 6.43-2.78 7.72-3.3 3.67-1.48 4.44-1.74 4.94-1.75.11 0 .35.03.5.16.13.11.17.26.18.37 0 .04.01.18 0 .27z" />
                   </svg>
-                  Kanalga o'tish
+                  <span className="hidden min-[400px]:inline">Kanalga o'tish</span>
+                  <span className="min-[400px]:hidden">A'zo bo'lish</span>
                 </motion.a>
 
                 <button
                   onClick={closeBanner}
-                  className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer transition-all shrink-0"
+                  className="w-9 h-9 md:w-11 md:h-11 rounded-lg md:rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer transition-all shrink-0"
                   aria-label="Yopish"
                 >
                   <X className="w-5 h-5" />

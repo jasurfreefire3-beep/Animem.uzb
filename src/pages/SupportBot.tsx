@@ -92,7 +92,7 @@ export default function SupportBot() {
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="relative mb-4 w-[350px] md:w-[450px] aspect-square flex items-end justify-center drop-shadow-[0_0_30px_rgba(255,0,106,0.3)]"
+          className="relative mb-4 w-full max-w-[350px] md:max-w-[450px] aspect-square flex items-end justify-center drop-shadow-[0_0_30px_rgba(255,0,106,0.3)]"
         >
           <img 
             src="/sumire_support_bot.jpg" 
