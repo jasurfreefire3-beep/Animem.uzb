@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Instagram, ShieldCheck, FileText, Copyright, Mail, Tv, BookOpen, Flame, Calendar } from 'lucide-react';
 import AdBanner728x90 from './AdBanner728x90';
+import { TikTokIcon } from './SocialIcons';
 
 const TelegramIcon = ({ className = "w-3.5 h-3.5" }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor">
@@ -140,6 +141,14 @@ export default function Footer() {
                 className="flex items-center gap-2.5 text-xs font-bold px-3 py-2 bg-[#1877F2]/10 border border-[#1877F2]/30 text-[#1877F2] hover:bg-[#1877F2]/20 rounded transition-colors"
               >
                 <FacebookIcon className="w-4 h-4 text-[#1877F2]" /> Facebook Sahifa
+              </a>
+              <a
+                href="https://www.tiktok.com/@animem.uz"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 text-xs font-bold px-3 py-2 bg-white/5 border border-white/20 text-white hover:bg-white/10 rounded transition-colors"
+              >
+                <TikTokIcon size={16} className="w-4 h-4" /> TikTok Sahifa
               </a>
             </div>
           </div>
