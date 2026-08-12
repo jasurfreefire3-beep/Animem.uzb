@@ -238,7 +238,7 @@ export default function Animelar() {
               className="bg-[#111] border border-[#222] p-3 rounded-sm flex gap-4 hover:border-[#ff006a]/30 transition-colors group"
             >
               <Link to={`/anime/${toSlug(anime.title)}`} title={anime.title} className="w-16 h-20 rounded-sm overflow-hidden bg-[#000] shrink-0 border border-[#222] relative block">
-                <img 
+                <img loading="lazy" decoding="async" 
                   src={anime.image_url} 
                   alt={anime.title} 
                   title={anime.title}

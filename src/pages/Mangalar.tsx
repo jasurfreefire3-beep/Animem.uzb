@@ -115,7 +115,7 @@ export default function Mangalar() {
           <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#09090d] p-4 shadow-[inset_0_0_60px_rgba(255,255,255,0.02)]">
             <div className="absolute inset-0 bg-[linear-gradient(135deg,_rgba(255,255,255,0.05),transparent_35%)] pointer-events-none" />
             <div className="flex items-center gap-4">
-              <img src="/logo1.png" alt="AniManga Logo" className="h-20 w-20 rounded-3xl border border-white/10 object-cover bg-[#111]" />
+              <img loading="lazy" decoding="async" src="/logo1.png" alt="AniManga Logo" className="h-20 w-20 rounded-3xl border border-white/10 object-cover bg-[#111]" />
               <div>
                 <p className="text-xs uppercase font-bold tracking-[0.28em] text-[#ff71d0]">AniManga</p>
                 <h3 className="text-xl font-black text-white">AniManga joyi</h3>

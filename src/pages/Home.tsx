@@ -128,7 +128,7 @@ export default function Home() {
           >
             {/* Background Blurred Image */}
             <div className="absolute inset-0 w-full h-full overflow-hidden">
-              <img 
+              <img loading="eager" fetchPriority="high" decoding="async" 
                 src={featuredAnime.banner_url || featuredAnime.image_url} 
                 alt={featuredAnime.title} 
                 title={featuredAnime.title}
@@ -214,7 +214,7 @@ export default function Home() {
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
                 className="w-56 lg:w-64 aspect-[3/4] rounded-lg overflow-hidden border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.9)] bg-black"
               >
-                <img 
+                <img loading="eager" fetchPriority="high" decoding="async" 
                   src={featuredAnime.image_url} 
                   alt={featuredAnime.title} 
                   title={featuredAnime.title}
@@ -341,7 +341,7 @@ export default function Home() {
                      >
                        <div className="flex items-center gap-2 mb-2">
                           {avatarSrc ? (
-                            <img
+                            <img loading="lazy" decoding="async"
                               src={avatarSrc}
                               alt={c.user_name}
                               className="w-5 h-5 rounded-full object-cover border border-[#ff006a]/30 shrink-0"

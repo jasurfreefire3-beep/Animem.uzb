@@ -215,7 +215,7 @@ export default function MangaDetails() {
         {/* Banner background */}
         {manga.banner_url && (
           <div className="absolute inset-0 h-48 sm:h-64 overflow-hidden opacity-30 pointer-events-none">
-            <img
+            <img loading="lazy" decoding="async"
               src={manga.banner_url}
               alt={manga.title}
               className="w-full h-full object-cover blur-sm scale-105"
@@ -228,7 +228,7 @@ export default function MangaDetails() {
           {/* Cover image */}
           <div className="w-40 sm:w-52 shrink-0 mx-auto md:mx-0">
             <div className="aspect-[3/4] rounded-lg overflow-hidden border-2 border-[#ff006a]/40 shadow-2xl shadow-[#ff006a]/10 relative group">
-              <img
+              <img loading="lazy" decoding="async"
                 src={manga.cover_url}
                 alt={manga.title}
                 className="w-full h-full object-cover"
@@ -468,7 +468,7 @@ export default function MangaDetails() {
                      className="group bg-[#18181c] border border-[#262626] p-4 rounded-md flex gap-3"
                   >
                      {avatarSrc ? (
-                        <img src={avatarSrc} alt={comment.user_name} className="w-11 h-11 rounded-full object-cover border-2 border-[#ff006a]/40 hover:border-[#ff006a] shrink-0 shadow-md transition-all" />
+                        <img loading="lazy" decoding="async" src={avatarSrc} alt={comment.user_name} className="w-11 h-11 rounded-full object-cover border-2 border-[#ff006a]/40 hover:border-[#ff006a] shrink-0 shadow-md transition-all" />
                      ) : (
                         <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#2a2a2e] to-[#151518] text-[#ff006a] flex items-center justify-center font-extrabold text-sm shrink-0 border-2 border-[#ff006a]/30 shadow-md">
                            {comment.user_name?.[0]?.toUpperCase() || 'U'}
@@ -536,7 +536,7 @@ export default function MangaDetails() {
                                  return (
                                     <div key={rep.id} className="bg-[#141418] p-3 rounded-sm border border-[#222] flex gap-2.5">
                                        {repAvatar ? (
-                                          <img src={repAvatar} alt={rep.user_name} className="w-7 h-7 rounded-full object-cover border border-white/10 shrink-0" />
+                                          <img loading="lazy" decoding="async" src={repAvatar} alt={rep.user_name} className="w-7 h-7 rounded-full object-cover border border-white/10 shrink-0" />
                                        ) : (
                                           <div className="w-7 h-7 rounded-full bg-[#ff006a]/20 text-[#ff006a] flex items-center justify-center font-bold text-xs shrink-0">
                                              {rep.user_name?.[0]?.toUpperCase() || 'U'}

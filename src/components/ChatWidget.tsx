@@ -183,7 +183,7 @@ export default function ChatWidget() {
                     >
                       <Link to={`/user/${msg.user_id}`} onClick={(e) => e.stopPropagation()} className="shrink-0 mt-0.5">
                         {avatarSrc ? (
-                          <img
+                          <img loading="lazy" decoding="async"
                             src={avatarSrc}
                             alt={msg.user_name}
                             className="w-9 h-9 rounded-full object-cover border-2 border-[#ff006a]/30 shrink-0 hover:border-[#ff006a] transition-all"

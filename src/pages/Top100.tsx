@@ -75,7 +75,7 @@ export default function Top100() {
                 <div className="flex gap-4">
                   {/* Poster */}
                   <Link to={`/anime/${toSlug(anime.title)}`} title={anime.title} className="w-20 h-28 bg-[#000] rounded-sm overflow-hidden border border-[#222] shrink-0 relative block">
-                    <img 
+                    <img loading="lazy" decoding="async" 
                       src={anime.image_url} 
                       alt={anime.title} 
                       title={anime.title} 
@@ -144,7 +144,7 @@ export default function Top100() {
 
                 {/* Thumbnail */}
                 <Link to={`/anime/${toSlug(anime.title)}`} title={anime.title} className="w-9 h-12 rounded-sm overflow-hidden border border-[#222] shrink-0 block">
-                  <img 
+                  <img loading="lazy" decoding="async" 
                     src={anime.image_url} 
                     alt={anime.title} 
                     title={anime.title} 

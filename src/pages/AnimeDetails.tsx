@@ -533,7 +533,7 @@ export default function AnimeDetails() {
       >
         {/* Background Image Banner */}
         <div className="absolute inset-0 w-full h-full overflow-hidden">
-          <img 
+          <img loading="lazy" decoding="async" 
             src={anime.banner_url || anime.image_url} 
             alt={`${anime.title} banner`} 
             title={anime.title}
@@ -547,7 +547,7 @@ export default function AnimeDetails() {
           <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-end max-w-7xl mx-auto">
              {/* Poster Overlay */}
              <div className="w-32 sm:w-36 md:w-48 shrink-0 rounded-sm overflow-hidden shadow-2xl border border-white/10 transform translate-y-0 md:translate-y-16 hover:scale-105 transition-transform duration-300">
-               <img src={anime.image_url} alt={anime.title} title={anime.title} className="w-full h-full object-cover aspect-[3/4]" />
+               <img loading="lazy" decoding="async" src={anime.image_url} alt={anime.title} title={anime.title} className="w-full h-full object-cover aspect-[3/4]" />
              </div>
              
              {/* Title & Meta */}
@@ -943,7 +943,7 @@ export default function AnimeDetails() {
                   <div className="bg-[#1a1a1a] p-4 rounded-sm border border-[#222] mb-6">
                      <div className="flex items-center gap-2 mb-3">
                         {user.avatar_url ? (
-                           <img 
+                           <img loading="lazy" decoding="async" 
                               src={user.avatar_url} 
                               alt={user.name} 
                               className="w-6 h-6 rounded-full object-cover border border-[#ff006a]/40 shrink-0" 
@@ -998,7 +998,7 @@ export default function AnimeDetails() {
                         >
                            <Link to={`/user/${comment.user_id}`} className="shrink-0">
                               {avatarSrc ? (
-                                 <img 
+                                 <img loading="lazy" decoding="async" 
                                     src={avatarSrc} 
                                     alt={comment.user_name} 
                                     className="shrink-0 w-11 h-11 rounded-full object-cover border-2 border-[#ff006a]/40 hover:border-[#ff006a] shadow-md transition-all" 
@@ -1071,7 +1071,7 @@ export default function AnimeDetails() {
                                     {replies.map((rep: any) => (
                                        <div key={rep.id} className="bg-[#141414] p-3 rounded-lg border border-[#222] flex gap-2.5 items-start">
                                           {rep.user_avatar ? (
-                                             <img src={rep.user_avatar} alt={rep.user_name} className="w-8 h-8 rounded-full object-cover shrink-0 border border-white/10" />
+                                             <img loading="lazy" decoding="async" src={rep.user_avatar} alt={rep.user_name} className="w-8 h-8 rounded-full object-cover shrink-0 border border-white/10" />
                                           ) : (
                                              <div className="w-8 h-8 rounded-full bg-[#222] text-[#ff006a] font-bold text-xs flex items-center justify-center shrink-0 border border-white/10">
                                                 {rep.user_name?.charAt(0).toUpperCase() || 'U'}
@@ -1145,7 +1145,7 @@ export default function AnimeDetails() {
                          className="flex gap-3 items-center group cursor-pointer p-1.5 rounded-sm hover:bg-[#222] transition-colors"
                        >
                          <div className="w-10 h-14 bg-[#222] rounded-sm overflow-hidden shrink-0">
-                           <img 
+                           <img loading="lazy" decoding="async" 
                              src={sim.image_url} 
                              alt={`${sim.title} - O'zbek tilida ko'rish`} 
                              title={`${sim.title} - O'zbek tilida ko'rish`}

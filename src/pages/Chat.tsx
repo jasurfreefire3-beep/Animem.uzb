@@ -189,7 +189,7 @@ export default function Chat() {
                 <div className={`flex items-start gap-3 max-w-[85%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                   <Link to={`/user/${msg.user_id}`} onClick={(e) => e.stopPropagation()} className="shrink-0 mt-0.5">
                     {avatarSrc ? (
-                      <img 
+                      <img loading="lazy" decoding="async" 
                         src={avatarSrc} 
                         alt={msg.user_name} 
                         className="w-10 h-10 rounded-full object-cover border-2 border-[#ff006a]/30 hover:border-[#ff006a] transition-all shadow-md" 

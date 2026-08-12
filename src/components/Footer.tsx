@@ -31,7 +31,7 @@ export default function Footer() {
           {/* Column 1: Brand & Intro */}
           <div className="space-y-4 md:col-span-1">
             <Link to="/" className="flex items-center gap-2.5">
-              <img src="/logo.png" alt="Animem.uz Logo" className="w-9 h-9 object-contain" />
+              <img loading="lazy" decoding="async" src="/logo.png" alt="Animem.uz Logo" className="w-9 h-9 object-contain" />
               <span className="font-black text-xl tracking-wider text-white">
                 ANIMEM<span className="text-[#ff006a]">.UZ</span>
               </span>

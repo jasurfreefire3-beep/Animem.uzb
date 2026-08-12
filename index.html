@@ -27,11 +27,40 @@
     <meta property="twitter:description" content="Animem Uz - O'zbekistondagi eng yirik onlayn anime portali! Eng mashhur animelarni o'zbek tilida bepul ko'ring." />
     <meta property="twitter:image" content="https://animem.uz/logo.png" />
 
+    <!-- Canonical -->
+    <link rel="canonical" href="https://animem.uz/" />
+
     <!-- Custom Favicon Icons -->
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="icon" type="image/x-icon" sizes="16x16 32x32 48x48" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/icon-48.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Animem Uz",
+      "alternateName": "Animem.uz",
+      "url": "https://animem.uz/",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://animem.uz/anime?search={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Animem Uz",
+      "url": "https://animem.uz/",
+      "logo": "https://animem.uz/icon-512.png"
+    }
+    </script>
 
     <!-- Smart TV Browser Compatibility & Crash Polyfills -->
     <script>
