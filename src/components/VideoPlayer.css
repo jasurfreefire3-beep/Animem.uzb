@@ -29,7 +29,7 @@
   background: rgba(7, 7, 13, .88);
 }
 
-.animem-player-stage { position: relative; aspect-ratio: 16 / 9; min-height: 190px; overflow: hidden; border: 1px solid rgba(255, 0, 106, .72); border-radius: 23px; background: radial-gradient(circle at 50% 30%, #25121f, #050506 68%); box-shadow: 0 0 0 1px rgba(255, 0, 106, .12), inset 0 0 50px rgba(255,0,106,.1), 0 0 32px rgba(255,0,106,.09); }
+.animem-player-stage { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid rgba(255, 0, 106, .72); border-radius: 23px; background: radial-gradient(circle at 50% 30%, #25121f, #050506 68%); box-shadow: 0 0 0 1px rgba(255, 0, 106, .12), inset 0 0 50px rgba(255,0,106,.1), 0 0 32px rgba(255,0,106,.09); }
 .animem-player-instance, .animem-player-embed { width: 100%; height: 100%; border: 0; }
 .animem-player-instance > div, .animem-player-instance iframe { width: 100% !important; height: 100% !important; }
 
@@ -58,6 +58,11 @@ html.light .animem-player-footer { color: #64748b; }
 
 @media (max-width: 640px) {
   .animem-player-shell { border-right: 0; border-left: 0; border-radius: 0; }
-  .animem-player-stage { min-height: 220px; }
+  .animem-player-stage { border-radius: 0; border-right: 0; border-left: 0; }
   .animem-player-footer { min-height: 30px; padding: 0 12px; font-size: 9px; }
+}
+
+/* Landscape phones: keep the player within the viewport height */
+@media (max-width: 940px) and (orientation: landscape) {
+  .animem-player-stage { max-height: 82vh; }
 }
