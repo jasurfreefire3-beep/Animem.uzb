@@ -704,7 +704,7 @@ const verificationCodes: Record<string, VerificationRecord> = {};
 const passwordResetCodes: Record<string, VerificationRecord> = {};
 const phoneVerificationCodes: Record<string, VerificationRecord> = {};
 const phonePasswordResetCodes: Record<string, VerificationRecord> = {};
-const RESEND_API_KEY = process.env.RESEND_API_KEY || "re_SeJuCp73_DFV7UrQUQwVRESKmKitvo2bg";
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 
 // Helper function to build ultra-stylish Anime-themed HTML Email Template
 function buildAnimeEmailHtml(title: string, subtitle: string, code: string, note: string) {
@@ -805,7 +805,7 @@ app.post("/api/auth/send-code", async (req, res) => {
       verified: false,
     };
 
-    console.log(`[Resend Auth] Verification code for ${cleanEmail}: ${code}`);
+    console.log(`[Resend Auth] Verification code generated for ${cleanEmail}`);
 
     // Send email using Resend API
     let emailSent = false;
@@ -852,19 +852,18 @@ app.post("/api/auth/send-code", async (req, res) => {
       emailError = sendErr.message || "Email serveriga ulanishda xatolik";
     }
 
-    let devCode: string | undefined = undefined;
     if (!emailSent) {
-      devCode = code;
-      console.warn(`[Resend Auth Warning] Email sending failed for ${cleanEmail}: ${emailError}. Providing fallback code.`);
+      delete verificationCodes[cleanEmail];
+      console.error(`[Resend Auth Error] Email sending failed for ${cleanEmail}: ${emailError}`);
+      return res.status(502).json({
+        error: "Tasdiqlash kodini emailga yuborib bo'lmadi. Iltimos, birozdan so'ng qayta urinib ko'ring.",
+      });
     }
 
     return res.json({
       success: true,
       emailSent,
-      devCode,
-      message: emailSent
-        ? "Tasdiqlash kodi email manzilingizga yuborildi! Pochtani (va Spam papkasini) tekshiring."
-        : `Tasdiqlash kodi tayyorlandi! (Test kodi: ${code})`,
+      message: "Tasdiqlash kodi email manzilingizga yuborildi! Pochtani (va Spam papkasini) tekshiring.",
     });
   } catch (error: any) {
     console.error("Send code error:", error);
@@ -898,7 +897,7 @@ app.post("/api/auth/forgot-password-send-code", async (req, res) => {
       verified: false,
     };
 
-    console.log(`[Forgot Password] Reset code for ${cleanEmail}: ${code}`);
+    console.log(`[Forgot Password] Reset code generated for ${cleanEmail}`);
 
     // Send email via Resend
     let emailSent = false;
@@ -943,19 +942,18 @@ app.post("/api/auth/forgot-password-send-code", async (req, res) => {
       emailError = sendErr.message || "Email serveriga ulanishda xatolik";
     }
 
-    let devCode: string | undefined = undefined;
     if (!emailSent) {
-      devCode = code;
-      console.warn(`[Resend Forgot Warning] Email sending failed for ${cleanEmail}: ${emailError}. Providing fallback code.`);
+      delete passwordResetCodes[cleanEmail];
+      console.error(`[Resend Forgot Error] Email sending failed for ${cleanEmail}: ${emailError}`);
+      return res.status(502).json({
+        error: "Parolni tiklash kodini emailga yuborib bo'lmadi. Iltimos, birozdan so'ng qayta urinib ko'ring.",
+      });
     }
 
     return res.json({
       success: true,
       emailSent,
-      devCode,
-      message: emailSent
-        ? "Parolni tiklash kodi email manzilingizga yuborildi! Pochtani (va Spam papkasini) tekshiring."
-        : `Parolni tiklash kodi tayyorlandi! (Test kodi: ${code})`,
+      message: "Parolni tiklash kodi email manzilingizga yuborildi! Pochtani (va Spam papkasini) tekshiring.",
     });
   } catch (error: any) {
     console.error("Forgot password send code error:", error);

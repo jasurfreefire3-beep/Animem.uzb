@@ -469,10 +469,6 @@ export default function Register() {
         throw new Error(data.error || 'Kodni yuborishda xatolik yuz berdi');
       }
 
-      if (data.devCode) {
-        setVerificationCode(data.devCode);
-      }
-
       setResendMessage(data.message || '6 xonali tasdiqlash kodi emailga yuborildi! Pochtani (va Spam papkasini) tekshiring.');
       setEmailStep('code');
     } catch (err: any) {
@@ -496,10 +492,6 @@ export default function Register() {
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Kodni qayta yuborishda xatolik');
-      }
-
-      if (data.devCode) {
-        setVerificationCode(data.devCode);
       }
 
       setResendMessage(data.message || 'Yangi 6 xonali kod emailga yuborildi!');

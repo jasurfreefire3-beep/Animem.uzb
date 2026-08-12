@@ -359,10 +359,6 @@ export default function Login() {
         throw new Error(data.error || 'Kodni yuborishda xatolik');
       }
 
-      if (data.devCode) {
-        setResetCode(data.devCode);
-      }
-
       setResetSuccessMsg(data.message || 'Parolni tiklash kodi emailga yuborildi!');
       setViewMode('forgot_code');
     } catch (err: any) {
