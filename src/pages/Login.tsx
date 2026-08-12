@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { LogIn, Mail, Lock, Phone, User, X, Loader2, Send, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
-import { auth, googleProvider, facebookProvider } from '../lib/firebase';
+import { auth, googleProvider, facebookAuth, facebookProvider } from '../lib/firebase';
 
 declare global {
   interface Window {
@@ -299,7 +299,7 @@ export default function Login() {
   const handleFacebookLogin = async () => {
     try {
       setError('');
-      const result = await signInWithPopup(auth, facebookProvider);
+      const result = await signInWithPopup(facebookAuth, facebookProvider);
 
       if (!result || !result.user) {
         throw new Error('Facebook foydalanuvchi ma\'lumotlari olinmadi');
