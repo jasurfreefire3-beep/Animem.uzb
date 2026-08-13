@@ -127,7 +127,7 @@ export default function Footer() {
                 <TelegramIcon className="w-4 h-4 text-[#0088cc]" /> Telegram Kanal
               </a>
               <a
-                href="https://www.instagram.com/animem.uz.official/"
+                href="https://www.instagram.com/animem.uz_"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2.5 text-xs font-bold px-3 py-2 bg-[#E1306C]/10 border border-[#E1306C]/30 text-[#E1306C] hover:bg-[#E1306C]/20 rounded transition-colors"
