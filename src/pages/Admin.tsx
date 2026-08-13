@@ -31,6 +31,7 @@ export default function Admin() {
   const [videoUrl, setVideoUrl] = useState('');
   const [tavsiya, setTavsiya] = useState(false);
   const [isBanner, setIsBanner] = useState(false);
+  const [isAdult, setIsAdult] = useState(false);
   
   // Multi Category Selection state
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
@@ -121,6 +122,7 @@ export default function Admin() {
         video_url: videoUrl,
         tavsiya: tavsiya ? 1 : 0,
         is_banner: isBanner ? 1 : 0,
+        is_adult: isAdult ? 1 : 0,
         ...(editingAnime && editingAnime.korishlar !== undefined ? { korishlar: editingAnime.korishlar } : {})
       };
 
@@ -169,6 +171,7 @@ export default function Admin() {
       setVideoUrl('');
       setTavsiya(false);
       setIsBanner(false);
+      setIsAdult(false);
       
       // Go back to list tab
       setActiveTab('manage_animes');
@@ -205,6 +208,7 @@ export default function Admin() {
     setVideoUrl(anime.video_url || '');
     setTavsiya(!!anime.tavsiya);
     setIsBanner(!!anime.is_banner);
+    setIsAdult(!!anime.is_adult);
     
     // Switch to submit form tab
     setActiveTab('add_anime');
@@ -226,6 +230,7 @@ export default function Admin() {
     setVideoUrl('');
     setTavsiya(false);
     setIsBanner(false);
+    setIsAdult(false);
     setActiveTab('manage_animes');
   };
 
@@ -978,6 +983,21 @@ export default function Admin() {
                 </div>
                 <label htmlFor="isBanner" className="ml-3 text-xs font-bold text-white cursor-pointer select-none uppercase tracking-wide">
                   Asosiy Bannerda ko'rsatilsin (Bannerga qo'yiladi)
+                </label>
+              </div>
+
+              <div className="md:col-span-2 flex items-center mt-2 p-3 bg-[#000] rounded-sm border border-red-900/60">
+                <div className="flex items-center h-4">
+                  <input
+                    id="isAdult"
+                    type="checkbox"
+                    checked={isAdult}
+                    onChange={(e) => setIsAdult(e.target.checked)}
+                    className="w-4 h-4 text-red-600 bg-[#111] border-[#333] rounded-sm focus:ring-red-500/50 focus:ring-2 cursor-pointer"
+                  />
+                </div>
+                <label htmlFor="isAdult" className="ml-3 text-xs font-bold text-red-400 cursor-pointer select-none uppercase tracking-wide">
+                  18+ Kontent (kirishda yosh haqida ogohlantirish chiqadi)
                 </label>
               </div>
 

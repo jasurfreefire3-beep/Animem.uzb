@@ -445,6 +445,13 @@ async function testDbConnection() {
     } catch(e) {}
 
     try {
+      const [adultCols]: any = await connection.query(`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'animes' AND COLUMN_NAME = 'is_adult' AND TABLE_SCHEMA = DATABASE()`);
+      if (adultCols.length === 0) {
+        await connection.query(`ALTER TABLE animes ADD COLUMN is_adult TINYINT(1) DEFAULT 0`);
+      }
+    } catch(e) {}
+
+    try {
       const [mCols]: any = await connection.query(`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'mangas' AND COLUMN_NAME = 'tags' AND TABLE_SCHEMA = DATABASE()`);
       if (mCols.length === 0) {
         await connection.query(`ALTER TABLE mangas ADD COLUMN tags VARCHAR(255) DEFAULT NULL`);
@@ -2959,14 +2966,15 @@ app.post("/api/animes", authenticateToken, async (req: any, res) => {
       tavsiya,
       is_banner,
       tags,
+      is_adult,
     } = req.body;
 
     let insertId = Date.now();
     try {
       const [result]: any = await dbQuery(
         `INSERT INTO animes 
-        (title, description, image_url, banner_url, rating, rating_count, holati, yil, studiyasi, qismlar_soni, korishlar, janrlar, video_url, tavsiya, is_banner, tags) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (title, description, image_url, banner_url, rating, rating_count, holati, yil, studiyasi, qismlar_soni, korishlar, janrlar, video_url, tavsiya, is_banner, tags, is_adult) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           title || "",
           description || "",
@@ -2984,6 +2992,7 @@ app.post("/api/animes", authenticateToken, async (req: any, res) => {
           tavsiya ? 1 : 0,
           is_banner ? 1 : 0,
           tags || "",
+          is_adult ? 1 : 0,
         ]
       );
       if (result && result.insertId) {
@@ -3011,7 +3020,8 @@ app.post("/api/animes", authenticateToken, async (req: any, res) => {
       video_url: video_url || "",
       tavsiya: Boolean(tavsiya),
       is_banner: Boolean(is_banner),
-      tags: tags || ""
+      tags: tags || "",
+      is_adult: Boolean(is_adult)
     };
     store.animes = store.animes || [];
     store.animes.unshift(newObj);
@@ -3047,6 +3057,7 @@ app.put("/api/animes/:id", authenticateToken, async (req: any, res) => {
       tavsiya,
       is_banner,
       tags,
+      is_adult,
     } = req.body;
 
     // Fetch existing record to prevent overwriting missing values like korishlar or rating
@@ -3086,12 +3097,13 @@ app.put("/api/animes/:id", authenticateToken, async (req: any, res) => {
     const finalTavsiya = tavsiya !== undefined ? (tavsiya ? 1 : 0) : (existing?.tavsiya ? 1 : 0);
     const finalIsBanner = is_banner !== undefined ? (is_banner ? 1 : 0) : (existing?.is_banner ? 1 : 0);
     const finalTags = tags !== undefined ? tags : (existing?.tags || "");
+    const finalIsAdult = is_adult !== undefined ? (is_adult ? 1 : 0) : (existing?.is_adult ? 1 : 0);
 
     try {
       await dbQuery(
         `UPDATE animes SET 
         title = ?, description = ?, image_url = ?, banner_url = ?, rating = ?, rating_count = ?, 
-        holati = ?, yil = ?, studiyasi = ?, qismlar_soni = ?, korishlar = ?, janrlar = ?, video_url = ?, tavsiya = ?, is_banner = ?, tags = ? 
+        holati = ?, yil = ?, studiyasi = ?, qismlar_soni = ?, korishlar = ?, janrlar = ?, video_url = ?, tavsiya = ?, is_banner = ?, tags = ?, is_adult = ? 
         WHERE id = ?`,
         [
           finalTitle,
@@ -3110,6 +3122,7 @@ app.put("/api/animes/:id", authenticateToken, async (req: any, res) => {
           finalTavsiya,
           finalIsBanner,
           finalTags,
+          finalIsAdult,
           id,
         ]
       );
@@ -3137,7 +3150,8 @@ app.put("/api/animes/:id", authenticateToken, async (req: any, res) => {
       video_url: finalVideoUrl,
       tavsiya: Boolean(finalTavsiya),
       is_banner: Boolean(finalIsBanner),
-      tags: finalTags
+      tags: finalTags,
+      is_adult: Boolean(finalIsAdult)
     };
 
     if (idx >= 0) {

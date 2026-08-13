@@ -5,6 +5,7 @@ import { Anime, Comment, translateGenre, toSlug } from '../types';
 import { Star, MessageSquare, Send, Clock, Play, Plus, Calendar, Building, ListOrdered, Share2, Heart, Flag, PlayCircle, Eye, Shield, Moon, Sun, Trash2, Trophy, X, ThumbsUp, ThumbsDown, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import VideoPlayer from '../components/VideoPlayer';
+import AgeGate from '../components/AgeGate';
 import AdBanner728x90 from '../components/AdBanner728x90';
 import NativeBannerAd from '../components/NativeBannerAd';
 
@@ -32,6 +33,9 @@ export default function AnimeDetails() {
   const [similarAnimes, setSimilarAnimes] = useState<Anime[]>([]);
   const [replyingCommentId, setReplyingCommentId] = useState<number | null>(null);
   const [replyText, setReplyText] = useState<{ [key: number]: string }>({});
+  const [adultConfirmed, setAdultConfirmed] = useState(
+    () => localStorage.getItem('animem_18plus_ok') === '1'
+  );
 
   const fetchRatingSummary = async (animeId: number) => {
     try {
@@ -461,6 +465,20 @@ export default function AnimeDetails() {
       <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(139,92,246,0.5)]" />
     </div>
   );
+
+  if (anime.is_adult && !adultConfirmed) {
+    return (
+      <AgeGate
+        title={anime.title}
+        poster={anime.image_url}
+        onConfirm={() => {
+          localStorage.setItem('animem_18plus_ok', '1');
+          setAdultConfirmed(true);
+        }}
+        onBack={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+      />
+    );
+  }
 
   const genres = anime.janrlar ? anime.janrlar.split(',').map(g => g.trim()) : [];
   const episodesCount = anime.qismlar_soni || 1;

@@ -37,6 +37,7 @@ export interface Anime {
   video_url: string;
   tavsiya: boolean;
   is_banner?: boolean | number;
+  is_adult?: boolean | number;
   korishlar?: number;
   created_at: string;
 }
