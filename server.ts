@@ -3884,8 +3884,8 @@ app.post("/api/donate/create-invoice", async (req, res) => {
       return res.status(400).json({ error: "Xato to'lov miqdori kiritildi (kamida 1,000 UZS)" });
     }
 
-    const apiKey = process.env.TEZCHECK_API_KEY || "1e6168537400f49a9a17ef2b91ce4eeb9e63185e";
-    const shopId = process.env.TEZCHECK_SHOP_ID || "86";
+    const apiKey = process.env.TEZCHECK_API_KEY || "8237d3501a36506d3271f7918fe9bee985f300ed";
+    const shopId = process.env.TEZCHECK_SHOP_ID || "118";
 
     let payUrl = "";
     let orderId = `86${Math.floor(1000 + Math.random() * 9000)}`;
@@ -3962,7 +3962,7 @@ app.post("/api/donate/check-status", async (req, res) => {
       return res.status(400).json({ error: "order_id ko'rsatilmadi" });
     }
 
-    const apiKey = process.env.TEZCHECK_API_KEY || "1e6168537400f49a9a17ef2b91ce4eeb9e63185e";
+    const apiKey = process.env.TEZCHECK_API_KEY || "8237d3501a36506d3271f7918fe9bee985f300ed";
     let status = "pending";
     let paymentData: any = null;
 
