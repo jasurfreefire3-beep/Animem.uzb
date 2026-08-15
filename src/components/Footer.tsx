@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Instagram, ShieldCheck, FileText, Copyright, Mail, Tv, BookOpen, Flame, Calendar } from 'lucide-react';
+import { Instagram, Youtube, ShieldCheck, FileText, Copyright, Mail, Tv, BookOpen, Flame, Calendar } from 'lucide-react';
 import AdBanner728x90 from './AdBanner728x90';
 import { TikTokIcon } from './SocialIcons';
 
@@ -39,6 +39,7 @@ export default function Footer() {
             <p className="text-xs text-white/50 leading-relaxed">
               O'zbekistondagi eng yirik va zamonaviy onlayn anime hamda manga portali. Sevimli animelaringizni HD formatda bepul tomosha qiling va mangalarni o'zbek tilida o'qing.
             </p>
+
             {/* Badges */}
             <div className="flex items-center gap-2 pt-1">
               <span className="px-2 py-0.5 bg-[#ff006a]/15 text-[#ff006a] border border-[#ff006a]/30 font-bold text-[10px] rounded">
@@ -116,8 +117,14 @@ export default function Footer() {
             <h3 className="text-xs font-bold text-white uppercase tracking-wider border-b border-[#222] pb-2">
               Ijtimoiy Tarmoqlar
             </h3>
-            <p className="text-xs text-white/50">Yangi fasllar va premeyralardan xabardor bo'lish uchun obuna bo'ling:</p>
+
+            <p className="text-xs text-white/50">
+              Yangi fasllar va premeyralardan xabardor bo'lish uchun obuna bo'ling:
+            </p>
+
             <div className="flex flex-col gap-2 pt-1">
+
+              {/* Telegram */}
               <a
                 href="https://t.me/animem_uz2"
                 target="_blank"
@@ -126,6 +133,8 @@ export default function Footer() {
               >
                 <TelegramIcon className="w-4 h-4 text-[#0088cc]" /> Telegram Kanal
               </a>
+
+              {/* Instagram */}
               <a
                 href="https://www.instagram.com/animem.uz_"
                 target="_blank"
@@ -134,6 +143,8 @@ export default function Footer() {
               >
                 <Instagram size={15} /> Instagram Sahifa
               </a>
+
+              {/* Facebook */}
               <a
                 href="https://www.facebook.com/animem.uz1"
                 target="_blank"
@@ -142,6 +153,8 @@ export default function Footer() {
               >
                 <FacebookIcon className="w-4 h-4 text-[#1877F2]" /> Facebook Sahifa
               </a>
+
+              {/* TikTok */}
               <a
                 href="https://www.tiktok.com/@animem.uz"
                 target="_blank"
@@ -150,6 +163,17 @@ export default function Footer() {
               >
                 <TikTokIcon size={16} className="w-4 h-4" /> TikTok Sahifa
               </a>
+
+              {/* YouTube */}
+              <a
+                href="https://www.youtube.com/@animem_uz_org"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 text-xs font-bold px-3 py-2 bg-[#FF0000]/10 border border-[#FF0000]/30 text-[#FF0000] hover:bg-[#FF0000]/20 rounded transition-colors"
+              >
+                <Youtube size={16} /> YouTube Kanal
+              </a>
+
             </div>
           </div>
         </div>
@@ -159,14 +183,23 @@ export default function Footer() {
           <div>
             © 2026 Animem.uz. Barcha huquqlar himoyalangan. Materiallardan nusxa ko'chirishda faol havola ko'rsatilishi shart.
           </div>
+
           <div className="flex items-center gap-4">
-            <Link to="/maxfiylik-siyosati" className="hover:text-white transition-colors">Privacy</Link>
+            <Link to="/maxfiylik-siyosati" className="hover:text-white transition-colors">
+              Privacy
+            </Link>
             <span>•</span>
-            <Link to="/foydalanish-shartlari" className="hover:text-white transition-colors">Terms</Link>
+            <Link to="/foydalanish-shartlari" className="hover:text-white transition-colors">
+              Terms
+            </Link>
             <span>•</span>
-            <Link to="/mualliflik-huquqi" className="hover:text-white transition-colors">DMCA</Link>
+            <Link to="/mualliflik-huquqi" className="hover:text-white transition-colors">
+              DMCA
+            </Link>
             <span>•</span>
-            <Link to="/aloqa" className="hover:text-white transition-colors">Contacts</Link>
+            <Link to="/aloqa" className="hover:text-white transition-colors">
+              Contacts
+            </Link>
           </div>
         </div>
       </div>
